@@ -27,6 +27,12 @@
 - **공통 컴포넌트**: 재사용 가능한 UI 요소 분리
 - **색상 테마**: 체계적인 색상 팔레트 정의
 
+### Day 4 (2026-01-15) - React 프로젝트 구조 및 Hooks 심화
+
+- **폴더 구조**: components, layouts, hooks, pages 분리
+- **React Router**: URL 라우팅 설정 (/login, /signup 등)
+- **커스텀 훅**: useSignupForm, useDebounce 구현
+
 ---
 
 ## 📝 상세 학습 내용
@@ -34,3 +40,4 @@
 - [Day 1: useReducer, 최적화, Context](./01_TIL.md)
 - [Day 2: Figma 학습](./02_TIL.md)
 - [Day 3: Stitch & Figma 연동](./03_TIL.md)
+- [Day 4: React 프로젝트 구조 및 Custom Hook](./04_TIL.md)
