@@ -1,36 +1,36 @@
 package kr.draftgo.Draft_Go_BE.match.service;
 
+import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import kr.draftgo.Draft_Go_BE.match.dto.RiotResponseDTO;
+import kr.draftgo.Draft_Go_BE.match.repository.MatchRepository;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.ArrayList;
+import java.time.Duration;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.Comparator;
-import jakarta.annotation.PostConstruct;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
 @ConditionalOnProperty(name = "riot.api.mode", havingValue = "REAL")
 public class RealRiotApiService implements RiotApiService {
 
-        @Value("${riot.api.key}")
-        private String apiKey;
-
+        private final String apiKey;
         private final WebClient webClient;
+        private final MatchRepository matchRepository;
         private Map<Long, String> championIdMap = Collections.emptyMap();
 
-        public RealRiotApiService() {
+        public RealRiotApiService(@Value("${riot.api.key}") String apiKey, MatchRepository matchRepository) {
+                this.apiKey = apiKey;
+                this.matchRepository = matchRepository;
                 this.webClient = WebClient.create();
         }
 
@@ -59,8 +59,7 @@ public class RealRiotApiService implements RiotApiService {
                                                                 new RuntimeException("PUUID is null in Account Data"));
                                         }
 
-                                        // Parallel: Get Summoner & Matches & League (by PUUID)
-                                        // Added onErrorResume to prevent entire failure if one part fails
+                                        // Parallel execution
                                         Mono<Map<String, Object>> summonerMono = getSummonerWithFallback(puuid)
                                                         .onErrorResume(e -> {
                                                                 log.error("Summoner fetch failed", e);
@@ -73,7 +72,8 @@ public class RealRiotApiService implements RiotApiService {
                                                                 return Mono.just(Collections.emptyList());
                                                         });
 
-                                        Mono<List<Map<String, Object>>> matchesMono = fetchRecentMatches(puuid)
+                                        // Match Cache Logic
+                                        Mono<List<Map<String, Object>>> matchesMono = fetchMatchesWithCache(puuid)
                                                         .onErrorResume(e -> {
                                                                 log.error("Match fetch failed", e);
                                                                 return Mono.just(Collections.emptyList());
@@ -92,26 +92,108 @@ public class RealRiotApiService implements RiotApiService {
                                                                 List<Map<String, Object>> matchData = tuple.getT3();
                                                                 Map<String, Object> leagueData = tuple.getT4();
 
-                                                                log.info("DEBUG: Summoner Data: {}", summonerData);
-                                                                log.info("DEBUG: League Data: {}", leagueData);
-                                                                log.info("DEBUG: Match Data Size: {}",
-                                                                                matchData.size());
-
                                                                 return Mono.just(buildResponse(name, tag, puuid,
-                                                                                summonerData,
-                                                                                leagueData,
-                                                                                masteryData,
+                                                                                summonerData, leagueData, masteryData,
                                                                                 matchData));
                                                         });
+                                });
+        }
+
+        // --- Caching Logic ---
+
+        public Mono<String> seedMatches(String gameName, String tagLine) {
+                return getAccount(gameName, tagLine)
+                                .flatMap(account -> {
+                                        String puuid = (String) account.get("puuid");
+                                        long startEpoch = 1767807600L; // 2026-01-08
+
+                                        return fetchAllMatchIds(puuid, startEpoch, 0, new ArrayList<>())
+                                                        .flatMap(ids -> {
+                                                                log.info("Seeding TOTAL {} matches for {}", ids.size(),
+                                                                                gameName);
+                                                                return Flux.fromIterable(ids)
+                                                                                .delayElements(Duration.ofMillis(200)) // Rate
+                                                                                                                       // limit
+                                                                                                                       // safety
+                                                                                .flatMap(this::fetchAndSaveMatch)
+                                                                                .then(Mono.just("Seeded " + ids.size()
+                                                                                                + " matches."));
+                                                        });
+                                });
+        }
+
+        public Mono<Long> countMatches() {
+                return matchRepository.count();
+        }
+
+        private Mono<List<String>> fetchAllMatchIds(String puuid, long startTime, int start, List<String> accumulator) {
+                int count = 40; // Max batch size as requested
+                return webClient.get()
+                                .uri(uriBuilder -> uriBuilder
+                                                .scheme("https")
+                                                .host("asia.api.riotgames.com")
+                                                .path("/lol/match/v5/matches/by-puuid/{puuid}/ids")
+                                                .queryParam("startTime", startTime)
+                                                .queryParam("start", start)
+                                                .queryParam("count", count)
+                                                .build(puuid))
+                                .header("X-Riot-Token", apiKey)
+                                .retrieve()
+                                .bodyToMono(new ParameterizedTypeReference<List<String>>() {
                                 })
-                                .doOnError(e -> {
-                                        if (e instanceof WebClientResponseException) {
-                                                WebClientResponseException ex = (WebClientResponseException) e;
-                                                log.error("Riot API Error: {} - Body: {}", ex.getStatusCode(),
-                                                                ex.getResponseBodyAsString());
+                                .flatMap(ids -> {
+                                        accumulator.addAll(ids);
+                                        if (ids.size() < count) {
+                                                // End of list (less than requested returned means we ran out)
+                                                return Mono.just(accumulator);
                                         } else {
-                                                log.error("Unknown Error during Riot API call", e);
+                                                // Fetch next page
+                                                return fetchAllMatchIds(puuid, startTime, start + count, accumulator);
                                         }
+                                });
+        }
+
+        private Mono<List<Map<String, Object>>> fetchMatchesWithCache(String puuid) {
+                return webClient.get()
+                                .uri("https://asia.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count=20",
+                                                puuid)
+                                .header("X-Riot-Token", apiKey)
+                                .retrieve()
+                                .bodyToMono(new ParameterizedTypeReference<List<String>>() {
+                                })
+                                .flatMapMany(Flux::fromIterable)
+                                .flatMap(matchId -> matchRepository.findById(matchId)
+                                                .map(MatchDocument::getData) // Found in DB
+                                                .switchIfEmpty(fetchAndSaveMatch(matchId).map(MatchDocument::getData)) // Fetch
+                                                                                                                       // &
+                                                                                                                       // Save
+                                )
+                                .collectList();
+        }
+
+        private Mono<MatchDocument> fetchAndSaveMatch(String matchId) {
+                return webClient.get()
+                                .uri("https://asia.api.riotgames.com/lol/match/v5/matches/{matchId}", matchId)
+                                .header("X-Riot-Token", apiKey)
+                                .retrieve()
+                                .bodyToMono(Map.class)
+                                .flatMap(data -> {
+                                        Map<String, Object> info = (Map<String, Object>) data.get("info");
+                                        long creation = ((Number) info.get("gameCreation")).longValue();
+                                        String mode = (String) info.get("gameMode");
+
+                                        MatchDocument doc = MatchDocument.builder()
+                                                        .matchId(matchId)
+                                                        .data((Map<String, Object>) data)
+                                                        .gameCreation(creation)
+                                                        .gameMode(mode)
+                                                        .build();
+
+                                        return matchRepository.save(doc);
+                                })
+                                .onErrorResume(e -> {
+                                        log.warn("Failed to fetch/save match {}", matchId);
+                                        return Mono.empty();
                                 });
         }
 
@@ -176,32 +258,6 @@ public class RealRiotApiService implements RiotApiService {
                                 .defaultIfEmpty(Collections.emptyMap());
         }
 
-        private Mono<List<Map<String, Object>>> fetchRecentMatches(String puuid) {
-                return webClient.get()
-                                .uri("https://asia.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count=20",
-                                                puuid)
-                                .header("X-Riot-Token", apiKey)
-                                .retrieve()
-                                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<List<String>>() {
-                                })
-                                .flatMapMany(Flux::fromIterable)
-                                .delayElements(java.time.Duration.ofMillis(100))
-                                .flatMap(matchId -> webClient.get()
-                                                .uri("https://asia.api.riotgames.com/lol/match/v5/matches/{matchId}",
-                                                                matchId)
-                                                .header("X-Riot-Token", apiKey)
-                                                .retrieve()
-                                                .bodyToMono(Map.class)
-                                                .map(map -> (Map<String, Object>) map)
-                                                .onErrorResume(e -> {
-                                                        log.warn("Failed to fetch match {}: {}", matchId,
-                                                                        e.getMessage());
-                                                        return Mono.empty();
-                                                }))
-                                .collectList();
-        }
-
-        // --- Data Dragon Integration ---
         private Mono<Map<Long, String>> fetchChampionData() {
                 return webClient.get()
                                 .uri("https://ddragon.leagueoflegends.com/cdn/14.2.1/data/en_US/champion.json")
@@ -219,8 +275,8 @@ public class RealRiotApiService implements RiotApiService {
 
         // --- DTO Builder ---
         private RiotResponseDTO buildResponse(String gameName, String tagLine, String puuid,
-                        Map<String, Object> summoner, Map<String, Object> league, List<Map<String, Object>> masteries,
-                        List<Map<String, Object>> matches) {
+                        Map<String, Object> summoner, Map<String, Object> league,
+                        List<Map<String, Object>> masteries, List<Map<String, Object>> matches) {
 
                 long level = 0;
                 int iconId = 0;
@@ -284,7 +340,7 @@ public class RealRiotApiService implements RiotApiService {
                         String myPuuid) {
                 int wins = 0;
                 int losses = 0;
-                java.util.Map<String, Integer> positionCounts = new java.util.HashMap<>();
+                Map<String, Integer> positionCounts = new HashMap<>();
 
                 for (Map<String, Object> match : matches) {
                         Map<String, Object> info = (Map<String, Object>) match.get("info");
@@ -307,7 +363,6 @@ public class RealRiotApiService implements RiotApiService {
                         }
                 }
 
-                // Find Main and Sub Positions
                 List<Map.Entry<String, Integer>> sortedPositions = new ArrayList<>(positionCounts.entrySet());
                 sortedPositions.sort(Map.Entry.comparingByValue(Comparator.reverseOrder()));
 
