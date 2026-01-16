@@ -4,19 +4,23 @@
   /* --- 색상 (추출된 참조값) --- */
 
   /* 프라이머리 & 골드 */
-  --color-primary: #f4c025; /* 밝은 골드 */
+  --color-primary: #c89b3c; /* 메인 골드 */
+  --color-primary-bright: #f0e6d2; /* 텍스트 강조 */
   --color-hextech-gold: #c89b3c; /* 어두운 골드 */
+  --color-hextech-gold-dark: #a07a2b; /* 그라데이션용 어두운 골드 */
   --color-hextech-gold-bright: #f0e6d2; /* 텍스트 강조 */
 
   /* 헥스텍 블루 */
   --color-hextech-blue: #0ac8b9;
 
   /* 배경색 */
-  --color-background-dark: #010a13; /* 메인 배경 (페이지 3) */
+  --color-background-dark: #010a13; /* 메인 배경 */
   --color-background-light: #f8f8f5;
+  --color-header-bg: #010a13;
   --color-panel-dark: #221e10; /* 보조 배경 */
-  --color-card-dark: #091420; /* 카드 배경 */
+  --color-card-dark: #091428; /* 카드 배경 */
   --color-card-bg: #1e2328; /* 대체 카드 배경 */
+  --color-card-border: #1e282d;
   --color-chat-dark: #050c12; /* 채팅 배경 */
 
   /* 팀 색상 */
@@ -70,6 +74,7 @@
   /* --- 폰트 (Google Fonts) --- */
   --font-display: "Space Grotesk", "Noto Sans KR", sans-serif;
   --font-body: "Noto Sans KR", "Space Grotesk", sans-serif;
+  --font-sans: "Noto Sans KR", sans-serif;
 }
 
 /* 전역 스타일 */
@@ -101,13 +106,52 @@ h6 {
       inset 0 0 15px rgba(200, 155, 60, 0.1);
   }
   .gold-gradient-text {
-    background: linear-gradient(to bottom, #f4c025, #c89b3c);
+    background: linear-gradient(to bottom, #f0e6d2, #c89b3c);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
-  /* 티어 스타일 */
+  /* Hero 섹션용 그라데이션 */
+  .hero-gradient {
+    background: linear-gradient(
+      180deg,
+      rgba(1, 10, 19, 0.3) 0%,
+      rgba(1, 10, 19, 0.95) 90%,
+      #010a13 100%
+    );
+  }
+
+  /* 헥스텍 글로우 보더 */
+  .hextech-border-glow {
+    box-shadow: 0 0 15px rgba(200, 155, 60, 0.1);
+    border: 1px solid rgba(200, 155, 60, 0.3);
+  }
+
+  /* 텍스트 글로우 */
+  .text-glow {
+    text-shadow: 0 0 10px rgba(200, 155, 60, 0.5);
+  }
+
+  /* 스크롤바 숨김 */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* 헥스텍 그라데이션 배경 */
+  .bg-hextech-gradient {
+    background: linear-gradient(135deg, #010a13 0%, #091428 100%);
+  }
+
+  /* 골드 버튼 그라데이션 */
+  .bg-gold-gradient {
+    background: linear-gradient(to bottom, #c89b3c, #a07a2b);
+  }
+
   /* 티어 스타일 (테두리 및 효과) */
   .tier-iron {
     border-left: 4px solid var(--color-tier-iron-bg);
@@ -143,7 +187,10 @@ h6 {
     box-shadow: 0 0 15px rgba(244, 192, 37, 0.4);
     border: 1px solid var(--color-tier-challenger-bg);
   }
+}
 
-  /* 배지 */
-  /* 배지 유틸리티 (필요 시 추가) */
+/* 선택 영역 스타일 */
+::selection {
+  background-color: var(--color-hextech-gold);
+  color: black;
 }
