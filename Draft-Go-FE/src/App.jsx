@@ -1,8 +1,10 @@
+import DesignSystemPreview from './components/pages/DesignSystemPreview'
 import "./App.css";
 
 function App() {
-
-  return <div>Hello Wolrd</div>
+  return (
+    <DesignSystemPreview />
+  )
 }
 
 export default App
