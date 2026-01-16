@@ -2,7 +2,6 @@ package kr.draftgo.Draft_Go_BE.match.repository;
 
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
-import reactor.core.publisher.Flux;
 
 public interface MatchRepository extends ReactiveMongoRepository<MatchDocument, String> {
     // Find matches where a specific participant PUUID exists inside the data

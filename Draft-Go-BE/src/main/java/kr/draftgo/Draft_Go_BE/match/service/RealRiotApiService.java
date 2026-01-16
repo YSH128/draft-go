@@ -3,6 +3,7 @@ package kr.draftgo.Draft_Go_BE.match.service;
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import kr.draftgo.Draft_Go_BE.match.dto.RiotResponseDTO;
 import kr.draftgo.Draft_Go_BE.match.repository.MatchRepository;
+import kr.draftgo.Draft_Go_BE.match.repository.SeasonRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,11 +26,14 @@ public class RealRiotApiService implements RiotApiService {
         private final String apiKey;
         private final WebClient webClient;
         private final MatchRepository matchRepository;
+        private final SeasonRepository seasonRepository;
         private Map<Long, String> championIdMap = Collections.emptyMap();
 
-        public RealRiotApiService(@Value("${riot.api.key}") String apiKey, MatchRepository matchRepository) {
+        public RealRiotApiService(@Value("${riot.api.key}") String apiKey, MatchRepository matchRepository,
+                        SeasonRepository seasonRepository) {
                 this.apiKey = apiKey;
                 this.matchRepository = matchRepository;
+                this.seasonRepository = seasonRepository;
                 this.webClient = WebClient.create();
         }
 
@@ -104,20 +108,21 @@ public class RealRiotApiService implements RiotApiService {
                 return getAccount(gameName, tagLine)
                                 .flatMap(account -> {
                                         String puuid = (String) account.get("puuid");
-                                        long startEpoch = 1767807600L; // 2026-01-08
 
-                                        return fetchAllMatchIds(puuid, startEpoch, 0, new ArrayList<>())
-                                                        .flatMap(ids -> {
-                                                                log.info("Seeding TOTAL {} matches for {}", ids.size(),
-                                                                                gameName);
-                                                                return Flux.fromIterable(ids)
-                                                                                .delayElements(Duration.ofMillis(200)) // Rate
-                                                                                                                       // limit
-                                                                                                                       // safety
+                                        // 1. Find active season first
+                                        return seasonRepository.findByIsActiveTrue()
+                                                .map(season -> season.getStartTime())
+                                                .defaultIfEmpty(1767807600L) // Fallback: Jan 8 2026 (or safely future date)
+                                                .flatMap(startEpoch -> {
+                                                        return fetchAllMatchIds(puuid, startEpoch, 0, new ArrayList<>())
+                                                                .flatMap(ids -> {
+                                                                        log.info("Seeding matches for {} since epoch {}. Found: {}", gameName, startEpoch, ids.size());
+                                                                        return Flux.fromIterable(ids)
+                                                                                .delayElements(Duration.ofMillis(200)) 
                                                                                 .flatMap(this::fetchAndSaveMatch)
-                                                                                .then(Mono.just("Seeded " + ids.size()
-                                                                                                + " matches."));
-                                                        });
+                                                                                .then(Mono.just("Seeded " + ids.size() + " matches."));
+                                                                });
+                                                });
                                 });
         }
 
