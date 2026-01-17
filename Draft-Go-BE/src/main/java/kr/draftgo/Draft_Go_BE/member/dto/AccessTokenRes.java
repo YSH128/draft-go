@@ -1,0 +1,14 @@
+package kr.draftgo.Draft_Go_BE.member.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class AccessTokenRes {
+    private String accessToken;
+}

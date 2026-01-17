@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # MongoDB - 데이터 유지됨 (volumes 설정)
+  mongodb:
+    image: mongo:7.0
+    container_name: draft-go-mongodb
+    environment:
+      MONGO_INITDB_DATABASE: draft-go-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - draft-go-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MySQL - 데이터 유지됨 (volumes 설정)
+  mysql:
+    image: mysql:8.0
+    container_name: draft-go-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: draft_go_db
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./src/main/resources/mysql_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    networks:
+      - draft-go-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - 데이터 유지됨 (volumes 설정)
+  redis:
+    image: redis:7.0
+    container_name: draft-go-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - draft-go-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  draft-go-network:
+    driver: bridge

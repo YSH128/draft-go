@@ -1,18 +1,21 @@
 CREATE TABLE `member` (
 	`id` BIGINT NOT NULL AUTO_INCREMENT,
-	`puuid` VARCHAR(100) NOT NULL UNIQUE,
-	`game_name` VARCHAR(16) NULL,
-	`tag_line` VARCHAR(5) NULL,
+    `username` VARCHAR(20) NOT NULL UNIQUE COMMENT '로그인 아이디',
+    `password` VARCHAR(100) NOT NULL COMMENT 'bcrypt 해시, 임시 비밀번호 가능',
+	`game_name` VARCHAR(16) NOT NULL COMMENT '라이엇 게임즈에서 제공하는 소환사 이름',
+	`tag_line` VARCHAR(5) NOT NULL COMMENT '라이엇 게임즈에서 제공하는 소환사 태그',
+
+    `puuid` VARCHAR(100) UNIQUE,
 	`main_position` VARCHAR(15) NULL,
 	`sub_position` VARCHAR(15) NULL,
 	`rank` VARCHAR(15) NULL,
 	`league_point` INT NULL,
 	`rank_win_rate` DECIMAL(5,2) NULL,
 	`lasted_win_rate` DECIMAL(5,2) NULL,
-    `password` VARCHAR(100) NOT NULL COMMENT 'bcrypt 해시, 임시 비밀번호 가능',
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    CONSTRAINT chk_username CHECK (username REGEXP '^[A-Za-z0-9]+$')
 );
 
 CREATE TABLE `draft` (
@@ -38,6 +41,14 @@ CREATE TABLE `draft_member` (
     CONSTRAINT `fk_dm_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
 );
 
+CREATE TABLE `team` (
+	`id` BIGINT NOT NULL AUTO_INCREMENT,
+	`team_name` VARCHAR(15) NOT NULL,
+	`draft_id` BIGINT NOT NULL,
+    PRIMARY KEY (`id`),
+    CONSTRAINT `fk_team_draft` FOREIGN KEY (`draft_id`) REFERENCES `draft` (`id`)
+);
+
 CREATE TABLE `teammate` (
 	`id` BIGINT NOT NULL AUTO_INCREMENT,
 	`team_id` BIGINT NOT NULL,
@@ -50,11 +61,4 @@ CREATE TABLE `teammate` (
     CONSTRAINT `fk_tm_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
 );
 
-CREATE TABLE `team` (
-	`id` BIGINT NOT NULL AUTO_INCREMENT,
-	`team_name` VARCHAR(15) NOT NULL,
-	`draft_id` BIGINT NOT NULL,
-    PRIMARY KEY (`id`),
-    CONSTRAINT `fk_team_draft` FOREIGN KEY (`draft_id`) REFERENCES `draft` (`id`)
-);
 
