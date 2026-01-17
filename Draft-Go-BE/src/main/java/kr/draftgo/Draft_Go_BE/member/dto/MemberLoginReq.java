@@ -1,0 +1,13 @@
+package kr.draftgo.Draft_Go_BE.member.dto;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class MemberLoginReq {
+    private String username;
+    private String password;
+}
