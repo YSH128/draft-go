@@ -3,7 +3,7 @@ package kr.draftgo.Draft_Go_BE.match.repository;
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 
-public interface MatchRepository extends ReactiveMongoRepository<MatchDocument, String> {
+public interface MatchRepository extends ReactiveMongoRepository<MatchDocument, String>, MatchRepositoryCustom {
     // Find matches where a specific participant PUUID exists inside the data
     // MongoDB Query: {"data.info.participants.puuid": "target_puuid"}
     // Note: This requires the raw data structure to be consistent.
