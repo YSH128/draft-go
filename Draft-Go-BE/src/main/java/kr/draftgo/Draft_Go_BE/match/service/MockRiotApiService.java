@@ -4,8 +4,10 @@ import kr.draftgo.Draft_Go_BE.match.dto.RiotResponseDTO;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
+import kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO; // Added import for MostChampionDTO
 
 @Service
 @ConditionalOnProperty(name = "riot.api.mode", havingValue = "MOCK", matchIfMissing = true)
@@ -92,5 +94,10 @@ public class MockRiotApiService implements RiotApiService {
                                 .build();
 
                 return Mono.just(response);
+        }
+
+        @Override
+        public Flux<MostChampionDTO> getMostChampions(String gameName, String tagLine, String seasonId, int limit) {
+                return Flux.empty();
         }
 }

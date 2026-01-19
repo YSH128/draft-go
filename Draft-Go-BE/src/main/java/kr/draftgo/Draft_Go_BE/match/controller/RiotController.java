@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import lombok.extern.slf4j.Slf4j;
@@ -28,5 +29,15 @@ public class RiotController {
     public Mono<RiotResponseDTO> searchPlayerApi(@RequestParam String gameName,
             @RequestParam String tagLine) {
         return riotApiService.searchPlayer(gameName, tagLine);
+    }
+
+    @GetMapping("/api/v1/search/most-champs")
+    public Flux<kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO> getMostChampions(
+            @RequestParam String gameName,
+            @RequestParam String tagLine,
+            @RequestParam(required = false) String seasonId,
+            @RequestParam(defaultValue = "10") int limit) {
+        // limit: Default 10 (or user requested 172)
+        return riotApiService.getMostChampions(gameName, tagLine, seasonId, limit);
     }
 }
