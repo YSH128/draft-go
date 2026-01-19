@@ -3,7 +3,7 @@ import {
   StatsSection,
   TournamentSection,
   CTASection,
-} from "../../components/sections";
+} from "./sections";
 
 export default function HomePage() {
   const handleCreateTournament = () => {

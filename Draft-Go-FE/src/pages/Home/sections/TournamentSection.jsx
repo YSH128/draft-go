@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Icon, FilterButton, FilterButtonGroup, TournamentCard } from "../UI";
+import { Icon, FilterButton, FilterButtonGroup, TournamentCard } from "../../../components/ui";
 
 const filters = [
   { id: "all", label: "전체 보기" },
@@ -68,15 +68,15 @@ export default function TournamentSection() {
   };
 
   return (
-    <section className="mt-32 px-6">
+    <section className="mt-16 px-4 sm:mt-24 sm:px-6 md:mt-32">
       {/* 헤더 */}
-      <div className="mb-10 flex flex-col justify-between gap-6 border-b border-primary/20 pb-8 md:flex-row md:items-end">
-        <div className="space-y-3">
-          <h2 className="flex items-center gap-4 text-4xl font-black text-white">
-            <Icon name="stadium" className="text-4xl text-primary" />
+      <div className="mb-6 flex flex-col justify-between gap-4 border-b border-primary/20 pb-6 sm:mb-10 sm:gap-6 sm:pb-8 md:flex-row md:items-end">
+        <div className="space-y-2 sm:space-y-3">
+          <h2 className="flex items-center gap-3 text-2xl font-black text-white sm:gap-4 sm:text-4xl">
+            <Icon name="stadium" className="text-2xl text-primary sm:text-4xl" />
             진행 중인 대회
           </h2>
-          <p className="text-lg text-slate-400">
+          <p className="text-sm text-slate-400 sm:text-lg">
             지금 바로 참여 가능한 전략 경매 방을 확인하세요.
           </p>
         </div>
@@ -94,7 +94,7 @@ export default function TournamentSection() {
       </div>
 
       {/* 카드 그리드 */}
-      <div className="grid grid-cols-1 gap-8 pb-10 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 pb-6 sm:grid-cols-2 sm:gap-6 sm:pb-10 lg:grid-cols-4 lg:gap-8">
         {tournaments.map((tournament) => (
           <TournamentCard
             key={tournament.id}

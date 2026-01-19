@@ -4,6 +4,7 @@ import HomePage from "../pages/Home";
 import LoginPage from "../pages/Login";
 import MyPage from "../pages/My";
 import { ROUTES } from "../constants/routes";
+import Index from "../pages/DesignSystemPreview/index.jsx";
 
 export default function AppRouter() {
   return (
@@ -12,6 +13,7 @@ export default function AppRouter() {
         <Route path={ROUTES.HOME} element={<HomePage />} />
         <Route path={ROUTES.LOGIN} element={<LoginPage />} />
         <Route path={ROUTES.MY} element={<MyPage />} />
+        <Route path={ROUTES.DESIGN_PREVIEW} element={<Index />} />
       </Route>
     </Routes>
   );

@@ -1,17 +1,17 @@
 import React from 'react';
-import Button from '../UI/Button';
-import TournamentCard from '../UI/TournamentCard';
-import Badge from '../UI/Badge';
-import Avatar from '../UI/Avatar';
-import ChatInput from '../UI/ChatInput';
-import ChatBubble from '../UI/ChatBubble';
-import TeamLeaderCard from '../UI/TeamLeaderCard';
-import DraftTeamLeaderCard from '../UI/DraftTeamLeaderCard'; // Renamed Import
-import DraftMemberCard from '../UI/DraftMemberCard'; // New Import
-import ActiveBidderCard from '../UI/ActiveBidderCard'; // New Import
-import SectionTitle from '../UI/SectionTitle';
+import Button from '../../components/ui/Button.jsx';
+import TournamentCard from '../../components/ui/TournamentCard.jsx';
+import Badge from '../../components/ui/Badge.jsx';
+import Avatar from '../../components/ui/Avatar.jsx';
+import ChatInput from '../../components/ui/ChatInput.jsx';
+import ChatBubble from '../../components/ui/ChatBubble.jsx';
+import TeamLeaderCard from '../../components/ui/TeamLeaderCard.jsx';
+import DraftTeamLeaderCard from '../../components/ui/DraftTeamLeaderCard.jsx';
+import DraftMemberCard from '../../components/ui/DraftMemberCard.jsx';
+import ActiveBidderCard from '../../components/ui/ActiveBidderCard.jsx';
+import SectionTitle from '../../components/ui/SectionTitle.jsx';
 
-export default function DesignSystemPreview() {
+export default function Index() {
   return (
     <div className="min-h-screen bg-background-dark p-8 space-y-12 text-white font-display">
       <header className="mb-12 border-b border-hextech-gold/30 pb-6">
