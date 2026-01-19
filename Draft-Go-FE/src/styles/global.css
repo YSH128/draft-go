@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+@theme {
+  /* --- 색상 (추출된 참조값) --- */
+
+  /* 프라이머리 & 골드 */
+  --color-primary: #c89b3c; /* 메인 골드 */
+  --color-primary-bright: #f0e6d2; /* 텍스트 강조 */
+  --color-hextech-gold: #c89b3c; /* 어두운 골드 */
+  --color-hextech-gold-dark: #a07a2b; /* 그라데이션용 어두운 골드 */
+  --color-hextech-gold-bright: #f0e6d2; /* 텍스트 강조 */
+
+  /* 헥스텍 블루 */
+  --color-hextech-blue: #0ac8b9;
+
+  /* 배경색 */
+  --color-background-dark: #010a13; /* 메인 배경 */
+  --color-background-light: #f8f8f5;
+  --color-header-bg: #010a13;
+  --color-panel-dark: #221e10; /* 보조 배경 */
+  --color-card-dark: #091428; /* 카드 배경 */
+  --color-card-bg: #1e2328; /* 대체 카드 배경 */
+  --color-card-border: #1e282d;
+  --color-chat-dark: #050c12; /* 채팅 배경 */
+
+  /* 팀 색상 */
+  --color-team-blue: #3b82f6;
+  --color-team-red: #ef4444;
+  --color-team-green: #22c55e;
+  --color-team-purple: #a855f7;
+
+  /* 티어 색상 (배지용) */
+  --color-tier-iron-bg: #544d50;
+  --color-tier-iron-text: #a19d9e;
+
+  --color-tier-bronze-bg: #8c523a;
+  --color-tier-bronze-text: #fcdba4;
+
+  --color-tier-silver-bg: #80989d;
+  --color-tier-silver-text: #ffffff;
+
+  --color-tier-gold-bg: #d4af37;
+  --color-tier-gold-text: #ffffff;
+
+  --color-tier-platinum-bg: #2a4f4f;
+  --color-tier-platinum-text: #25c2a0;
+
+  --color-tier-emerald-bg: #05452f;
+  --color-tier-emerald-text: #34d399;
+
+  --color-tier-diamond-bg: #3e4491;
+  --color-tier-diamond-text: #b6d0f6;
+
+  --color-tier-master-bg: #6c3a91;
+  --color-tier-master-text: #eebaff;
+
+  --color-tier-grandmaster-bg: #cb2d3e;
+  --color-tier-grandmaster-text: #ffd1d1;
+
+  --color-tier-challenger-bg: #f4c025;
+  --color-tier-challenger-text: #091428;
+
+  /* 매핑 */
+  --color-bg-main: var(--color-background-dark);
+  --color-bg-card: var(--color-card-dark);
+
+  /* 추가된 리팩토링 변수 */
+  --color-border-subtle: #3c3c3c;
+  --color-chat-me-bg: #2a261a;
+  --color-chat-other-border: #393528;
+  --color-text-muted-gold: #bab29c;
+  --color-text-body: #f0f0f0;
+
+  /* --- 폰트 (Google Fonts) --- */
+  --font-display: "Space Grotesk", "Noto Sans KR", sans-serif;
+  --font-body: "Noto Sans KR", "Space Grotesk", sans-serif;
+  --font-sans: "Noto Sans KR", sans-serif;
+}
+
+/* 전역 스타일 */
+body {
+  background-color: var(--color-bg-main);
+  color: #f0f0f0;
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+}
+
+/* 유틸리티 */
+@layer utilities {
+  .hextech-border {
+    border: 1px solid var(--color-hextech-gold);
+    box-shadow: inset 0 0 10px rgba(200, 155, 60, 0.2);
+  }
+  .reactive-border-gold {
+    border: 2px solid var(--color-hextech-gold);
+    box-shadow:
+      0 0 25px rgba(200, 155, 60, 0.4),
+      inset 0 0 15px rgba(200, 155, 60, 0.1);
+  }
+  .gold-gradient-text {
+    background: linear-gradient(to bottom, #f0e6d2, #c89b3c);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Hero 섹션용 그라데이션 */
+  .hero-gradient {
+    background: linear-gradient(
+      180deg,
+      rgba(1, 10, 19, 0.3) 0%,
+      rgba(1, 10, 19, 0.95) 90%,
+      #010a13 100%
+    );
+  }
+
+  /* 헥스텍 글로우 보더 */
+  .hextech-border-glow {
+    box-shadow: 0 0 15px rgba(200, 155, 60, 0.1);
+    border: 1px solid rgba(200, 155, 60, 0.3);
+  }
+
+  /* 텍스트 글로우 */
+  .text-glow {
+    text-shadow: 0 0 10px rgba(200, 155, 60, 0.5);
+  }
+
+  /* 스크롤바 숨김 */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* 헥스텍 그라데이션 배경 */
+  .bg-hextech-gradient {
+    background: linear-gradient(135deg, #010a13 0%, #091428 100%);
+  }
+
+  /* 골드 버튼 그라데이션 */
+  .bg-gold-gradient {
+    background: linear-gradient(to bottom, #c89b3c, #a07a2b);
+  }
+
+  /* 티어 스타일 (테두리 및 효과) */
+  .tier-iron {
+    border-left: 4px solid var(--color-tier-iron-bg);
+  }
+  .tier-bronze {
+    border-left: 4px solid var(--color-tier-bronze-bg);
+  }
+  .tier-silver {
+    border-left: 4px solid var(--color-tier-silver-bg);
+  }
+  .tier-gold {
+    border-left: 4px solid var(--color-tier-gold-bg);
+  }
+  .tier-platinum {
+    border-left: 4px solid var(--color-tier-platinum-text);
+  }
+  .tier-emerald {
+    border-left: 4px solid var(--color-tier-emerald-text);
+  }
+  .tier-diamond {
+    border-left: 4px solid var(--color-tier-diamond-bg);
+  }
+
+  .tier-master {
+    box-shadow: 0 0 15px rgba(108, 58, 145, 0.4);
+    border: 1px solid var(--color-tier-master-bg);
+  }
+  .tier-grandmaster {
+    box-shadow: 0 0 15px rgba(203, 45, 62, 0.4);
+    border: 1px solid var(--color-tier-grandmaster-bg);
+  }
+  .tier-challenger {
+    box-shadow: 0 0 15px rgba(244, 192, 37, 0.4);
+    border: 1px solid var(--color-tier-challenger-bg);
+  }
+}
+
+/* 선택 영역 스타일 */
+::selection {
+  background-color: var(--color-hextech-gold);
+  color: black;
+}
