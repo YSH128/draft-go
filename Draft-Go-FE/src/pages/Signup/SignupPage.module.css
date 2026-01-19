@@ -1,0 +1,59 @@
+/* ===== SignupPage Styles - Compact Version ===== */
+
+.container {
+  width: 100%;
+}
+
+/* 타이틀 - Compact */
+.title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #f0e6d2;
+  margin-bottom: 20px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* ===== 비밀번호 보안 레벨 바 - Compact ===== */
+/* 비밀번호 입력 섹션 래퍼 - 레이아웃 고정용 */
+/* 비밀번호 입력 섹션 래퍼 - 레이아웃 고정용 */
+.passwordSection {
+  position: relative;
+  width: 100%;
+}
+
+/* 보안 등급 텍스트 (Input 내부 helperText로 주입됨) */
+.strengthText {
+  font-size: 11px;
+  font-weight: 500; /* 600 -> 500 통일 */
+  /* letter-spacing 제거 */
+  line-height: 1.4; /* 라인 높이 통일 */
+  color: #6a6a6a;
+  transition: color 0.2s ease;
+}
+
+/* 보안 등급별 테두리 색상 및 텍스트 색상 */
+.level1 :global(input) {
+  border-color: #e84057 !important; /* Error Red */
+}
+.passwordSection:has(.level1) .strengthText {
+  color: #e84057;
+}
+
+/* Level 2 (Gold) - Border override removed */
+.passwordSection:has(.level2) .strengthText {
+  color: #f0c654;
+}
+
+/* Level 3 (Green) - Border override removed */
+.passwordSection:has(.level3) .strengthText {
+  color: #2ecc71;
+}
+
+
+
+/* 버튼 래퍼 - Compact */
+.buttonWrapper {
+  margin-top: 20px;
+}

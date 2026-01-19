@@ -1,0 +1,21 @@
+/* ===== LoginPage Styles - Compact ===== */
+
+.container {
+  width: 100%;
+}
+
+/* 타이틀 - Compact */
+.title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #f0e6d2;
+  margin-bottom: 20px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* 버튼 래퍼 - Compact */
+.buttonWrapper {
+  margin-top: 16px;
+}

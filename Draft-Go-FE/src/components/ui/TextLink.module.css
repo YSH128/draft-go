@@ -1,0 +1,45 @@
+/* ===== TextLink Component - Compact ===== */
+
+.link {
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+/* ===== Primary Variant (Gold) ===== */
+.primary {
+  color: #c8aa6e;
+}
+
+.primary:hover {
+  color: #f0c654;
+}
+
+/* ===== Muted Variant (Gray) ===== */
+.muted {
+  color: #9a9590;
+}
+
+.muted:hover {
+  color: #c8c4b8;
+}
+
+/* ===== Footer Container - Compact ===== */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 11px;
+  color: #6a6a6a;
+}
+
+/* ===== Separator ===== */
+.separator {
+  color: #3c3c41;
+  user-select: none;
+}
