@@ -12,6 +12,7 @@ import java.util.Collections;
 @RequiredArgsConstructor
 public class CustomUserDetails implements UserDetails {
 
+    @lombok.Getter
     private final Member member;
 
     @Override

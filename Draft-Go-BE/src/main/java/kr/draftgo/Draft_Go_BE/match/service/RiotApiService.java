@@ -1,7 +1,6 @@
 package kr.draftgo.Draft_Go_BE.match.service;
 
 import kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO;
-import kr.draftgo.Draft_Go_BE.match.dto.RiotResponseDTO;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -13,7 +12,20 @@ public interface RiotApiService {
      * @param tagLine  Riot ID Tag Line
      * @return Mono of RiotResponseDTO
      */
-    Mono<RiotResponseDTO> searchPlayer(String gameName, String tagLine);
 
-    Flux<MostChampionDTO> getMostChampions(String gameName, String tagLine, String seasonId, int limit);
+    /**
+     * Get PUUID by Game Name and Tag Line
+     */
+    Mono<String> getPuuid(String gameName, String tagLine);
+
+    Flux<MostChampionDTO> getMostChampions(String puuid, String seasonId, int limit);
+
+    /**
+     * Refresh matches for a specific member directly using their PUUID.
+     * Updates Member's last updated timestamp.
+     *
+     * @param member The member to refresh
+     * @return Mono<String> Result message
+     */
+    Mono<String> refreshMatches(kr.draftgo.Draft_Go_BE.member.domain.Member member);
 }
