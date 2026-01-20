@@ -61,8 +61,8 @@ public class Member {
 
     @Builder
     public Member(String username, String password, String gameName, String tagLine, String puuid,
-                  Position mainPosition, Position subPosition, Rank rank, Integer leaguePoint,
-                  BigDecimal rankWinRate, BigDecimal lastedWinRate) {
+            Position mainPosition, Position subPosition, Rank rank, Integer leaguePoint,
+            BigDecimal rankWinRate, BigDecimal lastedWinRate) {
         this.username = username;
         this.password = password;
         this.gameName = gameName;
@@ -90,6 +90,10 @@ public class Member {
         if (leaguePoint != null) {
             this.leaguePoint = leaguePoint;
         }
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void refreshUpdatedAt() {
         this.updatedAt = LocalDateTime.now();
     }
 }

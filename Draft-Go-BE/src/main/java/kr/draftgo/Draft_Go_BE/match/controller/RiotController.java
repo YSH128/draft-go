@@ -1,13 +1,11 @@
 package kr.draftgo.Draft_Go_BE.match.controller;
 
-import kr.draftgo.Draft_Go_BE.match.dto.RiotResponseDTO;
 import kr.draftgo.Draft_Go_BE.match.service.RiotApiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import lombok.extern.slf4j.Slf4j;
 import jakarta.annotation.PostConstruct;
@@ -18,26 +16,23 @@ import jakarta.annotation.PostConstruct;
 public class RiotController {
 
     private final RiotApiService riotApiService;
+    private final kr.draftgo.Draft_Go_BE.member.repository.MemberRepository memberRepository;
 
     @PostConstruct
     public void init() {
         log.info("RiotController initialized with service: {}", riotApiService.getClass().getName());
     }
 
-    // API: JSON Response (As per API Spec)
-    @GetMapping("/api/v1/search/player")
-    public Mono<RiotResponseDTO> searchPlayerApi(@RequestParam String gameName,
-            @RequestParam String tagLine) {
-        return riotApiService.searchPlayer(gameName, tagLine);
-    }
-
     @GetMapping("/api/v1/search/most-champs")
     public Flux<kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO> getMostChampions(
-            @RequestParam String gameName,
-            @RequestParam String tagLine,
+            @RequestParam Long memberId,
             @RequestParam(required = false) String seasonId,
             @RequestParam(defaultValue = "10") int limit) {
-        // limit: Default 10 (or user requested 172)
-        return riotApiService.getMostChampions(gameName, tagLine, seasonId, limit);
+
+        return reactor.core.publisher.Mono.justOrEmpty(memberRepository.findById(memberId))
+                .switchIfEmpty(
+                        reactor.core.publisher.Mono.error(new IllegalArgumentException("존재하지 않는 회원입니다.")))
+                .map(member -> member.getPuuid())
+                .flatMapMany(puuid -> riotApiService.getMostChampions(puuid, seasonId, limit));
     }
 }

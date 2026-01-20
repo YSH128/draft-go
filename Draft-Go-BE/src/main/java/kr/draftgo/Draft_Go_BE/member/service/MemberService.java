@@ -27,6 +27,8 @@ public class MemberService {
     private final JwtUtil jwtUtil;
     private final StringRedisTemplate redisTemplate;
 
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     @Transactional
     public void signup(MemberSignupReq req) {
         if (memberRepository.findByUsername(req.getUsername()).isPresent()) {
@@ -60,11 +62,16 @@ public class MemberService {
         String accessToken = jwtUtil.createAccessToken(req.getUsername());
         String refreshToken = jwtUtil.createRefreshToken(req.getUsername());
 
-        // Refresh Token Redis 저장 (예: 7일)
+        // Redis 저장
         redisTemplate.opsForValue().set(
                 "RT:" + req.getUsername(),
                 refreshToken,
                 Duration.ofDays(7));
+
+        // 백그라운드 전적 갱신 이벤트 발행 (로그인 시)
+        Member member = memberRepository.findByUsername(req.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+        eventPublisher.publishEvent(new kr.draftgo.Draft_Go_BE.member.event.MemberLoginEvent(member));
 
         return TokenRes.builder()
                 .accessToken(accessToken)

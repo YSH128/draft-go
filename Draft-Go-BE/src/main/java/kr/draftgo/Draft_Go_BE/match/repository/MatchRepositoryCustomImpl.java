@@ -7,7 +7,9 @@ import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
 
+import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 import org.springframework.data.mongodb.core.aggregation.ConditionalOperators;
@@ -75,5 +77,16 @@ public class MatchRepositoryCustomImpl implements MatchRepositoryCustom {
 
                                         return dto;
                                 });
+        }
+
+        @Override
+        public Mono<MatchDocument> findLatestMatchByPuuid(String puuid) {
+                // Find the latest match where the participant list contains the PUUID
+                return mongoTemplate.findOne(
+                                org.springframework.data.mongodb.core.query.Query.query(
+                                                Criteria.where("data.metadata.participants").is(puuid))
+                                                .with(Sort.by(Sort.Direction.DESC, "gameCreation"))
+                                                .limit(1),
+                                MatchDocument.class, "matches");
         }
 }
