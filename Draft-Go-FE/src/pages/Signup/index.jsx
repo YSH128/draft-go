@@ -7,38 +7,7 @@ import SectionDivider from "../../components/ui/SectionDivider";
 import TextLink, { FooterLinks } from "../../components/ui/TextLink";
 
 import useSignupForm from "../../hooks/useSignupForm";
-
-// Position Icons
-import topIcon from "../../assets/positions/top.svg";
-import jungleIcon from "../../assets/positions/jungle.svg";
-import midIcon from "../../assets/positions/mid.svg";
-import botIcon from "../../assets/positions/bot.png";
-import supIcon from "../../assets/positions/sup.svg";
-
-// 비밀번호 강도별 스타일 매핑
-
-
-const POSITIONS = [
-  { id: "TOP", icon: topIcon, label: "TOP" },
-  { id: "JUNGLE", icon: jungleIcon, label: "JUNGLE" },
-  { id: "MID", icon: midIcon, label: "MID" },
-  { id: "BOT", icon: botIcon, label: "BOT" },
-  { id: "SUP", icon: supIcon, label: "SUP" },
-];
-
-const TIERS = [
-  { value: "UNRANKED", label: "언랭" },
-  { value: "IRON", label: "아이언" },
-  { value: "BRONZE", label: "브론즈" },
-  { value: "SILVER", label: "실버" },
-  { value: "GOLD", label: "골드" },
-  { value: "PLATINUM", label: "플래티넘" },
-  { value: "EMERALD", label: "에메랄드" },
-  { value: "DIAMOND", label: "다이아" },
-  { value: "MASTER", label: "마스터" },
-  { value: "GRANDMASTER", label: "그랜드마스터" },
-  { value: "CHALLENGER", label: "챌린저" },
-];
+import { POSITIONS, TIERS, STANDARD_TIERS } from "../../constants/riot";
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -80,17 +49,7 @@ const SignupPage = () => {
       // API Schema Mapping
       // Rank Transformation: Tier + Division (e.g., GOLD_4)
       let rankValue = tier;
-      const standardTiers = [
-        "IRON",
-        "BRONZE",
-        "SILVER",
-        "GOLD",
-        "PLATINUM",
-        "EMERALD",
-        "DIAMOND",
-      ];
-
-      if (standardTiers.includes(tier)) {
+      if (STANDARD_TIERS.includes(tier)) {
         rankValue = `${tier}_${division}`;
       }
 
@@ -378,15 +337,7 @@ const SignupPage = () => {
                 </div>
               </div>
 
-              {[
-                "IRON",
-                "BRONZE",
-                "SILVER",
-                "GOLD",
-                "PLATINUM",
-                "EMERALD",
-                "DIAMOND",
-              ].includes(tier) && (
+              {STANDARD_TIERS.includes(tier) && (
                 <div className="flex-1 relative">
                   <select
                     value={division}

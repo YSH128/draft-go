@@ -4,10 +4,7 @@ import { login } from "../../api/auth";
 import AuthInput from "../../components/ui/AuthInput";
 import AuthButton from "../../components/ui/AuthButton";
 import SectionDivider from "../../components/ui/SectionDivider";
-import TextLink, {
-  FooterLinks,
-  LinkSeparator,
-} from "../../components/ui/TextLink";
+import TextLink, { FooterLinks } from "../../components/ui/TextLink";
 import riotIcon from "../../assets/riot-logo.png";
 import useAuthStore from "../../stores/useAuthStore";
 
@@ -95,10 +92,6 @@ const LoginPage = () => {
 
         {/* 링크 모음 */}
         <FooterLinks>
-          <TextLink to="/find" variant="muted">
-            아이디/비밀번호 찾기
-          </TextLink>
-          <LinkSeparator />
           <TextLink to="/signup" variant="muted">
             회원가입
           </TextLink>
