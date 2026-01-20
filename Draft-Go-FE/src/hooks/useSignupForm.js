@@ -17,24 +17,19 @@ const REGEX = {
 
 // [Why] 비밀번호 검증 로직을 함수로 분리하여 passwordStrength와 passwordValidation에서 재사용
 const validatePassword = (pw) => {
-  if (!pw) return { isValid: false, error: "", level: 0, type: "none", text: "" };
+  if (!pw) return { isValid: false, error: "" };
 
   if (pw.length < 8 || pw.length > 16) {
-    return { isValid: false, error: "8~16자", level: 1, type: "error", text: "8~16자" };
+    return { isValid: false, error: "8~16자" };
   }
   if (!REGEX.PASSWORD_ALLOWED.test(pw)) {
-    return { isValid: false, error: "사용 불가 문자 포함", level: 1, type: "error", text: "사용 불가 문자 포함" };
+    return { isValid: false, error: "사용 불가 문자 포함" };
   }
   if (!REGEX.PASSWORD_LETTER.test(pw) || !REGEX.PASSWORD_NUMBER.test(pw)) {
-    return { isValid: false, error: "영문+숫자 필수", level: 1, type: "error", text: "영문+숫자 필수" };
+    return { isValid: false, error: "영문+숫자 필수" };
   }
 
-  // 유효한 경우 강도 계산
-  const hasSpecial = REGEX.PASSWORD_SPECIAL.test(pw);
-  const level = hasSpecial ? 3 : 2;
-  const text = level === 3 ? "보안 매우 높음" : "보안 높음";
-
-  return { isValid: true, error: "", level, type: "success", text };
+  return { isValid: true, error: "" };
 };
 
 /**
@@ -70,11 +65,7 @@ const useSignupForm = () => {
     [formData.password]
   );
 
-  const passwordStrength = {
-    level: passwordResult.level,
-    type: passwordResult.type,
-    text: passwordResult.text,
-  };
+
 
   // ===== API: 중복 체크 =====
   const checkDuplicate = useCallback(async (field, value, extraValue = null) => {
@@ -276,7 +267,7 @@ const useSignupForm = () => {
 
   return {
     formData,
-    passwordStrength,
+    formData,
     errors,
     validFields,
     loadingFields,

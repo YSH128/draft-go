@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import styles from "./TextLink.module.css";
 
 /**
  * 텍스트 링크 컴포넌트
@@ -10,10 +9,18 @@ import styles from "./TextLink.module.css";
  * @param {string} className - 추가 클래스명
  */
 const TextLink = ({ to, variant = "primary", children, className = "" }) => {
+  const baseClasses =
+    "no-underline font-semibold text-[11px] cursor-pointer transition-all duration-200 relative";
+
+  const variants = {
+    primary: "text-[#c8aa6e] hover:text-[#f0c654]",
+    muted: "text-[#9a9590] hover:text-[#c8c4b8]",
+  };
+
   return (
     <Link
       to={to}
-      className={`${styles.link} ${styles[variant]} ${className}`}
+      className={`${baseClasses} ${variants[variant]} ${className}`}
     >
       {children}
     </Link>
@@ -25,7 +32,9 @@ const TextLink = ({ to, variant = "primary", children, className = "" }) => {
  */
 export const FooterLinks = ({ children, className = "" }) => {
   return (
-    <div className={`${styles.footer} ${className}`}>
+    <div
+      className={`flex items-center justify-center gap-[10px] mt-4 text-[11px] text-[#6a6a6a] ${className}`}
+    >
       {children}
     </div>
   );
@@ -35,7 +44,7 @@ export const FooterLinks = ({ children, className = "" }) => {
  * 구분자 (|) 컴포넌트
  */
 export const LinkSeparator = () => {
-  return <span className={styles.separator}>|</span>;
+  return <span className="text-[#3c3c41] select-none">|</span>;
 };
 
 export default TextLink;

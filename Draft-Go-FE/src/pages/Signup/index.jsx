@@ -10,24 +10,20 @@ import useSignupForm from "../../hooks/useSignupForm";
 
 // Position Icons
 import topIcon from "../../assets/positions/top.svg";
-import jglIcon from "../../assets/positions/jungle.svg";
+import jungleIcon from "../../assets/positions/jungle.svg";
 import midIcon from "../../assets/positions/mid.svg";
 import botIcon from "../../assets/positions/bot.webp";
-import sptIcon from "../../assets/positions/sup.svg";
+import supIcon from "../../assets/positions/sup.svg";
 
 // 비밀번호 강도별 스타일 매핑
-const strengthStyles = {
-  1: { border: "border-red-500", text: "text-red-500" },
-  2: { border: "border-[#f0c654]", text: "text-[#f0c654]" },
-  3: { border: "border-green-500", text: "text-green-500" },
-};
+
 
 const POSITIONS = [
   { id: "TOP", icon: topIcon, label: "TOP" },
-  { id: "JUNGLE", icon: jglIcon, label: "JUNGLE" },
+  { id: "JUNGLE", icon: jungleIcon, label: "JUNGLE" },
   { id: "MID", icon: midIcon, label: "MID" },
   { id: "BOT", icon: botIcon, label: "BOT" },
-  { id: "SUP", icon: sptIcon, label: "SUP" },
+  { id: "SUP", icon: supIcon, label: "SUP" },
 ];
 
 const TIERS = [
@@ -56,7 +52,6 @@ const SignupPage = () => {
 
   const {
     formData,
-    passwordStrength,
     errors,
     loadingFields,
     duplicateErrors,
@@ -118,7 +113,7 @@ const SignupPage = () => {
     }
   };
 
-  const currentStrengthStyle = strengthStyles[passwordStrength.level] || {};
+
 
   return (
     <div className="flex min-h-screen justify-center bg-gray-950 px-4 pt-16 pb-16">
@@ -154,17 +149,9 @@ const SignupPage = () => {
                 maxLength={16}
                 value={formData.password}
                 onChange={handlePasswordChange}
-                isError={!!errors.password || passwordStrength.type === "error"}
+                isError={!!errors.password}
                 isValid={validFields.password && formData.password.length > 0}
-                hideErrorIcon
-                className={
-                  passwordStrength.level > 0 ? currentStrengthStyle.border : ""
-                }
-                error={
-                  passwordStrength.type === "error"
-                    ? passwordStrength.text
-                    : errors.password
-                }
+                error={errors.password}
               />
             </div>
             <div className="flex-1">

@@ -9,9 +9,11 @@ import TextLink, {
   LinkSeparator,
 } from "../../components/ui/TextLink";
 import riotIcon from "../../assets/riot-logo.png";
+import useAuthStore from "../../stores/useAuthStore";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const loginAction = useAuthStore((state) => state.login);
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -22,7 +24,8 @@ const LoginPage = () => {
     if (error) setError("");
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!formData.username || !formData.password) {
       setError("아이디와 비밀번호를 입력해주세요.");
       return;
@@ -33,7 +36,7 @@ const LoginPage = () => {
 
     try {
       const response = await login(formData);
-      localStorage.setItem("accessToken", response.accessToken);
+      loginAction(response.accessToken); // Zustand Action 호출
       navigate("/");
     } catch (err) {
       const serverMessage =
@@ -60,33 +63,35 @@ const LoginPage = () => {
           </p>
         )}
 
-        {/* 아이디 */}
-        <AuthInput
-          id="username"
-          label="아이디"
-          value={formData.username}
-          onChange={handleChange}
-        />
+        <form onSubmit={handleSubmit}>
+          {/* 아이디 */}
+          <AuthInput
+            id="username"
+            label="아이디"
+            value={formData.username}
+            onChange={handleChange}
+          />
 
-        {/* 비밀번호 */}
-        <AuthInput
-          type="password"
-          id="password"
-          label="비밀번호"
-          value={formData.password}
-          onChange={handleChange}
-        />
+          {/* 비밀번호 */}
+          <AuthInput
+            type="password"
+            id="password"
+            label="비밀번호"
+            value={formData.password}
+            onChange={handleChange}
+          />
 
-        {/* 로그인 버튼 */}
-        <div className="mt-5">
-          <AuthButton
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={isLoading}
-          >
-            {isLoading ? "로그인 중..." : "로그인"}
-          </AuthButton>
-        </div>
+          {/* 로그인 버튼 */}
+          <div className="mt-5">
+            <AuthButton
+              variant="primary"
+              type="submit"
+              disabled={isLoading}
+            >
+              {isLoading ? "로그인 중..." : "로그인"}
+            </AuthButton>
+          </div>
+        </form>
 
         {/* 링크 모음 */}
         <FooterLinks>

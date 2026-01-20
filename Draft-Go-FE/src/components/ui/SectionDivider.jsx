@@ -1,5 +1,3 @@
-import styles from "./SectionDivider.module.css";
-
 /**
  * 섹션 구분 컴포넌트
  *
@@ -12,19 +10,23 @@ import styles from "./SectionDivider.module.css";
 const SectionDivider = ({ label, type = "center-line", className = "" }) => {
   if (type === "section-header") {
     return (
-      <div className={`${styles.sectionHeader} ${className}`}>
-        <span className={styles.sectionText}>{label}</span>
-        <div className={styles.sectionLine} />
+      <div className={`mb-3 mt-4 first:mt-0 ${className}`}>
+        <span className="inline-block text-[10px] font-bold text-[#c8aa6e] uppercase tracking-[1px] mb-[6px]">
+          {label}
+        </span>
+        <div className="h-[1px] bg-[linear-gradient(90deg,#c8aa6e_0%,#785a28_30%,#3c3c41_60%,transparent_100%)]" />
       </div>
     );
   }
 
   // center-line (기본값)
   return (
-    <div className={`${styles.centerLine} ${className}`}>
-      <div className={styles.line} />
-      <span className={styles.centerText}>{label}</span>
-      <div className={styles.line} />
+    <div className={`flex items-center gap-3 my-4 ${className}`}>
+      <div className="flex-1 h-[1px] bg-[linear-gradient(90deg,transparent_0%,#3c3c41_50%,transparent_100%)]" />
+      <span className="text-[10px] font-medium text-[#5c5b57] uppercase tracking-[0.5px] whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-[1px] bg-[linear-gradient(90deg,transparent_0%,#3c3c41_50%,transparent_100%)]" />
     </div>
   );
 };
