@@ -1,5 +1,6 @@
 package kr.draftgo.Draft_Go_BE.member.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -8,6 +9,9 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class MemberLoginReq {
+    @NotBlank(message = "사용자명은 필수입니다.")
     private String username;
+
+    @NotBlank(message = "비밀번호는 필수입니다.")
     private String password;
 }

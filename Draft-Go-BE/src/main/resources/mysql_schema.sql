@@ -4,18 +4,30 @@ CREATE TABLE `member` (
     `password` VARCHAR(100) NOT NULL COMMENT 'bcrypt 해시, 임시 비밀번호 가능',
 	`game_name` VARCHAR(16) NOT NULL COMMENT '라이엇 게임즈에서 제공하는 소환사 이름',
 	`tag_line` VARCHAR(5) NOT NULL COMMENT '라이엇 게임즈에서 제공하는 소환사 태그',
-
     `puuid` VARCHAR(100) UNIQUE,
-	`main_position` VARCHAR(15) NULL,
-	`sub_position` VARCHAR(15) NULL,
-	`rank` VARCHAR(15) NULL,
-	`league_point` INT NULL,
-	`rank_win_rate` DECIMAL(5,2) NULL,
-	`lasted_win_rate` DECIMAL(5,2) NULL,
+	`main_position` VARCHAR(15) NULL COMMENT '사용자가 선택 가능한 포지션',
+	`sub_position` VARCHAR(15) NULL COMMENT '사용자가 선택 가능한 포지션',
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     CONSTRAINT chk_username CHECK (username REGEXP '^[A-Za-z0-9]+$')
+);
+
+CREATE TABLE `member_stat` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `member_id` BIGINT NOT NULL,
+    `rank` VARCHAR(15) NULL COMMENT 'MongoDB에서 복제된 랭크 정보',
+    `league_point` INT NULL COMMENT 'MongoDB에서 복제된 리그 포인트',
+    `rank_win_rate` DECIMAL(5, 2) NULL COMMENT 'MongoDB에서 복제된 랭크 승률',
+    `rank_wins` INT NULL COMMENT 'MongoDB에서 복제된 랭크 승수',
+    `rank_lose_rate` INT NULL COMMENT 'MongoDB에서 복제된 랭크 패배율',
+    `lasted_win_rate` DECIMAL(5, 2) NULL COMMENT 'MongoDB에서 복제된 최근 승률',
+    `lasted_wins` INT NULL COMMENT 'MongoDB에서 복제된 최근 승수',
+    `lasted_losses` INT NULL COMMENT 'MongoDB에서 복제된 최근 패배수',
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    CONSTRAINT `fk_ms_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
 );
 
 CREATE TABLE `draft` (

@@ -6,13 +6,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor
 @ToString(exclude = "password")
+@Table(name = "member")
 public class Member {
 
     @Id
@@ -42,18 +42,6 @@ public class Member {
     @Column(length = 15)
     private Position subPosition;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "`rank`", length = 15)
-    private Rank rank;
-
-    private Integer leaguePoint;
-
-    @Column(precision = 5, scale = 2)
-    private BigDecimal rankWinRate;
-
-    @Column(precision = 5, scale = 2)
-    private BigDecimal lastedWinRate;
-
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -61,8 +49,7 @@ public class Member {
 
     @Builder
     public Member(String username, String password, String gameName, String tagLine, String puuid,
-            Position mainPosition, Position subPosition, Rank rank, Integer leaguePoint,
-            BigDecimal rankWinRate, BigDecimal lastedWinRate) {
+                  Position mainPosition, Position subPosition) {
         this.username = username;
         this.password = password;
         this.gameName = gameName;
@@ -70,25 +57,15 @@ public class Member {
         this.puuid = puuid;
         this.mainPosition = mainPosition;
         this.subPosition = subPosition;
-        this.rank = rank;
-        this.leaguePoint = leaguePoint;
-        this.rankWinRate = rankWinRate;
-        this.lastedWinRate = lastedWinRate;
         this.createdAt = LocalDateTime.now();
     }
 
-    public void updateProfile(Position mainPosition, Position subPosition, Rank rank, Integer leaguePoint) {
+    public void updateProfile(Position mainPosition, Position subPosition) {
         if (mainPosition != null) {
             this.mainPosition = mainPosition;
         }
         if (subPosition != null) {
             this.subPosition = subPosition;
-        }
-        if (rank != null) {
-            this.rank = rank;
-        }
-        if (leaguePoint != null) {
-            this.leaguePoint = leaguePoint;
         }
         this.updatedAt = LocalDateTime.now();
     }

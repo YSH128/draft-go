@@ -2,10 +2,7 @@ package kr.draftgo.Draft_Go_BE.member.service;
 
 import kr.draftgo.Draft_Go_BE.global.jwt.JwtUtil;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
-import kr.draftgo.Draft_Go_BE.member.dto.MemberLoginReq;
-import kr.draftgo.Draft_Go_BE.member.dto.MemberProfileUpdateReq;
-import kr.draftgo.Draft_Go_BE.member.dto.MemberSignupReq;
-import kr.draftgo.Draft_Go_BE.member.dto.TokenRes;
+import kr.draftgo.Draft_Go_BE.member.dto.*;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -30,7 +27,7 @@ public class MemberService {
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Transactional
-    public void signup(MemberSignupReq req) {
+    public MemberProfileRes signup(MemberSignupReq req) {
         if (memberRepository.findByUsername(req.getUsername()).isPresent()) {
             throw new IllegalArgumentException("이미 존재하는 사용자명입니다.");
         }
@@ -47,11 +44,10 @@ public class MemberService {
                 .tagLine(req.getTagLine())
                 .mainPosition(req.getMainPosition())
                 .subPosition(req.getSubPosition())
-                .rank(req.getRank())
-                .leaguePoint(req.getLeaguePoint())
                 .build();
 
-        memberRepository.save(member);
+        Member savedMember = memberRepository.save(member);
+        return MemberProfileRes.from(savedMember);
     }
 
     @Transactional
@@ -111,7 +107,29 @@ public class MemberService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
-        member.updateProfile(req.getMainPosition(), req.getSubPosition(), req.getRank(), req.getLeaguePoint());
+        member.updateProfile(req.getMainPosition(), req.getSubPosition());
         memberRepository.save(member);
+    }
+
+    public MemberProfileRes getProfile(String username) {
+        Member member = memberRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+        return MemberProfileRes.from(member);
+    }
+
+    @Transactional
+    public void logout(String username) {
+        // Redis에서 RefreshToken 삭제
+        redisTemplate.delete("RT:" + username);
+    }
+
+    public DuplicateCheckRes checkDuplicateUsername(String username) {
+        boolean isDuplicate = memberRepository.existsByUsername(username);
+        return isDuplicate ? DuplicateCheckRes.duplicated("아이디") : DuplicateCheckRes.available("아이디");
+    }
+
+    public DuplicateCheckRes checkDuplicateSummonerName(String gameName, String tagLine) {
+        boolean isDuplicate = memberRepository.existsByGameNameAndTagLine(gameName, tagLine);
+        return isDuplicate ? DuplicateCheckRes.duplicated("소환사명") : DuplicateCheckRes.available("소환사명");
     }
 }
