@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { signup } from "../../api/auth";
 import AuthInput from "../../components/ui/AuthInput";
 import AuthButton from "../../components/ui/AuthButton";
 import SectionDivider from "../../components/ui/SectionDivider";
@@ -6,48 +9,73 @@ import useSignupForm from "../../hooks/useSignupForm";
 import styles from "./SignupPage.module.css";
 
 const SignupPage = () => {
+  const navigate = useNavigate();
+  // [Why] 로딩 상태 추가 - 중복 클릭 방지 및 UX 개선
+  const [isLoading, setIsLoading] = useState(false);
+
   const {
     formData,
     passwordStrength,
     errors,
     loadingFields,
     duplicateErrors,
-    handleIdChange,
+    handleUsernameChange,
     handlePasswordChange,
     handlePasswordConfirmChange,
-    handleNicknameChange,
-    handleTagChange,
-    handleSubmit,
-    idRef,
-    passwordRef,
-    passwordConfirmRef,
-    nicknameRef,
-    tagRef,
+    handleGameNameChange,
+    handleTagLineChange,
     validFields,
   } = useSignupForm();
+
+  const handleApiSignup = async () => {
+    // [Why] isPasswordMatch 중복 검사 제거 - validFields.passwordConfirm이 이미 검사함
+    const isAllValid = Object.values(validFields).every(Boolean);
+
+    if (!isAllValid) {
+      alert("입력 정보를 다시 확인해주세요.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await signup({
+        username: formData.username,
+        password: formData.password,
+        gameName: formData.gameName,
+        tagLine: formData.tagLine.replace(/^#/, ""),
+      });
+
+      alert("회원가입이 완료되었습니다!");
+      navigate("/login");
+    } catch (error) {
+      const serverMessage =
+        error.response?.data?.message || "회원가입 중 오류가 발생했습니다.";
+      alert(serverMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>회원가입</h1>
 
-      {/* 계정 정보 */}
       <SectionDivider label="계정 정보" type="section-header" />
 
       <AuthInput
-        ref={idRef}
-        id="id"
+        id="username"
         label="아이디"
-        value={formData.id}
-        onChange={handleIdChange}
-        error={errors.id}
-        isLoading={loadingFields.id}
-        isError={duplicateErrors.id}
-        isValid={validFields.id}
+        value={formData.username}
+        onChange={handleUsernameChange}
+        error={errors.username}
+        isLoading={loadingFields.username}
+        isError={duplicateErrors.username}
+        isValid={validFields.username}
       />
 
       <div className={styles.passwordSection}>
         <AuthInput
-          ref={passwordRef}
           type="password"
           id="password"
           label="비밀번호"
@@ -56,7 +84,7 @@ const SignupPage = () => {
           onChange={handlePasswordChange}
           isError={!!errors.password || passwordStrength.type === "error"}
           isValid={validFields.password && formData.password.length > 0}
-          hideErrorIcon={true}
+          hideErrorIcon
           className={`${styles.levelCommon} ${styles[`level${passwordStrength.level}`]}`}
           error={
             passwordStrength.type === "error"
@@ -65,14 +93,15 @@ const SignupPage = () => {
           }
           helperText={
             passwordStrength.type === "success" ? (
-              <span className={styles.strengthText}>{passwordStrength.text}</span>
+              <span className={styles.strengthText}>
+                {passwordStrength.text}
+              </span>
             ) : null
           }
         />
       </div>
 
       <AuthInput
-        ref={passwordConfirmRef}
         type="password"
         id="passwordConfirm"
         label="비밀번호 확인"
@@ -83,41 +112,40 @@ const SignupPage = () => {
         isValid={validFields.passwordConfirm && formData.passwordConfirm.length > 0}
       />
 
-      {/* 소환사 정보 */}
       <SectionDivider label="소환사 정보" type="section-header" />
 
       <AuthInput
-        ref={nicknameRef}
-        id="nickname"
+        id="gameName"
         label="소환사명"
         maxLength={16}
-        value={formData.nickname}
-        onChange={handleNicknameChange}
-        error={errors.nickname}
-        isValid={validFields.nickname}
+        value={formData.gameName}
+        onChange={handleGameNameChange}
+        error={errors.gameName}
+        isValid={validFields.gameName}
       />
 
       <AuthInput
-        ref={tagRef}
-        id="tag"
+        id="tagLine"
         label="태그"
         maxLength={6}
-        value={formData.tag}
-        onChange={handleTagChange}
-        error={errors.tag}
-        isLoading={loadingFields.tag}
-        isError={duplicateErrors.tag}
-        isValid={validFields.tag}
+        value={formData.tagLine}
+        onChange={handleTagLineChange}
+        error={errors.tagLine}
+        isLoading={loadingFields.tagLine}
+        isError={duplicateErrors.tagLine}
+        isValid={validFields.tagLine}
       />
 
-      {/* 가입 버튼 */}
       <div className={styles.buttonWrapper}>
-        <AuthButton variant="primary" onClick={handleSubmit}>
-          가입하기
+        <AuthButton
+          variant="primary"
+          onClick={handleApiSignup}
+          disabled={isLoading}
+        >
+          {isLoading ? "가입 중..." : "가입하기"}
         </AuthButton>
       </div>
 
-      {/* 푸터 링크 */}
       <FooterLinks>
         <span>이미 계정이 있으신가요?</span>
         <TextLink to="/login">로그인</TextLink>

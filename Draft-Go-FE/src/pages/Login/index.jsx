@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "../../api/auth";
 import AuthInput from "../../components/ui/AuthInput";
 import AuthButton from "../../components/ui/AuthButton";
 import SectionDivider from "../../components/ui/SectionDivider";
@@ -7,35 +9,52 @@ import riotIcon from "../../assets/riot-logo.png";
 import styles from "./LoginPage.module.css";
 
 const LoginPage = () => {
-  const [formData, setFormData] = useState({
-    id: "",
-    password: "",
-  });
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({ username: "", password: "" });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
+    if (error) setError("");
   };
 
-  const handleSubmit = () => {
-    console.log("로그인 시도:", formData);
-    // TODO: 로그인 API 호출
+  const handleSubmit = async () => {
+    if (!formData.username || !formData.password) {
+      setError("아이디와 비밀번호를 입력해주세요.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await login(formData);
+      localStorage.setItem("accessToken", response.accessToken);
+      navigate("/");
+    } catch (err) {
+      const serverMessage =
+        err.response?.data?.message || "로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.";
+      setError(serverMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className={styles.container}>
-      {/* 타이틀 */}
       <h1 className={styles.title}>DRAFT GO</h1>
 
-      {/* 아이디 */}
+      {error && <p className={styles.errorMessage}>{error}</p>}
+
       <AuthInput
-        id="id"
+        id="username"
         label="아이디"
-        value={formData.id}
+        value={formData.username}
         onChange={handleChange}
       />
 
-      {/* 비밀번호 */}
       <AuthInput
         type="password"
         id="password"
@@ -44,14 +63,12 @@ const LoginPage = () => {
         onChange={handleChange}
       />
 
-      {/* 로그인 버튼 */}
       <div className={styles.buttonWrapper}>
-        <AuthButton variant="primary" onClick={handleSubmit}>
-          로그인
+        <AuthButton variant="primary" onClick={handleSubmit} disabled={isLoading}>
+          {isLoading ? "로그인 중..." : "로그인"}
         </AuthButton>
       </div>
 
-      {/* 링크 모음 */}
       <FooterLinks>
         <TextLink to="/find" variant="muted">
           아이디/비밀번호 찾기
@@ -62,14 +79,9 @@ const LoginPage = () => {
         </TextLink>
       </FooterLinks>
 
-      {/* 구분선 */}
       <SectionDivider label="또는" type="center-line" />
 
-      {/* 라이엇 로그인/회원가입 버튼 */}
-      <AuthButton
-        variant="riot"
-        icon={<img src={riotIcon} alt="Riot" />}
-      >
+      <AuthButton variant="riot" icon={<img src={riotIcon} alt="Riot" />}>
         Riot 계정으로 시작
       </AuthButton>
     </div>

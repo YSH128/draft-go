@@ -1,83 +1,84 @@
-import { useState, useRef, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import useDebounce from "./useDebounce";
+
+// [Why] 정규식을 상수로 분리하여 매 렌더링마다 재생성되는 것을 방지
+const REGEX = {
+  USERNAME: /^[a-zA-Z0-9]{4,20}$/,
+  PASSWORD_ALLOWED: /^[a-zA-Z0-9!"#$%&'()*+,\-./:;<=>?@[\]^_`{|}~]*$/,
+  PASSWORD_LETTER: /[a-zA-Z]/,
+  PASSWORD_NUMBER: /[0-9]/,
+  PASSWORD_SPECIAL: /[!"#$%&'()*+,\-./:;<=>?@[\]^_`{|}~]/,
+  GAME_NAME: /^[a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣\s]+$/,
+  TAG_LINE: /^[a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣]+$/,
+  KOREAN: /[ㄱ-ㅎㅏ-ㅣ가-힣]/g,
+  GAME_NAME_FILTER: /[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣\s]/g,
+  TAG_LINE_FILTER: /[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣#]/g,
+};
+
+// [Why] 비밀번호 검증 로직을 함수로 분리하여 passwordStrength와 passwordValidation에서 재사용
+const validatePassword = (pw) => {
+  if (!pw) return { isValid: false, error: "", level: 0, type: "none", text: "" };
+
+  if (pw.length < 8 || pw.length > 16) {
+    return { isValid: false, error: "8~16자", level: 1, type: "error", text: "8~16자" };
+  }
+  if (!REGEX.PASSWORD_ALLOWED.test(pw)) {
+    return { isValid: false, error: "사용 불가 문자 포함", level: 1, type: "error", text: "사용 불가 문자 포함" };
+  }
+  if (!REGEX.PASSWORD_LETTER.test(pw) || !REGEX.PASSWORD_NUMBER.test(pw)) {
+    return { isValid: false, error: "영문+숫자 필수", level: 1, type: "error", text: "영문+숫자 필수" };
+  }
+
+  // 유효한 경우 강도 계산
+  const hasSpecial = REGEX.PASSWORD_SPECIAL.test(pw);
+  const level = hasSpecial ? 3 : 2;
+  const text = level === 3 ? "보안 매우 높음" : "보안 높음";
+
+  return { isValid: true, error: "", level, type: "success", text };
+};
 
 /**
  * 회원가입 폼 로직 커스텀 훅
- * Riot ID 표준 준수 유효성 검사
  */
 const useSignupForm = () => {
   // ===== State =====
   const [formData, setFormData] = useState({
-    id: "",
+    username: "",
     password: "",
     passwordConfirm: "",
-    nickname: "",
-    tag: "",
+    gameName: "",
+    tagLine: "",
   });
 
-  const [submitErrors, setSubmitErrors] = useState({});
-  // ===== Derived State: 비밀번호 보안 강도 & 메시지 =====
-  const passwordStrength = useMemo(() => {
-    const pw = formData.password;
-    if (!pw) return { level: 0, type: "none", text: "" };
+  // [Why] submitErrors를 제거하고 koreanError로 단순화 (실제로 한글 에러만 사용됨)
+  const [koreanError, setKoreanError] = useState("");
 
-    // 1. 유효성 검사 (Error Case)
-    // 8~16자
-    if (pw.length < 8 || pw.length > 16) {
-      return { level: 1, type: "error", text: "8~16자" };
-    }
-    // 사용 불가 문자
-    const allowedChars = /^[a-zA-Z0-9!"#$%&'()*+,\-./:;<=>?@[\]^_`{|}~]*$/;
-    if (!allowedChars.test(pw)) {
-      return { level: 1, type: "error", text: "사용 불가 문자 포함" };
-    }
-    // 영문+숫자 필수
-    const hasLetter = /[a-zA-Z]/.test(pw);
-    const hasNumber = /[0-9]/.test(pw);
-    if (!hasLetter || !hasNumber) {
-      return { level: 1, type: "error", text: "영문+숫자 필수" };
-    }
-
-    // 2. 강도 계산 (Success Case)
-    // 여기서는 이미 유효성(영문+숫자, 길이 등)은 통과한 상태
-    const hasSpecial = /[!"#$%&'()*+,\-./:;<=>?@[\]^_`{|}~]/.test(pw);
-    
-    // 특수문자 포함 시 레벨 3, 아니면 레벨 2 (영문+숫자는 위에서 보장됨)
-    const level = hasSpecial ? 3 : 2;
-    const text = level === 3 ? "보안 매우 높음" : "보안 높음";
-
-    return { level, type: "success", text };
-  }, [formData.password]);
   const [duplicateCheck, setDuplicateCheck] = useState({
-    id: { checking: false, isDuplicate: null },
-    nicknameTag: { checking: false, isDuplicate: null }, // 닉네임+태그 조합
+    username: { checking: false, isDuplicate: null },
+    gameNameTagLine: { checking: false, isDuplicate: null },
   });
 
-  // ===== Debounced Values =====
-  const debouncedId = useDebounce(formData.id, 500);
-  const debouncedNickname = useDebounce(formData.nickname, 500);
-  const debouncedTag = useDebounce(formData.tag, 500);
-  const debouncedPassword = useDebounce(formData.password, 500);
-  const debouncedPasswordConfirm = useDebounce(formData.passwordConfirm, 500);
+  // [Why] password, passwordConfirm은 debounce 불필요 - 즉시 검증해도 성능 영향 없음
+  const debouncedUsername = useDebounce(formData.username, 500);
+  const debouncedGameName = useDebounce(formData.gameName, 500);
+  const debouncedTagLine = useDebounce(formData.tagLine, 500);
 
-  // ===== Refs =====
-  const idRef = useRef(null);
-  const passwordRef = useRef(null);
-  const passwordConfirmRef = useRef(null);
-  const nicknameRef = useRef(null);
-  const tagRef = useRef(null);
+  // ===== 비밀번호 검증 (통합) =====
+  // [Why] passwordStrength와 passwordValidation을 하나로 통합
+  const passwordResult = useMemo(
+    () => validatePassword(formData.password),
+    [formData.password]
+  );
 
-  const refsMap = {
-    id: idRef,
-    password: passwordRef,
-    passwordConfirm: passwordConfirmRef,
-    nickname: nicknameRef,
-    tag: tagRef,
+  const passwordStrength = {
+    level: passwordResult.level,
+    type: passwordResult.type,
+    text: passwordResult.text,
   };
 
   // ===== API: 중복 체크 =====
   const checkDuplicate = useCallback(async (field, value, extraValue = null) => {
-    const checkKey = field === "nicknameTag" ? "nicknameTag" : field;
+    const checkKey = field === "gameNameTagLine" ? "gameNameTagLine" : field;
 
     setDuplicateCheck((prev) => ({
       ...prev,
@@ -89,15 +90,12 @@ const useSignupForm = () => {
 
     let isDuplicate = false;
 
-    if (field === "nicknameTag") {
-      // 닉네임+태그 조합 중복 체크 (Mock)
+    if (field === "gameNameTagLine") {
       const mockCombinations = ["Player#KR1", "Faker#T1", "Hide#KR99"];
       const combination = `${value}#${extraValue?.replace("#", "")}`;
       isDuplicate = mockCombinations.includes(combination);
     } else {
-      const mockDuplicates = {
-        id: ["admin", "test", "user"],
-      };
+      const mockDuplicates = { username: ["admin", "test", "user"] };
       isDuplicate = mockDuplicates[field]?.includes(value) || false;
     }
 
@@ -110,285 +108,170 @@ const useSignupForm = () => {
   }, []);
 
   // ===== Validation: 아이디 =====
-  const idValidation = useMemo(() => {
-    if (!debouncedId) {
+  const usernameValidation = useMemo(() => {
+    if (!debouncedUsername) {
       return { isValid: false, error: "", shouldCheck: false };
     }
-    const isValidFormat = /^[a-zA-Z0-9]{4,20}$/.test(debouncedId);
-    if (!isValidFormat) {
-      return {
-        isValid: false,
-        error: "영문/숫자 4~20자",
-        shouldCheck: false,
-      };
+    if (!REGEX.USERNAME.test(debouncedUsername)) {
+      return { isValid: false, error: "영문/숫자 4~20자", shouldCheck: false };
     }
-    if (duplicateCheck.id.isDuplicate) {
-      return {
-        isValid: false,
-        error: "이미 사용 중인 아이디입니다.",
-        shouldCheck: false,
-      };
+    if (duplicateCheck.username.isDuplicate) {
+      return { isValid: false, error: "이미 사용 중인 아이디입니다.", shouldCheck: false };
     }
-    if (duplicateCheck.id.checking) {
+    if (duplicateCheck.username.checking) {
       return { isValid: false, error: "", shouldCheck: false };
     }
-    if (duplicateCheck.id.isDuplicate === null) {
+    if (duplicateCheck.username.isDuplicate === null) {
       return { isValid: false, error: "", shouldCheck: true };
     }
     return { isValid: true, error: "", shouldCheck: false };
-  }, [debouncedId, duplicateCheck.id]);
-
-  // ===== Validation: 비밀번호 =====
-  const passwordValidation = useMemo(() => {
-    if (!debouncedPassword) {
-      return { isValid: false, error: "" };
-    }
-    const pw = debouncedPassword;
-    const allowedChars = /^[a-zA-Z0-9!"#$%&'()*+,\-./:;<=>?@[\]^_`{|}~]*$/;
-    const hasLetter = /[a-zA-Z]/.test(pw);
-    const hasNumber = /[0-9]/.test(pw);
-
-    if (pw.length < 8 || pw.length > 16) {
-      return { isValid: false, error: "8~16자" };
-    }
-    if (!allowedChars.test(pw)) {
-      return { isValid: false, error: "사용 불가 문자 포함" };
-    }
-    if (!hasLetter || !hasNumber) {
-      return { isValid: false, error: "영문+숫자 필수" };
-    }
-    return { isValid: true, error: "" };
-  }, [debouncedPassword]);
+  }, [debouncedUsername, duplicateCheck.username]);
 
   // ===== Validation: 비밀번호 확인 =====
   const passwordConfirmValidation = useMemo(() => {
-    if (!debouncedPasswordConfirm) {
+    if (!formData.passwordConfirm) {
       return { isValid: false, error: "" };
     }
-    if (debouncedPassword !== debouncedPasswordConfirm) {
+    if (formData.password !== formData.passwordConfirm) {
       return { isValid: false, error: "비밀번호 불일치" };
     }
     return { isValid: true, error: "" };
-  }, [debouncedPassword, debouncedPasswordConfirm]);
+  }, [formData.password, formData.passwordConfirm]);
 
-  // ===== Validation: 소환사명 (3~16자, 중복 허용) =====
-  const nicknameValidation = useMemo(() => {
-    if (!debouncedNickname) {
+  // ===== Validation: 소환사명 =====
+  const gameNameValidation = useMemo(() => {
+    if (!debouncedGameName) {
       return { isValid: false, error: "" };
     }
-
-    // 길이 검사: 3~16자
-    if (debouncedNickname.length < 3 || debouncedNickname.length > 16) {
-      return {
-        isValid: false,
-        error: "3~16자",
-      };
+    if (debouncedGameName.length < 3 || debouncedGameName.length > 16) {
+      return { isValid: false, error: "3~16자" };
     }
-
-    // 한글/영문/숫자/공백 허용
-    if (!/^[a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣\s]+$/.test(debouncedNickname)) {
-      return {
-        isValid: false,
-        error: "한글/영문/숫자 허용",
-      };
+    if (!REGEX.GAME_NAME.test(debouncedGameName)) {
+      return { isValid: false, error: "한글/영문/숫자 허용" };
     }
-
     return { isValid: true, error: "" };
-  }, [debouncedNickname]);
+  }, [debouncedGameName]);
 
-  // ===== Validation: 태그 (3~5자, 영숫자, 닉네임+태그 조합 중복 체크) =====
-  const tagValidation = useMemo(() => {
-    if (!debouncedTag) {
+  // ===== Validation: 태그 =====
+  const tagLineValidation = useMemo(() => {
+    if (!debouncedTagLine) {
       return { isValid: false, error: "", shouldCheck: false };
     }
 
-    // # 제거 후 검사
-    const tagValue = debouncedTag.replace(/^#/, "");
+    const tagValue = debouncedTagLine.replace(/^#/, "");
 
-    // 길이 검사: 3~5자 (정확히)
     if (tagValue.length < 3 || tagValue.length > 5) {
-      return {
-        isValid: false,
-        error: "3~5자",
-        shouldCheck: false,
-      };
+      return { isValid: false, error: "3~5자", shouldCheck: false };
     }
-
-    // 한글/영문/숫자 허용
-    if (!/^[a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣]+$/.test(tagValue)) {
-      return {
-        isValid: false,
-        error: "한글/영문/숫자만",
-        shouldCheck: false,
-      };
+    if (!REGEX.TAG_LINE.test(tagValue)) {
+      return { isValid: false, error: "한글/영문/숫자만", shouldCheck: false };
     }
-
-    // 닉네임도 유효해야 조합 중복 체크 진행
-    if (!debouncedNickname || debouncedNickname.length < 3 || !nicknameValidation.isValid) {
+    if (!gameNameValidation.isValid) {
       return { isValid: false, error: "", shouldCheck: false };
     }
-
-    if (duplicateCheck.nicknameTag.isDuplicate) {
-      return {
-        isValid: false,
-        error: "이미 사용 중인 조합",
-        shouldCheck: false,
-      };
+    if (duplicateCheck.gameNameTagLine.isDuplicate) {
+      return { isValid: false, error: "이미 사용 중인 조합", shouldCheck: false };
     }
-    if (duplicateCheck.nicknameTag.checking) {
+    if (duplicateCheck.gameNameTagLine.checking) {
       return { isValid: false, error: "", shouldCheck: false };
     }
-    if (duplicateCheck.nicknameTag.isDuplicate === null && nicknameValidation.isValid) {
+    if (duplicateCheck.gameNameTagLine.isDuplicate === null) {
       return { isValid: false, error: "", shouldCheck: true };
     }
-    if (nicknameValidation.isValid && duplicateCheck.nicknameTag.isDuplicate === false) {
-      return { isValid: true, error: "", shouldCheck: false };
-    }
-    return { isValid: false, error: "", shouldCheck: false };
-  }, [debouncedTag, debouncedNickname, duplicateCheck.nicknameTag, nicknameValidation.isValid]);
+    return { isValid: true, error: "", shouldCheck: false };
+  }, [debouncedTagLine, duplicateCheck.gameNameTagLine, gameNameValidation.isValid]);
 
   // ===== 중복 체크 자동 트리거 =====
   useEffect(() => {
-    if (idValidation.shouldCheck) {
-      checkDuplicate("id", debouncedId);
+    if (usernameValidation.shouldCheck) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      checkDuplicate("username", debouncedUsername);
     }
-  }, [idValidation.shouldCheck, debouncedId, checkDuplicate]);
+  }, [usernameValidation.shouldCheck, debouncedUsername, checkDuplicate]);
 
-
-  // 닉네임+태그 조합 중복 체크
   useEffect(() => {
-    if (tagValidation.shouldCheck && nicknameValidation.isValid) {
-      const tagValue = debouncedTag.replace(/^#/, "");
-      checkDuplicate("nicknameTag", debouncedNickname, tagValue);
+    if (tagLineValidation.shouldCheck && gameNameValidation.isValid) {
+      const tagValue = debouncedTagLine.replace(/^#/, "");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      checkDuplicate("gameNameTagLine", debouncedGameName, tagValue);
     }
-  }, [tagValidation.shouldCheck, nicknameValidation.isValid, debouncedNickname, debouncedTag, checkDuplicate]);
+  }, [
+    tagLineValidation.shouldCheck,
+    gameNameValidation.isValid,
+    debouncedGameName,
+    debouncedTagLine,
+    checkDuplicate,
+  ]);
 
   // ===== 통합 에러/유효성 상태 =====
   const errors = {
-    id: submitErrors.id || idValidation.error || "",
-    password: passwordValidation.error || submitErrors.password || "",
-    passwordConfirm: passwordConfirmValidation.error || submitErrors.passwordConfirm || "",
-    nickname: nicknameValidation.error || submitErrors.nickname || "",
-    tag: tagValidation.error || submitErrors.tag || "",
+    username: koreanError || usernameValidation.error,
+    password: passwordResult.error,
+    passwordConfirm: passwordConfirmValidation.error,
+    gameName: gameNameValidation.error,
+    tagLine: tagLineValidation.error,
   };
 
   const validFields = {
-    id: idValidation.isValid,
-    password: passwordValidation.isValid,
+    username: usernameValidation.isValid,
+    password: passwordResult.isValid,
     passwordConfirm: passwordConfirmValidation.isValid,
-    nickname: nicknameValidation.isValid,
-    tag: tagValidation.isValid,
+    gameName: gameNameValidation.isValid,
+    tagLine: tagLineValidation.isValid,
   };
 
   const loadingFields = {
-    id: duplicateCheck.id.checking,
-    tag: duplicateCheck.nicknameTag.checking,
+    username: duplicateCheck.username.checking,
+    tagLine: duplicateCheck.gameNameTagLine.checking,
   };
 
   const duplicateErrors = {
-    id: duplicateCheck.id.isDuplicate === true,
-    tag: duplicateCheck.nicknameTag.isDuplicate === true,
+    username: duplicateCheck.username.isDuplicate === true,
+    tagLine: duplicateCheck.gameNameTagLine.isDuplicate === true,
   };
 
   // ===== Handlers =====
-  const handleIdChange = (e) => {
+  // [Why] useCallback 제거 - 자식 컴포넌트가 React.memo를 사용하지 않으면 불필요
+  const handleUsernameChange = (e) => {
     const rawValue = e.target.value;
-    const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(rawValue);
-    const value = rawValue.replace(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/g, "");
+    const hasKorean = REGEX.KOREAN.test(rawValue);
+    const value = rawValue.replace(REGEX.KOREAN, "");
 
-    setFormData((prev) => ({ ...prev, id: value }));
+    setFormData((prev) => ({ ...prev, username: value }));
     setDuplicateCheck((prev) => ({
       ...prev,
-      id: { checking: false, isDuplicate: null },
+      username: { checking: false, isDuplicate: null },
     }));
-
-    if (hasKorean) {
-      setSubmitErrors((prev) => ({ ...prev, id: "한글은 입력할 수 없습니다." }));
-    } else {
-      if (submitErrors.id) setSubmitErrors((prev) => ({ ...prev, id: "" }));
-    }
+    setKoreanError(hasKorean ? "한글은 입력할 수 없습니다." : "");
   };
 
   const handlePasswordChange = (e) => {
-    const value = e.target.value;
-    setFormData((prev) => ({ ...prev, password: value }));
-    if (submitErrors.password) setSubmitErrors((prev) => ({ ...prev, password: "" }));
+    setFormData((prev) => ({ ...prev, password: e.target.value }));
   };
 
   const handlePasswordConfirmChange = (e) => {
-    const { value } = e.target;
-    setFormData((prev) => ({ ...prev, passwordConfirm: value }));
-    if (submitErrors.passwordConfirm) {
-      setSubmitErrors((prev) => ({ ...prev, passwordConfirm: "" }));
-    }
+    setFormData((prev) => ({ ...prev, passwordConfirm: e.target.value }));
   };
 
-  const handleNicknameChange = (e) => {
-    // 한글/영문/숫자/공백 허용
-    const value = e.target.value.replace(/[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣\s]/g, "");
-    setFormData((prev) => ({ ...prev, nickname: value }));
+  const handleGameNameChange = (e) => {
+    const value = e.target.value.replace(REGEX.GAME_NAME_FILTER, "");
+    setFormData((prev) => ({ ...prev, gameName: value }));
     setDuplicateCheck((prev) => ({
       ...prev,
-      nicknameTag: { checking: false, isDuplicate: null },
+      gameNameTagLine: { checking: false, isDuplicate: null },
     }));
-    if (submitErrors.nickname) setSubmitErrors((prev) => ({ ...prev, nickname: "" }));
   };
 
-  const handleTagChange = (e) => {
-    let value = e.target.value;
-
-    // # 제외하고 한글/영문/숫자 허용
-    const cleanValue = value.replace(/[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣#]/g, "");
-
-    // # 제거 후 순수 태그 값만 추출
+  const handleTagLineChange = (e) => {
+    const cleanValue = e.target.value.replace(REGEX.TAG_LINE_FILTER, "");
     const tagContent = cleanValue.replace(/^#+/, "");
+    const value = tagContent.length > 0 ? "#" + tagContent : "";
 
-    // 입력값이 있으면 항상 # 접두사 유지
-    if (tagContent.length > 0) {
-      value = "#" + tagContent;
-    } else {
-      value = "";
-    }
-
-    setFormData((prev) => ({ ...prev, tag: value }));
+    setFormData((prev) => ({ ...prev, tagLine: value }));
     setDuplicateCheck((prev) => ({
       ...prev,
-      nicknameTag: { checking: false, isDuplicate: null },
+      gameNameTagLine: { checking: false, isDuplicate: null },
     }));
-    if (submitErrors.tag) setSubmitErrors((prev) => ({ ...prev, tag: "" }));
-  };
-
-  const handleSubmit = () => {
-    const newErrors = {};
-    let firstErrorKey = null;
-
-    const validations = [
-      { key: "id", emptyMsg: "아이디를 입력해주세요.", invalidMsg: "아이디를 확인해주세요." },
-      { key: "password", emptyMsg: "비밀번호를 입력해주세요.", invalidMsg: "비밀번호를 확인해주세요." },
-      { key: "passwordConfirm", emptyMsg: "비밀번호 확인을 입력해주세요.", invalidMsg: "비밀번호가 일치하지 않습니다." },
-      { key: "nickname", emptyMsg: "소환사명을 입력해주세요.", invalidMsg: "소환사명을 확인해주세요." },
-      { key: "tag", emptyMsg: "태그를 입력해주세요.", invalidMsg: "태그를 확인해주세요." },
-    ];
-
-    validations.forEach(({ key, emptyMsg, invalidMsg }) => {
-      if (!formData[key]?.trim()) {
-        newErrors[key] = emptyMsg;
-        if (!firstErrorKey) firstErrorKey = key;
-      } else if (!validFields[key]) {
-        newErrors[key] = invalidMsg;
-        if (!firstErrorKey) firstErrorKey = key;
-      }
-    });
-
-    setSubmitErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) {
-      refsMap[firstErrorKey]?.current?.focus();
-      return false;
-    }
-
-    console.log("회원가입 성공:", formData);
-    return true;
   };
 
   return {
@@ -398,17 +281,11 @@ const useSignupForm = () => {
     validFields,
     loadingFields,
     duplicateErrors,
-    handleIdChange,
+    handleUsernameChange,
     handlePasswordChange,
     handlePasswordConfirmChange,
-    handleNicknameChange,
-    handleTagChange,
-    handleSubmit,
-    idRef,
-    passwordRef,
-    passwordConfirmRef,
-    nicknameRef,
-    tagRef,
+    handleGameNameChange,
+    handleTagLineChange,
   };
 };
 

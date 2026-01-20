@@ -19,3 +19,14 @@
 .buttonWrapper {
   margin-top: 16px;
 }
+
+/* 에러 메시지 */
+.errorMessage {
+  color: #e74c3c;
+  font-size: 14px;
+  text-align: center;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background-color: rgba(231, 76, 60, 0.1);
+  border-radius: 4px;
+}
