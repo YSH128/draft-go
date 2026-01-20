@@ -15,3 +15,19 @@ export const login = async (loginData) => {
   // 성공 시 응답 Body에 Access Token이 담겨 옵니다.
   return response.data;
 };
+
+// 3. 아이디 중복 확인 API
+export const checkUsernameDuplicate = async (username) => {
+  const response = await instance.get(`/members/check/username`, {
+    params: { username },
+  });
+  return response.data;
+};
+
+// 4. 소환사 중복 확인 API
+export const checkSummonerDuplicate = async (gameName, tagLine) => {
+  const response = await instance.get(`/members/check/summoner`, {
+    params: { gameName, tagLine },
+  });
+  return response.data;
+};

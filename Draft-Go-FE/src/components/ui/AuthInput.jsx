@@ -14,7 +14,9 @@ import { forwardRef } from "react";
  * @param {boolean} isLoading - 중복체크 로딩 상태
  * @param {boolean} isError - 에러 상태 (중복됨)
  * @param {boolean} isValid - 유효 상태 (체크 아이콘 표시용)
- * @param {string} className - 추가 클래스명
+ * @param {string} className - Wrapper 클래스명
+ * @param {string} inputClassName - Input 요소 클래스명 (Padding 조절 등)
+ * @param {boolean} hideStatusIcon - 내부 상태 아이콘 숨김 여부
  */
 const Input = forwardRef(
   (
@@ -32,7 +34,9 @@ const Input = forwardRef(
       isValid = false,
       helperText = null,
       hideErrorIcon = false,
+      hideStatusIcon = false,
       className = "",
+      inputClassName = "",
     },
     ref
   ) => {
@@ -49,6 +53,7 @@ const Input = forwardRef(
         ? "border-[#e84057] shadow-[inset_0_1px_2px_rgba(0,0,0,0.2),0_0_4px_rgba(232,64,87,0.15)]"
         : "border-[#3c3c41] focus:border-[#c8aa6e] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.25),0_0_0_1px_rgba(200,170,110,0.25),0_0_6px_rgba(200,170,110,0.15)] hover:not(:focus):border-[#505055]",
       "text-[#f0e6d2]",
+      inputClassName,
     ].join(" ");
 
     const labelClasses = [
@@ -83,41 +88,43 @@ const Input = forwardRef(
           </label>
 
           {/* 상태 아이콘: 로딩 > 에러 > 성공 순 우선순위 */}
-          <div className="absolute right-[10px] top-1/2 -translate-y-1/2 w-[16px] h-[16px] flex items-center justify-center">
-            {isLoading && (
-              <div
-                className="w-[14px] h-[14px] border-2 border-[#3c3c41] border-t-[#2ecc71] rounded-full animate-spin"
-                aria-label="확인 중"
-              />
-            )}
-            {!isLoading && isError && !hideErrorIcon && (
-              <svg
-                className="w-[14px] h-[14px] text-[#e84057]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            )}
-            {!isLoading && !isError && isValid && (
-              <svg
-                className="w-[16px] h-[16px] text-[#2ecc71] transition-transform duration-150 scale-100"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            )}
-          </div>
+          {!hideStatusIcon && (
+            <div className="absolute right-[10px] top-1/2 -translate-y-1/2 w-[16px] h-[16px] flex items-center justify-center">
+              {isLoading && (
+                <div
+                  className="w-[14px] h-[14px] border-2 border-[#3c3c41] border-t-[#2ecc71] rounded-full animate-spin"
+                  aria-label="확인 중"
+                />
+              )}
+              {!isLoading && isError && !hideErrorIcon && (
+                <svg
+                  className="w-[14px] h-[14px] text-[#e84057]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              )}
+              {!isLoading && !isError && isValid && (
+                <svg
+                  className="w-[16px] h-[16px] text-[#2ecc71] transition-transform duration-150 scale-100"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </div>
+          )}
 
           {/* Inner glow overlay (focus 시 표시) */}
           <div className="absolute inset-0 rounded-[3px] pointer-events-none opacity-0 transition-opacity duration-200 bg-[radial-gradient(ellipse_70%_40%_at_50%_0%,rgba(200,170,110,0.08)_0%,transparent_60%)] group-focus-within:opacity-100" />

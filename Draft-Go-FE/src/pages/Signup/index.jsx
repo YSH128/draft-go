@@ -12,7 +12,7 @@ import useSignupForm from "../../hooks/useSignupForm";
 import topIcon from "../../assets/positions/top.svg";
 import jungleIcon from "../../assets/positions/jungle.svg";
 import midIcon from "../../assets/positions/mid.svg";
-import botIcon from "../../assets/positions/bot.webp";
+import botIcon from "../../assets/positions/bot.png";
 import supIcon from "../../assets/positions/sup.svg";
 
 // 비밀번호 강도별 스타일 매핑
@@ -61,6 +61,9 @@ const SignupPage = () => {
     handleGameNameChange,
     handleTagLineChange,
     validFields,
+    handleCheckDuplicate,
+    handleSummonerBlur,
+    isSummonerChecked,
   } = useSignupForm();
 
   const handleApiSignup = async () => {
@@ -113,8 +116,6 @@ const SignupPage = () => {
     }
   };
 
-
-
   return (
     <div className="flex min-h-screen justify-center bg-gray-950 px-4 pt-16 pb-16">
       <div className="h-fit w-full max-w-[520px] rounded-lg border border-[#c8aa6e]/30 bg-gray-900/80 p-8 shadow-xl backdrop-blur-sm">
@@ -128,16 +129,66 @@ const SignupPage = () => {
           <SectionDivider label="계정 정보" type="section-header" />
 
           {/* 아이디 */}
-          <AuthInput
-            id="username"
-            label="아이디"
-            value={formData.username}
-            onChange={handleUsernameChange}
-            error={errors.username}
-            isLoading={loadingFields.username}
-            isError={duplicateErrors.username}
-            isValid={validFields.username}
-          />
+          <div className="relative">
+            <AuthInput
+              id="username"
+              label="아이디"
+              value={formData.username}
+              onChange={handleUsernameChange}
+              error={errors.username}
+              isLoading={loadingFields.username}
+              isError={duplicateErrors.username}
+              isValid={validFields.username}
+              inputClassName="pr-[100px]"
+              hideStatusIcon={true}
+            />
+            
+            <div className="absolute right-3 top-[21px] -translate-y-1/2 z-10 flex items-center gap-2">
+              {/* Status Icon */}
+              {loadingFields.username && (
+                <div
+                  className="w-[14px] h-[14px] border-2 border-[#3c3c41] border-t-[#2ecc71] rounded-full animate-spin"
+                  aria-label="확인 중"
+                />
+              )}
+              {!loadingFields.username && duplicateErrors.username && (
+                <svg
+                  className="w-[14px] h-[14px] text-[#e84057]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              )}
+              {!loadingFields.username && !duplicateErrors.username && validFields.username && (
+                <svg
+                  className="w-[16px] h-[16px] text-[#2ecc71] transition-transform duration-150 scale-100"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+
+              {/* 중복확인 버튼 */}
+              <button
+                type="button"
+                onClick={handleCheckDuplicate}
+                className="rounded bg-[#3c3c41] px-2 py-1 text-[11px] text-gray-300 hover:bg-[#505055] transition-colors whitespace-nowrap"
+              >
+                중복확인
+              </button>
+            </div>
+          </div>
 
           {/* 비밀번호 섹션 (Row) */}
           <div className="flex gap-3">
@@ -187,8 +238,14 @@ const SignupPage = () => {
                   maxLength={16}
                   value={formData.gameName}
                   onChange={handleGameNameChange}
+                  onBlur={handleSummonerBlur}
                   error={errors.gameName}
-                  isValid={validFields.gameName}
+                  isLoading={loadingFields.gameName}
+                  isValid={
+                    validFields.gameName &&
+                    isSummonerChecked &&
+                    !duplicateErrors.tagLine
+                  }
                 />
               </div>
               <div className="flex-1">
@@ -198,10 +255,15 @@ const SignupPage = () => {
                   maxLength={6}
                   value={formData.tagLine}
                   onChange={handleTagLineChange}
+                  onBlur={handleSummonerBlur}
                   error={errors.tagLine}
                   isLoading={loadingFields.tagLine}
                   isError={duplicateErrors.tagLine}
-                  isValid={validFields.tagLine}
+                  isValid={
+                    validFields.tagLine &&
+                    isSummonerChecked &&
+                    !duplicateErrors.tagLine
+                  }
                 />
               </div>
             </div>
