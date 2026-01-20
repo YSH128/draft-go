@@ -1,9 +1,10 @@
 package kr.draftgo.Draft_Go_BE.global.config;
 
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
+import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
-import kr.draftgo.Draft_Go_BE.member.domain.Rank;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
+import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationRunner;
@@ -11,6 +12,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.math.BigDecimal;
 
 /**
  * Dev 프로파일에서만 실행되는 초기 데이터 설정 클래스
@@ -23,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class DevDataInitializer {
 
     private final MemberRepository memberRepository;
+    private final MemberStatRepository memberStatRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Bean
@@ -56,10 +60,21 @@ public class DevDataInitializer {
                     .tagLine("KR1")
                     .mainPosition(Position.MID)
                     .subPosition(Position.BOT)
-                    .rank(Rank.DIAMOND_2)
-                    .leaguePoint(75)
                     .build();
-            memberRepository.save(user1);
+            Member savedUser1 = memberRepository.save(user1);
+
+            MemberStat stat1 = MemberStat.builder()
+                    .memberId(savedUser1.getId())
+                    .rank("DIAMOND_2")
+                    .leaguePoint(75)
+                    .rankWinRate(new BigDecimal("52.50"))
+                    .rankWins(120)
+                    .rankLoseRate(110)
+                    .lastedWinRate(new BigDecimal("48.30"))
+                    .lastedWins(45)
+                    .lastedLosses(48)
+                    .build();
+            memberStatRepository.save(stat1);
             log.info("✓ 샘플 사용자1 생성: user1 / user123 (MID/BOT, 다이아2)");
 
             // 샘플 사용자 2
@@ -70,10 +85,21 @@ public class DevDataInitializer {
                     .tagLine("KR2")
                     .mainPosition(Position.TOP)
                     .subPosition(Position.JUNGLE)
-                    .rank(Rank.PLATINUM_1)
-                    .leaguePoint(90)
                     .build();
-            memberRepository.save(user2);
+            Member savedUser2 = memberRepository.save(user2);
+
+            MemberStat stat2 = MemberStat.builder()
+                    .memberId(savedUser2.getId())
+                    .rank("PLATINUM_1")
+                    .leaguePoint(90)
+                    .rankWinRate(new BigDecimal("55.20"))
+                    .rankWins(95)
+                    .rankLoseRate(77)
+                    .lastedWinRate(new BigDecimal("51.40"))
+                    .lastedWins(36)
+                    .lastedLosses(34)
+                    .build();
+            memberStatRepository.save(stat2);
             log.info("✓ 샘플 사용자2 생성: user2 / user456 (TOP/정글, 플래1)");
 
             // 샘플 사용자 3
@@ -83,10 +109,21 @@ public class DevDataInitializer {
                     .gameName("Player3")
                     .tagLine("KR3")
                     .mainPosition(Position.BOT)
-                    .rank(Rank.GOLD_2)
-                    .leaguePoint(45)
                     .build();
-            memberRepository.save(user3);
+            Member savedUser3 = memberRepository.save(user3);
+
+            MemberStat stat3 = MemberStat.builder()
+                    .memberId(savedUser3.getId())
+                    .rank("GOLD_2")
+                    .leaguePoint(45)
+                    .rankWinRate(new BigDecimal("49.80"))
+                    .rankWins(62)
+                    .rankLoseRate(62)
+                    .lastedWinRate(new BigDecimal("45.60"))
+                    .lastedWins(23)
+                    .lastedLosses(27)
+                    .build();
+            memberStatRepository.save(stat3);
             log.info("✓ 샘플 사용자3 생성: user3 / user789 (ADC, 골드2)");
 
             log.info("========================================");
