@@ -239,8 +239,14 @@ const SignupPage = () => {
                   value={formData.gameName}
                   onChange={handleGameNameChange}
                   onBlur={handleSummonerBlur}
-                  error={errors.gameName}
+                  error={
+                    errors.gameName ||
+                    (duplicateErrors.tagLine
+                      ? "이미 가입된 소환사 계정입니다."
+                      : "")
+                  }
                   isLoading={loadingFields.gameName}
+                  isError={duplicateErrors.tagLine || !!errors.gameName}
                   isValid={
                     validFields.gameName &&
                     isSummonerChecked &&
@@ -258,7 +264,7 @@ const SignupPage = () => {
                   onBlur={handleSummonerBlur}
                   error={errors.tagLine}
                   isLoading={loadingFields.tagLine}
-                  isError={duplicateErrors.tagLine}
+                  isError={duplicateErrors.tagLine || !!errors.tagLine}
                   isValid={
                     validFields.tagLine &&
                     isSummonerChecked &&

@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback } from "react";
-import useDebounce from "./useDebounce";
 import { checkUsernameDuplicate, checkSummonerDuplicate } from "../api/auth";
 
 // 정규식을 상수로 분리하여 매 렌더링마다 재생성되는 것을 방지
@@ -54,13 +53,8 @@ const useSignupForm = () => {
     gameNameTagLine: { checking: false, isDuplicate: null },
   });
 
-  // password, passwordConfirm은 debounce 불필요 - 즉시 검증해도 성능 영향 없음
-  const debouncedUsername = useDebounce(formData.username, 500);
-  const debouncedGameName = useDebounce(formData.gameName, 500);
-  const debouncedTagLine = useDebounce(formData.tagLine, 500);
-
   // 비밀번호 검증 (통합)
-  // [Why] passwordStrength와 passwordValidation을 하나로 통합
+  // passwordStrength와 passwordValidation을 하나로 통합
   const passwordResult = useMemo(
     () => validatePassword(formData.password),
     [formData.password]
@@ -131,25 +125,25 @@ const useSignupForm = () => {
 
   // ===== Validation: 소환사명 =====
   const gameNameValidation = useMemo(() => {
-    if (!debouncedGameName) {
+    if (!formData.gameName) {
       return { isValid: false, error: "" };
     }
-    if (debouncedGameName.length < 2 || debouncedGameName.length > 16) {
+    if (formData.gameName.length < 2 || formData.gameName.length > 16) {
       return { isValid: false, error: "2~16자" };
     }
-    if (!REGEX.GAME_NAME.test(debouncedGameName)) {
+    if (!REGEX.GAME_NAME.test(formData.gameName)) {
       return { isValid: false, error: "한글/영문/숫자 허용" };
     }
     return { isValid: true, error: "" };
-  }, [debouncedGameName]);
+  }, [formData.gameName]);
 
   // ===== Validation: 태그 =====
   const tagLineValidation = useMemo(() => {
-    if (!debouncedTagLine) {
+    if (!formData.tagLine) {
       return { isValid: false, error: "", shouldCheck: false };
     }
 
-    const tagValue = debouncedTagLine.replace(/^#/, "");
+    const tagValue = formData.tagLine.replace(/^#/, "");
 
     if (tagValue.length < 3 || tagValue.length > 5) {
       return { isValid: false, error: "3~5자", shouldCheck: false };
@@ -161,13 +155,13 @@ const useSignupForm = () => {
       return { isValid: false, error: "", shouldCheck: false };
     }
     if (duplicateCheck.gameNameTagLine.isDuplicate) {
-      return { isValid: false, error: "이미 가입된 소환사입니다.", shouldCheck: false };
+      return { isValid: false, error: "", shouldCheck: false };
     }
     if (duplicateCheck.gameNameTagLine.checking) {
       return { isValid: false, error: "", shouldCheck: false };
     }
     return { isValid: true, error: "", shouldCheck: false };
-  }, [debouncedTagLine, duplicateCheck.gameNameTagLine, gameNameValidation.isValid]);
+  }, [formData.tagLine, duplicateCheck.gameNameTagLine, gameNameValidation.isValid]);
 
   // ===== 통합 에러/유효성 상태 =====
   const errors = {
