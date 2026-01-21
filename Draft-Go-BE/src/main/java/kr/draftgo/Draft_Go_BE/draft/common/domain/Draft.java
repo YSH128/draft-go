@@ -1,4 +1,4 @@
-package kr.draftgo.Draft_Go_BE.draft.domain;
+package kr.draftgo.Draft_Go_BE.draft.common.domain;
 
 import jakarta.persistence.*;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
@@ -31,6 +31,9 @@ public class Draft {
     @Column(nullable = false)
     private Integer startPoint;
 
+    @Column(nullable = false)
+    private Integer maxTeamCount;
+
     @Column(nullable = false, length = 6)
     private String memberCode;
 
@@ -42,14 +45,19 @@ public class Draft {
     private DraftStatus status;
 
     @Builder
-    public Draft(Member owner, String title, Integer startPrice, Integer startPoint) {
+    public Draft(Member owner, String title, Integer startPrice, Integer startPoint, Integer maxTeamCount) {
         this.owner = owner;
         this.title = title;
         this.startPrice = startPrice;
         this.startPoint = startPoint;
-        this.status = DraftStatus.RECRUITING;
+        this.status = DraftStatus.LOBBY;
+        this.maxTeamCount = maxTeamCount;
         // Generate random 6-char codes
         this.memberCode = UUID.randomUUID().toString().substring(0, 6);
         this.leaderCode = UUID.randomUUID().toString().substring(0, 6);
+    }
+
+    public void startDraft() {
+        this.status = DraftStatus.IN_DRAFT;
     }
 }

@@ -3,6 +3,7 @@ package kr.draftgo.Draft_Go_BE.global.config;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
+import kr.draftgo.Draft_Go_BE.member.domain.Role;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
 import lombok.RequiredArgsConstructor;
@@ -48,9 +49,10 @@ public class DevDataInitializer {
                     .password(passwordEncoder.encode("admin123"))
                     .gameName("AdminUser")
                     .tagLine("ADMIN")
+                    .role(Role.ADMIN)
                     .build();
             memberRepository.save(admin);
-            log.info("✓ 관리자 계정 생성: admin / admin123");
+            log.info("✓ 관리자 계정 생성: admin / admin123 (ADMIN)");
 
             // 샘플 사용자 1
             Member user1 = Member.builder()

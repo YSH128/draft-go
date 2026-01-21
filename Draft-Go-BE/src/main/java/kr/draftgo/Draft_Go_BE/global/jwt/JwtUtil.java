@@ -2,11 +2,13 @@ package kr.draftgo.Draft_Go_BE.global.jwt;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
@@ -22,7 +24,8 @@ public class JwtUtil {
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token-validity-in-seconds}") long accessTokenValidityInSeconds,
             @Value("${jwt.refresh-token-validity-in-seconds}") long refreshTokenValidityInSeconds) {
-        this.key = Keys.secretKeyFor(SignatureAlgorithm.HS512);
+        // 환경변수에서 받은 secret을 사용하여 Key 생성
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
 
         this.accessTokenValidityInMilliseconds = accessTokenValidityInSeconds * 1000;
         this.refreshTokenValidityInMilliseconds = refreshTokenValidityInSeconds * 1000;
@@ -48,6 +51,9 @@ public class JwtUtil {
                 .compact();
     }
 
+    /**
+     * 토큰 검증 (boolean 반환, 하위 호환성 유지)
+     */
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
@@ -62,6 +68,31 @@ public class JwtUtil {
             log.info("JWT claims string is empty.", e);
         }
         return false;
+    }
+
+    /**
+     * 토큰 검증 및 상세 결과 반환
+     */
+    public JwtValidationResult validateTokenWithDetails(String token) {
+        try {
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            return JwtValidationResult.success();
+        } catch (io.jsonwebtoken.security.SecurityException e) {
+            log.info("Invalid JWT signature", e);
+            return JwtValidationResult.failure(ErrorType.INVALID_TOKEN, "토큰 서명이 유효하지 않습니다");
+        } catch (MalformedJwtException e) {
+            log.info("Invalid JWT token", e);
+            return JwtValidationResult.failure(ErrorType.INVALID_TOKEN, "토큰 형식이 올바르지 않습니다");
+        } catch (ExpiredJwtException e) {
+            log.info("Expired JWT token", e);
+            return JwtValidationResult.failure(ErrorType.EXPIRED_TOKEN, "토큰이 만료되었습니다");
+        } catch (UnsupportedJwtException e) {
+            log.info("Unsupported JWT token", e);
+            return JwtValidationResult.failure(ErrorType.INVALID_TOKEN, "지원하지 않는 토큰 형식입니다");
+        } catch (IllegalArgumentException e) {
+            log.info("JWT claims string is empty", e);
+            return JwtValidationResult.failure(ErrorType.INVALID_TOKEN, "토큰이 비어있습니다");
+        }
     }
 
     public String getUsername(String token) {

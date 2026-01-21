@@ -1,7 +1,7 @@
-package kr.draftgo.Draft_Go_BE.draft.repository;
+package kr.draftgo.Draft_Go_BE.draft.common.repository;
 
-import kr.draftgo.Draft_Go_BE.draft.domain.DraftMember;
-import kr.draftgo.Draft_Go_BE.draft.domain.DraftMemberStatus;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMemberStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

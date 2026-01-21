@@ -42,6 +42,10 @@ public class Member {
     @Column(length = 15)
     private Position subPosition;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private Role role;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -49,7 +53,7 @@ public class Member {
 
     @Builder
     public Member(String username, String password, String gameName, String tagLine, String puuid,
-                  Position mainPosition, Position subPosition) {
+                  Position mainPosition, Position subPosition, Role role) {
         this.username = username;
         this.password = password;
         this.gameName = gameName;
@@ -57,6 +61,7 @@ public class Member {
         this.puuid = puuid;
         this.mainPosition = mainPosition;
         this.subPosition = subPosition;
+        this.role = (role != null) ? role : Role.USER; // role이 지정되면 사용, 아니면 기본값 USER
         this.createdAt = LocalDateTime.now();
     }
 

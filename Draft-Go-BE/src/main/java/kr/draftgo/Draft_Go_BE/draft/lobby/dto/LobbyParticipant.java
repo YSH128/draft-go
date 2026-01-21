@@ -1,4 +1,4 @@
-package kr.draftgo.Draft_Go_BE.draft.dto;
+package kr.draftgo.Draft_Go_BE.draft.lobby.dto;
 
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import lombok.AllArgsConstructor;
@@ -12,10 +12,10 @@ import lombok.ToString;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
-public class DraftParticipant {
+public class LobbyParticipant {
     private Long memberId;
     private String gameName;
     private String role; // "LEADER" or "MEMBER"
     private Position position;
-    private boolean isReady;
+    private boolean isReady; // LEADER ONLY
 }

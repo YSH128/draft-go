@@ -1,4 +1,4 @@
-package kr.draftgo.Draft_Go_BE.draft.domain;
+package kr.draftgo.Draft_Go_BE.draft.common.domain;
 
 public enum DraftMemberStatus {
     WAITING,
