@@ -1,0 +1,42 @@
+package kr.draftgo.Draft_Go_BE.draft.auction.service;
+
+import kr.draftgo.Draft_Go_BE.draft.auction.controller.BidRequest;
+import kr.draftgo.Draft_Go_BE.draft.auction.redis.AuctionKey;
+import kr.draftgo.Draft_Go_BE.draft.auction.redis.BidLuaExecutor;
+import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
+import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
+import kr.draftgo.Draft_Go_BE.draft.repository.TeamRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class BidService {
+
+    private final BidLuaExecutor luaExecutor;
+    private final RedisAuctionRepository redisRepo;
+    private final AuctionEventPublisher publisher;
+    private final TeamRepository teamRepo;
+
+    public void placeBid(Long draftId, Long leaderId, BidRequest req) {
+
+        // 가격 검증 (0 이하 불가)
+        if (req.price() <= 0) {
+            throw new IllegalArgumentException("Bid price must be positive");
+        }
+
+        // 팀 포인트 사전 검증 (빠른 실패)
+        if (!teamRepo.hasEnoughPoint(req.teamId(), req.price())) {
+            throw new InsufficientPointException();
+        }
+
+        luaExecutor.tryBid(
+                AuctionKey.bid(draftId),
+                AuctionKey.timer(draftId),
+                req.teamId(),
+                leaderId,
+                req.price());
+
+        publisher.bidUpdated(draftId, req.teamId(), req.price());
+    }
+}
