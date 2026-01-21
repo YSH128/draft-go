@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ENV_PATH="/home/ubuntu/draft-go/S14P11A205/Draft-Go-BE/.env"
+ENV_PATH="/etc/draft-go/Draft-Go-BE.env"
 
 if [ ! -f "$ENV_PATH" ]; then
   echo "❌ .env not found: $ENV_PATH"
