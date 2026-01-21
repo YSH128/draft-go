@@ -10,4 +10,8 @@ import java.util.Optional;
 @Repository
 public interface MemberStatRepository extends JpaRepository<MemberStat, Long> {
     List<MemberStat> findByMemberIdIn(List<Long> memberIds);
+
+    Optional<MemberStat> findByMemberId(Long memberId);
+
+    boolean existsByMemberId(Long memberId);
 }
