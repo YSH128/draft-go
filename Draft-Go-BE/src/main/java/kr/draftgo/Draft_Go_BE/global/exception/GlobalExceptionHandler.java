@@ -8,7 +8,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
 //
-// Global 예외 처리가 WebFlux와 충돌을 일으키는 문제로 인해 주석 처리함
+// WebFlux 의존성 제거로 인해 정상 동작
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

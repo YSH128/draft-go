@@ -3,24 +3,26 @@ package kr.draftgo.Draft_Go_BE.match.repository;
 import kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
 
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 import org.springframework.data.mongodb.core.aggregation.ConditionalOperators;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 @RequiredArgsConstructor
 public class MatchRepositoryCustomImpl implements MatchRepositoryCustom {
 
-        private final ReactiveMongoTemplate mongoTemplate;
+        private final MongoTemplate mongoTemplate;
 
         @Override
-        public Flux<MostChampionDTO> findMostChampions(String puuid, long startTime, long endTime, int limit) {
+        public List<MostChampionDTO> findMostChampions(String puuid, long startTime, long endTime, int limit) {
                 // Aggregation Pipeline
                 Aggregation aggregation = newAggregation(
                                 // 1. Match: Time range (Root field) & Participant PUUID check (Nested in data)
@@ -51,14 +53,12 @@ public class MatchRepositoryCustomImpl implements MatchRepositoryCustom {
                                 // 6. Limit: Top N champions
                                 limit(limit),
 
-                                // 7. Project: Start shaping the result (Calculation done in mapping phase or
-                                // here)
-                                // Note: Complex arithmetic in Mongo is verbose. easier to just return sums and
-                                // calc stats in Java.
+                                // 7. Project: Start shaping the result
                                 project("totalGames", "wins", "kills", "deaths", "assists")
                                                 .and("_id").as("championName"));
 
                 return mongoTemplate.aggregate(aggregation, "matches", MostChampionDTO.class)
+                                .getMappedResults().stream()
                                 .map(dto -> {
                                         // Calculate derived stats in Java
                                         dto.setLosses(dto.getTotalGames() - dto.getWins());
@@ -76,17 +76,19 @@ public class MatchRepositoryCustomImpl implements MatchRepositoryCustom {
                                                         / 10.0);
 
                                         return dto;
-                                });
+                                })
+                                .collect(Collectors.toList());
         }
 
         @Override
-        public Mono<MatchDocument> findLatestMatchByPuuid(String puuid) {
+        public Optional<MatchDocument> findLatestMatchByPuuid(String puuid) {
                 // Find the latest match where the participant list contains the PUUID
-                return mongoTemplate.findOne(
+                MatchDocument match = mongoTemplate.findOne(
                                 org.springframework.data.mongodb.core.query.Query.query(
                                                 Criteria.where("data.metadata.participants").is(puuid))
                                                 .with(Sort.by(Sort.Direction.DESC, "gameCreation"))
                                                 .limit(1),
                                 MatchDocument.class, "matches");
+                return Optional.ofNullable(match);
         }
 }
