@@ -2,6 +2,7 @@ package kr.draftgo.Draft_Go_BE.draft.room.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import kr.draftgo.Draft_Go_BE.draft.room.dto.DraftListRes;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateReq;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateRes;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomJoinReq;
@@ -11,6 +12,8 @@ import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 드래프트 방 생성 및 참가 Controller
@@ -22,6 +25,12 @@ import org.springframework.web.bind.annotation.*;
 public class RoomController {
 
     private final RoomService roomService;
+
+    @Operation(summary = "드래프트 목록 조회", description = "모든 드래프트 방 목록을 조회합니다.")
+    @GetMapping
+    public List<DraftListRes> getDraftList() {
+        return roomService.getDraftList();
+    }
 
     @Operation(summary = "드래프트 방 생성", description = "새로운 드래프트 방을 생성하고 참여 코드를 발급받습니다.")
     @PostMapping

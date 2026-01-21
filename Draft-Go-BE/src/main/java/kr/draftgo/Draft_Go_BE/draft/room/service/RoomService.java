@@ -4,6 +4,7 @@ import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.LobbyParticipant;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
+import kr.draftgo.Draft_Go_BE.draft.room.dto.DraftListRes;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateReq;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateRes;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomJoinReq;
@@ -14,6 +15,9 @@ import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 드래프트 방 생성 및 참가 서비스
@@ -108,5 +112,27 @@ public class RoomService {
                 .build();
 
         lobbyRedisRepository.join(draftId, participant);
+    }
+
+    /**
+     * 드래프트 목록 조회
+     */
+    public List<DraftListRes> getDraftList() {
+        List<Draft> drafts = draftRepository.findAll();
+
+        return drafts.stream()
+                .map(draft -> {
+                    List<LobbyParticipant> participants = lobbyRedisRepository.getParticipants(draft.getId());
+
+                    return DraftListRes.builder()
+                            .draftId(draft.getId())
+                            .title(draft.getTitle())
+                            .ownerName(draft.getOwner().getGameName())
+                            .maxTeamCount(draft.getMaxTeamCount())
+                            .participantCount(participants.size())
+                            .status(draft.getStatus())
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 }
