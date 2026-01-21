@@ -28,16 +28,16 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authException) throws IOException, ServletException {
-        log.warn("Unauthorized access attempt: {}", authException.getMessage());
+        log.warn("Unauthorized access attempt to protected resource: {}", request.getRequestURI());
 
         // 요청 속성에서 JWT 관련 에러 타입 확인
         ErrorType errorType = (ErrorType) request.getAttribute("jwtErrorType");
         String errorMessage = (String) request.getAttribute("jwtErrorMessage");
 
-        // 에러 타입이 없으면 기본값 사용
+        // 에러 타입이 없으면 토큰이 제공되지 않은 것으로 간주
         if (errorType == null) {
             errorType = ErrorType.MISSING_TOKEN;
-            errorMessage = "인증 정보가 필요합니다";
+            errorMessage = "인증 토큰이 필요합니다";
         }
 
         ErrorResponse errorResponse = ErrorResponse.of(errorType, errorMessage);

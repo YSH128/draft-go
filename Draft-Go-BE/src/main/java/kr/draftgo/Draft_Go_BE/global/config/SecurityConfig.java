@@ -73,9 +73,9 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/members/signup", "/api/v1/members/login", "/api/v1/members/reissue",
-                                "/api/v1/admin/**", "/swagger-ui/**", "/v3/api-docs/**")
+                                "/api/v1/admin/**", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/**")
                         .permitAll()
-                        .anyRequest().authenticated()) // 나머지 요청은 인증 필요
+                        .anyRequest().permitAll()) // 기본적으로 모든 요청 허용, @PreAuthorize로 보호된 엔드포인트만 인증 필요
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

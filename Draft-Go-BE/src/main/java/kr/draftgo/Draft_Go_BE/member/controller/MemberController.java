@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -38,6 +40,7 @@ public class MemberController {
     }
 
     @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MemberProfileRes> getMyProfile(Authentication authentication) {
         String username = authentication.getName();
         MemberProfileRes profile = memberService.getProfile(username);
@@ -45,6 +48,7 @@ public class MemberController {
     }
 
     @PostMapping("/logout")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logout(Authentication authentication) {
         String username = authentication.getName();
         memberService.logout(username);
@@ -52,6 +56,7 @@ public class MemberController {
     }
 
     @PutMapping("/{memberId}/profile")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> updateProfile(@PathVariable Long memberId, @RequestBody MemberProfileUpdateReq req) {
         memberService.updateProfile(memberId, req);
         return ResponseEntity.ok().build();

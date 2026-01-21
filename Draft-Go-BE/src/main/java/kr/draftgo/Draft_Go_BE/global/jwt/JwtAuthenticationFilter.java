@@ -53,16 +53,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     }
                 } else {
-                    // 토큰 검증 실패 시 에러 정보를 요청 속성에 설정
+                    // 토큰이 유효하지 않은 경우 에러 정보를 요청 속성에 설정
+                    // 이 정보는 @PreAuthorize로 보호된 엔드포인트에 접근할 때 AuthenticationEntryPoint에서 사용됨
                     request.setAttribute("jwtErrorType", validationResult.getErrorType());
                     request.setAttribute("jwtErrorMessage", validationResult.getErrorMessage());
                     log.debug("JWT validation failed: {}", validationResult.getErrorMessage());
                 }
             }
-            // 토큰이 없는 경우는 에러로 간주하지 않음 (public endpoint일 수 있음)
+            // 토큰이 없는 경우 인증 정보를 설정하지 않음
+            // @PreAuthorize가 적용된 엔드포인트는 AuthenticationEntryPoint로 처리됨
+            // Public 엔드포인트는 정상적으로 통과됨
 
         } catch (Exception e) {
             log.error("JWT authentication error: ", e);
+            // 예외 발생 시에만 에러 정보 설정
             request.setAttribute("jwtErrorType", ErrorType.INVALID_TOKEN);
             request.setAttribute("jwtErrorMessage", "토큰 처리 중 오류가 발생했습니다");
         }
