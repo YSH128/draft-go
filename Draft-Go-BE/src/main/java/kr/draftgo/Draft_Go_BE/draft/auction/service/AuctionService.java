@@ -5,8 +5,8 @@ import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.AuctionStatusResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
-import kr.draftgo.Draft_Go_BE.draft.domain.DraftMember;
-import kr.draftgo.Draft_Go_BE.draft.repository.DraftMemberRepository;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
+import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

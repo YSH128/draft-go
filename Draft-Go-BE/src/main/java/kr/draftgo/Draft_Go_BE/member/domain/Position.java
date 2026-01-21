@@ -5,7 +5,8 @@ public enum Position {
     JUNGLE("정글"),
     MID("미드"),
     BOT("바텀"),
-    SUP("서포터");
+    SUP("서포터"),
+    OBSERVER("관전자");
 
     private final String displayName;
 

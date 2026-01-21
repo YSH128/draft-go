@@ -5,7 +5,7 @@ import kr.draftgo.Draft_Go_BE.draft.auction.redis.AuctionKey;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.BidLuaExecutor;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
-import kr.draftgo.Draft_Go_BE.draft.repository.TeamRepository;
+import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

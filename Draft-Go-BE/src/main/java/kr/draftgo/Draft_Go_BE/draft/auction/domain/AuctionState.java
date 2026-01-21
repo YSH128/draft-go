@@ -8,7 +8,6 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 import lombok.ToString;
-import lombok.experimental.Accessors;
 
 @Getter
 @Builder
