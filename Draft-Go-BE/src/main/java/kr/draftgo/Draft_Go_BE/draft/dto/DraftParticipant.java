@@ -1,0 +1,21 @@
+package kr.draftgo.Draft_Go_BE.draft.dto;
+
+import kr.draftgo.Draft_Go_BE.member.domain.Position;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+public class DraftParticipant {
+    private Long memberId;
+    private String gameName;
+    private String role; // "LEADER" or "MEMBER"
+    private Position position;
+    private boolean isReady;
+}

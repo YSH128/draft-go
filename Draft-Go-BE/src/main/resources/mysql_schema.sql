@@ -36,6 +36,8 @@ CREATE TABLE `draft` (
 	`title` VARCHAR(100) NOT NULL,
 	`start_price` INT NOT NULL,
 	`start_point` INT NOT NULL,
+	`member_code` VARCHAR(6) NOT NULL,
+	`leader_code` VARCHAR(6) NOT NULL,
 	`status` VARCHAR(20) NOT NULL DEFAULT 'RECRUITING' COMMENT 'RECRUITING, AUCTION, AUCTION_FINISHED, COMPLETED',
     PRIMARY KEY (`id`),
     CONSTRAINT `fk_draft_owner` FOREIGN KEY (`owner_id`) REFERENCES `member` (`id`)
