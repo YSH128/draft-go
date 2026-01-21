@@ -1,6 +1,6 @@
 import React from "react";
 import Badge from "../../ui/Badge";
-import { getTierColor, formatTierName } from "../../../utils/tierHelper";
+import { getTierColorKey, getTierLabel } from "../../../constants/riot";
 
 import topIcon from "../../../assets/positions/top.svg";
 import jungleIcon from "../../../assets/positions/jungle.svg";
@@ -80,8 +80,8 @@ export default function TeamCard({ team }) {
           <span className="mb-1 text-[10px] tracking-wider text-gray-500 uppercase">
             평균 티어
           </span>
-          <Badge variant={getTierColor(team.averageTier)} className="px-1.5">
-            {formatTierName(team.averageTier)}
+          <Badge variant={getTierColorKey(team.averageTier)} className="px-1.5">
+            {getTierLabel(team.averageTier)}
           </Badge>
         </div>
       </div>
@@ -89,8 +89,8 @@ export default function TeamCard({ team }) {
       {/* 2. 선수 목록 */}
       <div className="flex-1 space-y-2">
         {sortedPlayers.map((player, index) => {
-          const tierVariant = getTierColor(player.tier);
-          const tierName = formatTierName(player.tier);
+          const tierVariant = getTierColorKey(player.tier);
+          const tierName = getTierLabel(player.tier);
           const roleIconSrc = ROLE_ICONS[player.role.toUpperCase()] || topIcon;
           const playerRowClass = player.isMe
             ? "border-primary bg-primary/10 shadow-[inset_0_0_10px_rgba(200,155,60,0.1)]"
