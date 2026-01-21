@@ -6,6 +6,6 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public class MemberLoginEvent {
+public class MemberSignupEvent {
     private final Member member;
 }

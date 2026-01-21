@@ -1,8 +1,8 @@
 package kr.draftgo.Draft_Go_BE.match.service;
 
 import kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import java.util.List;
+import kr.draftgo.Draft_Go_BE.member.domain.Member;
 
 public interface RiotApiService {
     /**
@@ -18,7 +18,7 @@ public interface RiotApiService {
      */
     String getPuuid(String gameName, String tagLine);
 
-    java.util.List<MostChampionDTO> getMostChampions(String puuid, String seasonId, int limit);
+    List<MostChampionDTO> getMostChampions(String puuid, String seasonId, int limit);
 
     /**
      * Refresh matches for a specific member directly using their PUUID.
@@ -27,5 +27,13 @@ public interface RiotApiService {
      * @param member The member to refresh
      * @return Result message
      */
-    String refreshMatches(kr.draftgo.Draft_Go_BE.member.domain.Member member);
+    String refreshMatches(Member member);
+
+    /**
+     * Get League Info (Tier, Rank, LP, Wins, Losses) by PUUID.
+     * 
+     * @param puuid
+     * @return Map containing league info
+     */
+    java.util.Map<String, Object> getLeagueInfoByPuuid(String puuid);
 }
