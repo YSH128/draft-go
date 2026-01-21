@@ -1,6 +1,6 @@
-package kr.draftgo.Draft_Go_BE.draft.repository;
+package kr.draftgo.Draft_Go_BE.draft.common.repository;
 
-import kr.draftgo.Draft_Go_BE.draft.domain.Teammate;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.Teammate;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;

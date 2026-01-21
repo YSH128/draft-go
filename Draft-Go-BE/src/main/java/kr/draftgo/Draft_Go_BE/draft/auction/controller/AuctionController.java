@@ -1,6 +1,5 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.controller;
 
-import kr.draftgo.Draft_Go_BE.draft.auction.domain.AuctionState;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.AuctionStatusResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionService;
 import kr.draftgo.Draft_Go_BE.draft.auction.service.BidService;
