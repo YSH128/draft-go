@@ -1,17 +1,14 @@
 #!/bin/bash
 
-APP_NAME="draft-go"
-PORT=8080
-
 echo "🛑 Stop existing server..."
 
-PID=$(lsof -ti tcp:${PORT})
+PID=$(lsof -ti :8080)
 
 if [ -z "$PID" ]; then
-  echo "⚠️ No process running on port ${PORT}"
+  echo "⚠️ No process running on port 8080"
 else
-  echo "🔪 Killing PID ${PID}"
-  kill -9 ${PID}
+  echo "🔥 Killing process on port 8080 (PID=$PID)"
+  kill -9 $PID
 fi
 
 echo "✅ Stop completed"
