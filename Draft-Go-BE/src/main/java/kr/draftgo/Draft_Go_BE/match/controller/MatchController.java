@@ -6,12 +6,12 @@ import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import kr.draftgo.Draft_Go_BE.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-
 
 @Slf4j
 @RestController
@@ -25,7 +25,7 @@ public class AuthenticatedMatchController {
 
     // Changed from /refresh/{puuid} to /refresh/{memberId}
     @PostMapping("/refresh/{memberId}")
-    public org.springframework.http.ResponseEntity<String> refreshMatches(@PathVariable Long memberId) {
+    public ResponseEntity<String> refreshMatches(@PathVariable Long memberId) {
         log.info("Request match refresh for memberId: {}", memberId);
 
         Member member = memberRepository.findById(memberId)
@@ -39,6 +39,6 @@ public class AuthenticatedMatchController {
             memberService.updateMemberStats(memberId);
         }
 
-        return org.springframework.http.ResponseEntity.ok(result);
+        return ResponseEntity.ok(result);
     }
 }
