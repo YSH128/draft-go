@@ -3,12 +3,14 @@ package kr.draftgo.Draft_Go_BE.match.controller;
 import kr.draftgo.Draft_Go_BE.match.service.RiotApiService;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
+import kr.draftgo.Draft_Go_BE.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 
 
 @Slf4j
@@ -19,6 +21,7 @@ public class AuthenticatedMatchController {
 
     private final RiotApiService riotApiService;
     private final MemberRepository memberRepository;
+    private final MemberService memberService;
 
     // Changed from /refresh/{puuid} to /refresh/{memberId}
     @PostMapping("/refresh/{memberId}")
@@ -33,6 +36,7 @@ public class AuthenticatedMatchController {
         if (result.startsWith("Updated")) {
             member.refreshUpdatedAt();
             memberRepository.save(member);
+            memberService.updateMemberStats(memberId);
         }
 
         return org.springframework.http.ResponseEntity.ok(result);

@@ -26,4 +26,12 @@ public interface RiotApiService {
      * @return Result message
      */
     String refreshMatches(kr.draftgo.Draft_Go_BE.member.domain.Member member);
+
+    /**
+     * Get League Info (Tier, Rank, LP, Wins, Losses) by PUUID.
+     * 
+     * @param puuid
+     * @return Map containing league info
+     */
+    java.util.Map<String, Object> getLeagueInfoByPuuid(String puuid);
 }
