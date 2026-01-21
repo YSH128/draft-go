@@ -24,15 +24,13 @@ public class RiotController {
     }
 
     @GetMapping("/api/v1/search/most-champs")
-    public Flux<kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO> getMostChampions(
+    public java.util.List<kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO> getMostChampions(
             @RequestParam Long memberId,
             @RequestParam(required = false) String seasonId,
             @RequestParam(defaultValue = "10") int limit) {
 
-        return reactor.core.publisher.Mono.justOrEmpty(memberRepository.findById(memberId))
-                .switchIfEmpty(
-                        reactor.core.publisher.Mono.error(new IllegalArgumentException("존재하지 않는 회원입니다.")))
-                .map(member -> member.getPuuid())
-                .flatMapMany(puuid -> riotApiService.getMostChampions(puuid, seasonId, limit));
+        return memberRepository.findById(memberId)
+                .map(member -> riotApiService.getMostChampions(member.getPuuid(), seasonId, limit))
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
     }
 }

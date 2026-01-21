@@ -13,18 +13,18 @@ import kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO; // Added import for Mos
 @ConditionalOnProperty(name = "riot.api.mode", havingValue = "MOCK", matchIfMissing = true)
 public class MockRiotApiService implements RiotApiService {
 
-        @Override
-        public Mono<String> getPuuid(String gameName, String tagLine) {
-                return Mono.just("mock-puuid-" + Math.abs((gameName + tagLine).hashCode()));
-        }
+    @Override
+    public String getPuuid(String gameName, String tagLine) {
+        return "mock-puuid-" + Math.abs((gameName + tagLine).hashCode());
+    }
 
-        @Override
-        public Flux<MostChampionDTO> getMostChampions(String puuid, String seasonId, int limit) {
-                return Flux.empty();
-        }
+    @Override
+    public java.util.List<MostChampionDTO> getMostChampions(String puuid, String seasonId, int limit) {
+        return java.util.Collections.emptyList();
+    }
 
-        @Override
-        public Mono<String> refreshMatches(kr.draftgo.Draft_Go_BE.member.domain.Member member) {
-                return Mono.just("Mock: Refreshed matches for " + member.getGameName());
-        }
+    @Override
+    public String refreshMatches(kr.draftgo.Draft_Go_BE.member.domain.Member member) {
+        return "Mock: Refreshed matches for " + member.getGameName();
+    }
 }
