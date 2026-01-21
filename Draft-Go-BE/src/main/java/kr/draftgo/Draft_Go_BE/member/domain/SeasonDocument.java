@@ -1,4 +1,4 @@
-package kr.draftgo.Draft_Go_BE.match.domain;
+package kr.draftgo.Draft_Go_BE.member.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

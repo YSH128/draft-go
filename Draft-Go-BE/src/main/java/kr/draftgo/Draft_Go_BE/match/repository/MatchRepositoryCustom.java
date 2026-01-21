@@ -2,9 +2,11 @@ package kr.draftgo.Draft_Go_BE.match.repository;
 
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO;
+import java.util.List;
+import java.util.Optional;
 
 public interface MatchRepositoryCustom {
-    java.util.List<MostChampionDTO> findMostChampions(String puuid, long startTime, long endTime, int limit);
+    List<MostChampionDTO> findMostChampions(String puuid, long startTime, long endTime, int limit);
 
-    java.util.Optional<MatchDocument> findLatestMatchByPuuid(String puuid);
+    Optional<MatchDocument> findLatestMatchByPuuid(String puuid);
 }

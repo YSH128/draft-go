@@ -7,8 +7,8 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
 
+import org.springframework.data.mongodb.core.query.Query;
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
-
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 import org.springframework.data.mongodb.core.aggregation.ConditionalOperators;
 
@@ -84,7 +84,7 @@ public class MatchRepositoryCustomImpl implements MatchRepositoryCustom {
         public Optional<MatchDocument> findLatestMatchByPuuid(String puuid) {
                 // Find the latest match where the participant list contains the PUUID
                 MatchDocument match = mongoTemplate.findOne(
-                                org.springframework.data.mongodb.core.query.Query.query(
+                                Query.query(
                                                 Criteria.where("data.metadata.participants").is(puuid))
                                                 .with(Sort.by(Sort.Direction.DESC, "gameCreation"))
                                                 .limit(1),

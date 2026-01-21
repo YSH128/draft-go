@@ -3,7 +3,7 @@ package kr.draftgo.Draft_Go_BE.match.service;
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO;
 import kr.draftgo.Draft_Go_BE.match.repository.MatchRepository;
-import kr.draftgo.Draft_Go_BE.match.repository.SeasonRepository;
+import kr.draftgo.Draft_Go_BE.member.repository.SeasonRepository;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

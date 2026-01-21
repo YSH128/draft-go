@@ -7,18 +7,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import kr.draftgo.Draft_Go_BE.member.event.MemberSignupEvent;
+import kr.draftgo.Draft_Go_BE.member.domain.Member;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MatchEventListener {
 
-        private final MemberService memberService; // Added dependency
+        private final MemberService memberService;
         private final RiotApiService riotApiService;
 
         @Async
         @EventListener
-        public void handleMemberSignupEvent(kr.draftgo.Draft_Go_BE.member.event.MemberSignupEvent event) {
+        public void handleMemberSignupEvent(MemberSignupEvent event) {
                 log.info("Async match fetch started for NEW user: {}", event.getMember().getUsername());
                 processMatchRefresh(event.getMember());
         }
@@ -32,7 +34,7 @@ public class MatchEventListener {
          * Or we can repurpose it. Let's stick to Signup Event.
          */
 
-        private void processMatchRefresh(kr.draftgo.Draft_Go_BE.member.domain.Member member) {
+        private void processMatchRefresh(Member member) {
                 try {
                         String result = riotApiService.refreshMatches(member);
                         log.info("Async match fetch completed for {}: {}", member.getUsername(), result);

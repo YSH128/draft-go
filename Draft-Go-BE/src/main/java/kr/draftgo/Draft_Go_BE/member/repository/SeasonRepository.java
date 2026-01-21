@@ -1,6 +1,6 @@
-package kr.draftgo.Draft_Go_BE.match.repository;
+package kr.draftgo.Draft_Go_BE.member.repository;
 
-import kr.draftgo.Draft_Go_BE.match.domain.SeasonDocument;
+import kr.draftgo.Draft_Go_BE.member.domain.SeasonDocument;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.Optional;
 
