@@ -10,22 +10,22 @@ public interface RiotApiService {
      * 
      * @param gameName Riot ID Game Name
      * @param tagLine  Riot ID Tag Line
-     * @return Mono of RiotResponseDTO
+     * @return RiotResponseDTO
      */
 
     /**
      * Get PUUID by Game Name and Tag Line
      */
-    Mono<String> getPuuid(String gameName, String tagLine);
+    String getPuuid(String gameName, String tagLine);
 
-    Flux<MostChampionDTO> getMostChampions(String puuid, String seasonId, int limit);
+    java.util.List<MostChampionDTO> getMostChampions(String puuid, String seasonId, int limit);
 
     /**
      * Refresh matches for a specific member directly using their PUUID.
      * Updates Member's last updated timestamp.
      *
      * @param member The member to refresh
-     * @return Mono<String> Result message
+     * @return Result message
      */
-    Mono<String> refreshMatches(kr.draftgo.Draft_Go_BE.member.domain.Member member);
+    String refreshMatches(kr.draftgo.Draft_Go_BE.member.domain.Member member);
 }

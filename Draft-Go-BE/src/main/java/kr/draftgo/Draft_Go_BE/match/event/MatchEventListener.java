@@ -18,12 +18,14 @@ public class MatchEventListener {
         @EventListener
         public void handleMemberLoginEvent(kr.draftgo.Draft_Go_BE.member.event.MemberLoginEvent event) {
                 log.info("Async match fetch started for user: {}", event.getMember().getUsername());
-                riotApiService.refreshMatches(event.getMember())
-                                .subscribe(
-                                                result -> log.info("Async match fetch completed for {}: {}",
-                                                                event.getMember().getUsername(),
-                                                                result),
-                                                error -> log.error("Async match fetch failed for {}",
-                                                                event.getMember().getUsername(), error));
+                try {
+                        String result = riotApiService.refreshMatches(event.getMember());
+                        log.info("Async match fetch completed for {}: {}",
+                                        event.getMember().getUsername(),
+                                        result);
+                } catch (Exception e) {
+                        log.error("Async match fetch failed for {}",
+                                        event.getMember().getUsername(), e);
+                }
         }
 }

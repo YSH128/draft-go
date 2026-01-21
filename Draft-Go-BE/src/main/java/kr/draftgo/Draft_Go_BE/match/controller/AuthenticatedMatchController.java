@@ -22,18 +22,19 @@ public class AuthenticatedMatchController {
 
     // Changed from /refresh/{puuid} to /refresh/{memberId}
     @PostMapping("/refresh/{memberId}")
-    public Mono<String> refreshMatches(@PathVariable Long memberId) {
+    public org.springframework.http.ResponseEntity<String> refreshMatches(@PathVariable Long memberId) {
         log.info("Request match refresh for memberId: {}", memberId);
 
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
-        return riotApiService.refreshMatches(member)
-                .doOnSuccess(result -> {
-                    if (result.startsWith("Updated")) {
-                        member.refreshUpdatedAt();
-                        memberRepository.save(member);
-                    }
-                });
+        String result = riotApiService.refreshMatches(member);
+
+        if (result.startsWith("Updated")) {
+            member.refreshUpdatedAt();
+            memberRepository.save(member);
+        }
+
+        return org.springframework.http.ResponseEntity.ok(result);
     }
 }
