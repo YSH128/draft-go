@@ -142,6 +142,21 @@ h6 {
     scrollbar-width: none;
   }
 
+  /* 커스텀 스크롤바 (헥스텍 스타일) */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #010a13;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #1e2328;
+    border-radius: 2px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #c89b3c;
+  }
+
   /* 헥스텍 그라데이션 배경 */
   .bg-hextech-gradient {
     background: linear-gradient(135deg, #010a13 0%, #091428 100%);

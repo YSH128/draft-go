@@ -3,5 +3,6 @@ export const ROUTES = {
   HOME: "/",
   LOGIN: "/login",
   MY: "/my",
-  DESIGN_PREVIEW: "/preview"
+  DESIGN_PREVIEW: "/preview",
+  DRAFT: "/draft"
 };
