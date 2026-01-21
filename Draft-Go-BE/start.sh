@@ -1,24 +1,18 @@
 #!/bin/bash
+set -e
 
-ENV_PATH="/etc/draft-go/Draft-Go-BE.env"
+ENV_FILE="/etc/draft-go/Draft-Go-BE.env"
 
-if [ ! -f "$ENV_PATH" ]; then
-  echo "❌ .env not found: $ENV_PATH"
-  exit 1
-fi
-
-echo "✅ Loading env from $ENV_PATH"
+echo "✅ Loading env from $ENV_FILE"
 set -a
-source "$ENV_PATH"
+source "$ENV_FILE"
 set +a
 
-chmod +x gradlew
+JAR=$(ls build/libs/*SNAPSHOT.jar)
 
-echo "Building project..."
-./gradlew clean build -x test || exit 1
+echo "🚀 Starting application..."
 
-JAR_PATH=$(find build/libs -name "*SNAPSHOT.jar" | head -n 1)
-[ -z "$JAR_PATH" ] && echo "❌ JAR not found" && exit 1
+nohup java -jar "$JAR" > app.log 2>&1 &
+echo $! > app.pid
 
-echo "Starting application..."
-java -jar "$JAR_PATH"
+echo "✅ Application started (PID=$(cat app.pid))"

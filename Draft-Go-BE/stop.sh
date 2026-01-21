@@ -1,14 +1,19 @@
 #!/bin/bash
 
+PID_FILE="app.pid"
+
 echo "🛑 Stop existing server..."
 
-PID=$(lsof -ti :8080)
-
-if [ -z "$PID" ]; then
-  echo "⚠️ No process running on port 8080"
+if [ -f "$PID_FILE" ]; then
+  PID=$(cat "$PID_FILE")
+  if ps -p $PID > /dev/null; then
+    kill -15 $PID
+    echo "✅ Sent SIGTERM to PID $PID"
+    sleep 3
+  fi
+  rm -f "$PID_FILE"
 else
-  echo "🔥 Killing process on port 8080 (PID=$PID)"
-  kill -9 $PID
+  echo "⚠️ No app.pid found"
 fi
 
 echo "✅ Stop completed"
