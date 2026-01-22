@@ -11,7 +11,12 @@ import DraftMemberCard from "../../components/ui/DraftMemberCard.jsx";
 import ActiveBidderCard from "../../components/ui/ActiveBidderCard.jsx";
 import SectionTitle from "../../components/ui/SectionTitle.jsx";
 import TeamCard from "../../components/draft/result/TeamCard";
-import { DRAFT_RESULT_MOCK_DATA } from "../../constants/mockData";
+import ProfileSummary from "../../components/profile/ProfileSummary";
+import GameStyleCard from "../../components/profile/GameStyleCard";
+import {
+  DRAFT_RESULT_MOCK_DATA,
+  USER_PROFILE_MOCK_DATA,
+} from "../../constants/mockData";
 
 export default function Index() {
   return (
@@ -287,6 +292,43 @@ export default function Index() {
           <div className="mt-4 max-w-[350px]">
             {/* 내 팀이 아닌 경우(회색 테두리)도 확인 */}
             <TeamCard team={DRAFT_RESULT_MOCK_DATA[1]} />
+          </div>
+        </div>
+      </section>
+
+      {/* Profile Components Section (New) */}
+      <section className="space-y-6 pb-20">
+        <h2 className="text-hextech-gold border-primary border-l-4 pl-4 text-2xl font-bold">
+          Profile Components Preview
+        </h2>
+
+        <div className="rounded-lg border border-gray-700 bg-black/50 p-8">
+          <p className="mb-8 text-gray-400">
+            * 내 정보 수정 페이지에 들어갈 컴포넌트들입니다. (좌측 요약 / 우측
+            스타일)
+          </p>
+
+          <div className="flex flex-col gap-10 lg:flex-row lg:items-start">
+            {/* 1. Profile Summary (왼쪽 패널 테스트) */}
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-bold tracking-wider text-gray-500 uppercase">
+                Left: Profile Summary
+              </h3>
+              <div className="shrink-0">
+                {/* 너비를 실제 페이지처럼 제한해서 확인 */}
+                <ProfileSummary data={USER_PROFILE_MOCK_DATA} />
+              </div>
+            </div>
+
+            {/* 2. Game Style Card (오른쪽 패널 테스트) */}
+            <div className="flex flex-1 flex-col gap-2">
+              <h3 className="text-sm font-bold tracking-wider text-gray-500 uppercase">
+                Right: Game Style Card
+              </h3>
+              <div className="w-full">
+                <GameStyleCard data={USER_PROFILE_MOCK_DATA} />
+              </div>
+            </div>
           </div>
         </div>
       </section>

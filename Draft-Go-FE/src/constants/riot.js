@@ -5,6 +5,19 @@ import midIcon from "../assets/positions/mid.svg";
 import botIcon from "../assets/positions/bot.png";
 import supIcon from "../assets/positions/sup.svg";
 
+// Tier Images
+import iron from "../assets/tier/iron.webp";
+import bronze from "../assets/tier/bronze.webp";
+import silver from "../assets/tier/silver.webp";
+import gold from "../assets/tier/gold.webp";
+import platinum from "../assets/tier/platinum.webp";
+import emerald from "../assets/tier/emerald.webp";
+import diamond from "../assets/tier/diamond.webp";
+import master from "../assets/tier/master.webp";
+import grandmaster from "../assets/tier/grandmaster.webp";
+import challenger from "../assets/tier/challenger.webp";
+import unranked from "../assets/tier/unranked.webp";
+
 export const POSITIONS = [
   { id: "TOP", icon: topIcon, label: "TOP" },
   { id: "JUNGLE", icon: jungleIcon, label: "JUNGLE" },
@@ -70,6 +83,39 @@ export const getTierLabel = (tierValue) => {
   if (!tierValue) return "";
   const found = TIERS.find((t) => t.value === tierValue);
   return found?.label ?? tierValue;
+};
+
+// 티어 이미지 매핑 (대분류 기준)
+export const TIER_IMAGES = {
+  IRON: iron,
+  BRONZE: bronze,
+  SILVER: silver,
+  GOLD: gold,
+  PLATINUM: platinum,
+  EMERALD: emerald,
+  DIAMOND: diamond,
+  MASTER: master,
+  GRANDMASTER: grandmaster,
+  CHALLENGER: challenger,
+  UNRANKED: unranked,
+};
+
+// 상세 티어값(예: DIAMOND_4)에서 티어 이미지 반환
+export const getTierImage = (tierValue) => {
+  if (!tierValue) return TIER_IMAGES.UNRANKED;
+
+  if (tierValue === "CHALLENGER") return TIER_IMAGES.CHALLENGER;
+  if (tierValue === "GRANDMASTER") return TIER_IMAGES.GRANDMASTER;
+  if (tierValue === "MASTER") return TIER_IMAGES.MASTER;
+  if (tierValue.startsWith("DIAMOND")) return TIER_IMAGES.DIAMOND;
+  if (tierValue.startsWith("EMERALD")) return TIER_IMAGES.EMERALD;
+  if (tierValue.startsWith("PLATINUM")) return TIER_IMAGES.PLATINUM;
+  if (tierValue.startsWith("GOLD")) return TIER_IMAGES.GOLD;
+  if (tierValue.startsWith("SILVER")) return TIER_IMAGES.SILVER;
+  if (tierValue.startsWith("BRONZE")) return TIER_IMAGES.BRONZE;
+  if (tierValue.startsWith("IRON")) return TIER_IMAGES.IRON;
+
+  return TIER_IMAGES.UNRANKED;
 };
 
 // 티어 value로 색상 키 반환

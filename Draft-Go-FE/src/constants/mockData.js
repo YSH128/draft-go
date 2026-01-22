@@ -150,3 +150,72 @@ export const DRAFT_RESULT_MOCK_DATA = [
     ],
   },
 ];
+
+export const USER_PROFILE_MOCK_DATA = {
+  // 1. API 명세서 기반 회원 정보 (GET /api/v1/members/me)
+  memberId: 9007199254740991,
+  username: "user_id_123", // 로그인 아이디
+  gameName: "Hide on bush", // 소환사명
+  tagLine: "KR1", // 태그
+  mainPosition: "TOP", // API Enum: TOP, JUNGLE, MID, BOT, SUP
+  subPosition: "JUNGLE",
+
+  // 2. UI 표시용 추가 정보 (API에는 없지만 화면에 필요함)
+  level: 154,
+  tier: "DIAMOND_4",
+  avatarUrl:
+    "https://opgg-static.akamaized.net/meta/images/profile_icons/profileIcon1625.jpg",
+  introduction:
+    "승리를 향해 나아가는 소환사입니다.\n탑/정글 위주로 플레이합니다.",
+
+  // 3. 선호 챔피언 (TOP 3)
+  topChampions: [
+    { name: "Aatrox", image: "aatrox.png" },
+    { name: "Lee Sin", image: "leesin.png" },
+    { name: "Ahri", image: "ahri.png" },
+  ],
+
+  // 4. 참가 중인 대회 목록 (보안 설정 대신 들어갈 내용)
+  participatingTournaments: [
+    {
+      id: 101,
+      name: "2024 자낳대 시즌 1",
+      status: "ONGOING", // 진행중
+      date: "2024.03.15",
+      myTeam: {
+        id: 1,
+        leaderName: "Faker",
+        teamColor: "Red",
+        isMyTeam: true,
+        averageTier: "Diamond 2",
+        players: [
+          { role: "TOP", tier: "DIAMOND_1", name: "Hide on bush", isMe: true },
+          { role: "JUNGLE", tier: "DIAMOND_2", name: "Cuzz" },
+          { role: "MID", tier: "CHALLENGER", name: "Faker" },
+          { role: "BOT", tier: "DIAMOND_3", name: "Gumayusi" },
+          { role: "SUP", tier: "EMERALD_1", name: "Keria" },
+        ],
+      },
+    },
+    {
+      id: 102,
+      name: "제 3회 멸망전",
+      status: "FINISHED", // 종료됨
+      date: "2024.01.20",
+      myTeam: {
+        id: 5,
+        leaderName: "Ambition",
+        teamColor: "Blue",
+        isMyTeam: true,
+        averageTier: "Emerald 1",
+        players: [
+          { role: "TOP", tier: "EMERALD_2", name: "Khan" },
+          { role: "JUNGLE", tier: "DIAMOND_4", name: "Ambition", isMe: true }, // 포지션 변경 예시
+          { role: "MID", tier: "EMERALD_1", name: "Crown" },
+          { role: "BOT", tier: "EMERALD_3", name: "Ruler" },
+          { role: "SUP", tier: "EMERALD_2", name: "CoreJJ" },
+        ],
+      },
+    },
+  ],
+};

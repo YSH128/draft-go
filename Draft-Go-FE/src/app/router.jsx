@@ -3,7 +3,7 @@ import { MainLayout } from "../components/layout";
 import HomePage from "../pages/Home";
 import LoginPage from "../pages/Login";
 import SignupPage from "../pages/Signup";
-import MyPage from "../pages/My";
+import ProfilePage from "../pages/Profile";
 import ResultPage from "../pages/DraftResult";
 import { ROUTES } from "../constants/routes";
 import Index from "../pages/DesignSystemPreview/index.jsx";
@@ -15,7 +15,7 @@ export default function AppRouter() {
         <Route path={ROUTES.HOME} element={<HomePage />} />
         <Route path={ROUTES.LOGIN} element={<LoginPage />} />
         <Route path={ROUTES.SIGNUP} element={<SignupPage />} />
-        <Route path={ROUTES.MY} element={<MyPage />} />
+        <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
         <Route path={ROUTES.RESULT} element={<ResultPage />} />
         <Route path={ROUTES.DESIGN_PREVIEW} element={<Index />} />
       </Route>
