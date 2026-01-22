@@ -13,4 +13,8 @@ public class AuctionKey {
     public static String timer(Long draftId) {
         return "auction:" + draftId + ":timer";
     }
+
+    public static String teamPoint(Long draftId, Long teamId) {
+        return "draft:" + draftId + ":team:" + teamId + ":point";
+    }
 }

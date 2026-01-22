@@ -57,6 +57,10 @@ public class DraftMember {
         this.status = DraftMemberStatus.SKIPPED;
     }
 
+    public void assignTurnOrder(int turnOrder) {
+        this.turnOrder = turnOrder;
+    }
+
     public String getName() {
         return member.getGameName();
     }
