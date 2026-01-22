@@ -2,6 +2,7 @@ package kr.draftgo.Draft_Go_BE.draft.lobby.service;
 
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Team;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Teammate;
 import kr.draftgo.Draft_Go_BE.draft.common.dto.CodeInfo;
@@ -53,7 +54,7 @@ public class LobbyService {
     /**
      * 로비 정보 조회
      */
-    public LobbyInfoRes getLobbyInfo(Long draftId) {
+    public LobbyInfoRes getLobbyInfo(Long draftId, Long requesterId) {
         Draft draft = draftRepository.findById(draftId)
                 .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
 
@@ -110,6 +111,18 @@ public class LobbyService {
                         .build())
                 .collect(Collectors.toList());
 
+        // 관리자인지 확인
+        boolean isAdmin = draft.getOwner().getId().equals(requesterId);
+
+        // 관리자만 초대 코드 조회 가능
+        CodeInfo codes = null;
+        if (isAdmin) {
+            codes = CodeInfo.builder()
+                    .teamMemberCode(draft.getMemberCode())
+                    .teamLeaderCode(draft.getLeaderCode())
+                    .build();
+        }
+
         return LobbyInfoRes.builder()
                 .draftId(draft.getId())
                 .title(draft.getTitle())
@@ -118,10 +131,7 @@ public class LobbyService {
                 .leaders(leaders)
                 .members(members)
                 .observers(observers)
-                .codes(CodeInfo.builder()
-                        .teamMemberCode(draft.getMemberCode())
-                        .teamLeaderCode(draft.getLeaderCode())
-                        .build())
+                .codes(codes)
                 .draftSnapshot(null)
                 .build();
     }
@@ -159,16 +169,21 @@ public class LobbyService {
     }
 
     /**
-     * 참가자 강제 퇴장 (관리자 전용)
+     * 참가자 강제 퇴장 (관리자 전용) 또는 자기 자신 퇴장
      */
     @Transactional
-    public void kickUser(Long draftId, Long targetUserId, Long adminId) {
+    public void kickUser(Long draftId, Long targetUserId, Long requesterId) {
         Draft draft = draftRepository.findById(draftId)
                 .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
 
-        // 관리자 권한 확인
-        if (!draft.getOwner().getId().equals(adminId)) {
-            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 참가자를 퇴장시킬 수 있습니다.");
+        // 로비 상태가 아니면 퇴장 불가
+        if (draft.getStatus() != DraftStatus.LOBBY) {
+            throw new CustomException(ErrorType.DRAFT_NOT_IN_LOBBY, "로비 상태에서만 퇴장할 수 있습니다.");
+        }
+
+        // 자기 자신을 퇴장시키거나 관리자 권한 확인
+        if (!targetUserId.equals(requesterId) && !draft.getOwner().getId().equals(requesterId)) {
+            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 다른 참가자를 퇴장시킬 수 있습니다.");
         }
 
         lobbyRedisRepository.removeParticipant(draftId, targetUserId);
@@ -188,6 +203,31 @@ public class LobbyService {
         }
 
         lobbyRedisRepository.setLeaderPoint(draftId, leaderId, point);
+    }
+
+    /**
+     * 초대 코드 리프레시 (관리자 전용)
+     */
+    @Transactional
+    public void refreshInviteCode(Long draftId, String codeType, Long adminId) {
+        Draft draft = draftRepository.findById(draftId)
+                .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
+
+        // 관리자 권한 확인
+        if (!draft.getOwner().getId().equals(adminId)) {
+            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 초대 코드를 리프레시할 수 있습니다.");
+        }
+
+        // 코드 타입에 따라 적절한 메서드 호출
+        if ("LEADER".equalsIgnoreCase(codeType)) {
+            draft.refreshLeaderCode();
+        } else if ("MEMBER".equalsIgnoreCase(codeType)) {
+            draft.refreshMemberCode();
+        } else {
+            throw new CustomException(ErrorType.INVALID_CODE_TYPE, "잘못된 코드 타입입니다. LEADER 또는 MEMBER만 가능합니다.");
+        }
+
+        draftRepository.save(draft);
     }
 
     /**
