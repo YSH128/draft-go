@@ -23,7 +23,6 @@ import java.util.List;
 @RequestMapping("/api/v1/drafts")
 @RequiredArgsConstructor
 public class RoomController {
-
     private final RoomService roomService;
 
     @Operation(summary = "드래프트 목록 조회", description = "모든 드래프트 방 목록을 조회합니다.")

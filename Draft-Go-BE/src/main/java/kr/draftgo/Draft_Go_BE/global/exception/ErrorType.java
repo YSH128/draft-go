@@ -22,6 +22,8 @@ public enum ErrorType {
     DRAFT_START_PRICE_INVALID(HttpStatus.BAD_REQUEST, "DRAFT_START_PRICE_INVALID", "시작 포인트는 시작 가격보다 커야 합니다"),
     INVALID_DRAFT_CODE(HttpStatus.BAD_REQUEST, "INVALID_DRAFT_CODE", "유효하지 않은 참여 코드입니다"),
     ALREADY_PARTICIPATING(HttpStatus.CONFLICT, "ALREADY_PARTICIPATING", "이미 드래프트에 참여 중입니다"),
+    INVALID_CODE_TYPE(HttpStatus.BAD_REQUEST, "INVALID_CODE_TYPE", "잘못된 코드 타입입니다"),
+    DRAFT_NOT_IN_LOBBY(HttpStatus.BAD_REQUEST, "DRAFT_NOT_IN_LOBBY", "로비 상태에서만 퇴장할 수 있습니다"),
 
     // 권한 관련 에러
     UNAUTHORIZED_ADMIN_ONLY(HttpStatus.FORBIDDEN, "UNAUTHORIZED_ADMIN_ONLY", "관리자만 수행할 수 있는 작업입니다"),

@@ -60,4 +60,12 @@ public class Draft {
     public void startDraft() {
         this.status = DraftStatus.IN_DRAFT;
     }
+
+    public void refreshMemberCode() {
+        this.memberCode = UUID.randomUUID().toString().substring(0, 6);
+    }
+
+    public void refreshLeaderCode() {
+        this.leaderCode = UUID.randomUUID().toString().substring(0, 6);
+    }
 }
