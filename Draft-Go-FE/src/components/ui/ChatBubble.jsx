@@ -6,7 +6,7 @@ const variants = {
   system: "bg-transparent text-center border-none italic"
 };
 
-export default function ChatBubble({ message, sender, variant = 'other' }) {
+export default function ChatBubble({ message, sender, variant = 'other', timestamp }) {
   const isMe = variant === 'me';
   
   return (
@@ -16,11 +16,23 @@ export default function ChatBubble({ message, sender, variant = 'other' }) {
         <span className="text-[10px] text-[var(--color-text-muted-gold)] font-bold mb-1 ml-1">{sender}</span>
       )}
       
-      {/* 메시지 말풍선 */}
-      <div className={`px-4 py-2.5 max-w-[85%] ${variants[variant]}`}>
-        <p className={`text-xs ${variant === 'system' ? 'text-hextech-gold' : 'text-white'}`}>
-          {message}
-        </p>
+      <div className={`flex ${isMe ? 'items-end justify-end' : 'items-end justify-start'} gap-2`}>
+         {/* 내 메시지일 경우 시간 표시 (왼쪽) */}
+         {isMe && (
+            <span className="text-[10px] text-[#555] whitespace-nowrap mb-1">{timestamp}</span>
+         )}
+         
+         {/* 메시지 말풍선 */}
+         <div className={`px-4 py-2.5 max-w-[85%] ${variants[variant]}`}>
+            <p className={`text-xs ${variant === 'system' ? 'text-hextech-gold' : 'text-white'}`}>
+              {message}
+            </p>
+         </div>
+
+         {/* 상대방 메시지일 경우 시간 표시 (오른쪽) */}
+         {!isMe && variant !== 'system' && (
+            <span className="text-[10px] text-[#555] whitespace-nowrap mb-1">{timestamp}</span>
+         )}
       </div>
     </div>
   );
