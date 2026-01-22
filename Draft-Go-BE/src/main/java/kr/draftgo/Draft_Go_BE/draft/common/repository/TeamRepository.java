@@ -17,6 +17,12 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
     // For now, I'll implement a helper that assumes Leader holds points or checks
     // Sum.
 
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE Team t SET t.point = t.point - :price WHERE t.id = :teamId")
+    void deductPoint(@Param("teamId") Long teamId, @Param("price") int price);
+
     @Query("SELECT CASE WHEN SUM(tm.point) >= :price THEN true ELSE false END FROM Teammate tm WHERE tm.team.id = :teamId")
     boolean hasEnoughPoint(@Param("teamId") Long teamId, @Param("price") int price);
+
+    java.util.List<Team> findAllByDraftId(Long draftId);
 }

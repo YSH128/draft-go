@@ -14,7 +14,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
+import kr.draftgo.Draft_Go_BE.match.repository.MatchRepository;
+import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
+import kr.draftgo.Draft_Go_BE.member.domain.Position;
+import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -28,8 +39,8 @@ public class MemberService {
     private final StringRedisTemplate redisTemplate;
 
     private final RiotApiService riotApiService;
-    private final kr.draftgo.Draft_Go_BE.match.repository.MatchRepository matchRepository;
-    private final kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository memberStatRepository;
+    private final MatchRepository matchRepository;
+    private final MemberStatRepository memberStatRepository;
 
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
@@ -162,7 +173,7 @@ public class MemberService {
         // method.
         log.info("Analyzing positions for PUUID: {}", member.getPuuid());
 
-        java.util.List<kr.draftgo.Draft_Go_BE.match.domain.MatchDocument> matches = matchRepository
+        List<MatchDocument> matches = matchRepository
                 .findAllByPuuid(member.getPuuid());
 
         log.info("Found {} matches for position analysis.", matches.size());
@@ -172,31 +183,31 @@ public class MemberService {
             return;
         }
 
-        java.util.Map<kr.draftgo.Draft_Go_BE.member.domain.Position, Integer> positionCounts = new java.util.HashMap<>();
+        Map<Position, Integer> positionCounts = new HashMap<>();
 
-        for (kr.draftgo.Draft_Go_BE.match.domain.MatchDocument match : matches) {
+        for (MatchDocument match : matches) {
             // Find participant for this member
-            java.util.Map<String, Object> data = match.getData();
+            Map<String, Object> data = match.getData();
             if (data == null)
                 continue;
 
-            java.util.Map<String, Object> info = (java.util.Map<String, Object>) data.get("info");
+            Map<String, Object> info = (Map<String, Object>) data.get("info");
             if (info == null)
                 continue;
 
-            java.util.List<java.util.Map<String, Object>> participants = (java.util.List<java.util.Map<String, Object>>) info
+            List<Map<String, Object>> participants = (List<Map<String, Object>>) info
                     .get("participants");
             if (participants == null)
                 continue;
 
-            for (java.util.Map<String, Object> p : participants) {
+            for (Map<String, Object> p : participants) {
                 if (member.getPuuid().equals(p.get("puuid"))) {
                     String teamPosition = (String) p.get("teamPosition"); // Can be TOP, JUNGLE, MIDDLE, BOTTOM,
                                                                           // UTILITY, or ""
                     log.info("Match {} position: {}", match.getMatchId(), teamPosition);
 
                     // Map teamPosition to Enum
-                    kr.draftgo.Draft_Go_BE.member.domain.Position pos = mapToPosition(teamPosition);
+                    Position pos = mapToPosition(teamPosition);
                     if (pos != null) {
                         positionCounts.put(pos, positionCounts.getOrDefault(pos, 0) + 1);
                     }
@@ -206,12 +217,12 @@ public class MemberService {
         }
 
         // Sort by count
-        java.util.List<java.util.Map.Entry<kr.draftgo.Draft_Go_BE.member.domain.Position, Integer>> sorted = new java.util.ArrayList<>(
+        List<Map.Entry<Position, Integer>> sorted = new ArrayList<>(
                 positionCounts.entrySet());
         sorted.sort((a, b) -> b.getValue().compareTo(a.getValue()));
 
-        kr.draftgo.Draft_Go_BE.member.domain.Position mainPos = null;
-        kr.draftgo.Draft_Go_BE.member.domain.Position subPos = null;
+        Position mainPos = null;
+        Position subPos = null;
 
         if (!sorted.isEmpty()) {
             mainPos = sorted.get(0).getKey();
@@ -229,10 +240,10 @@ public class MemberService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("Member not found"));
 
-        kr.draftgo.Draft_Go_BE.member.domain.MemberStat stat = memberStatRepository.findByMemberId(memberId)
-                .orElse(kr.draftgo.Draft_Go_BE.member.domain.MemberStat.builder().memberId(memberId).build());
+        MemberStat stat = memberStatRepository.findByMemberId(memberId)
+                .orElse(MemberStat.builder().memberId(memberId).build());
 
-        java.util.List<kr.draftgo.Draft_Go_BE.match.domain.MatchDocument> matches = matchRepository
+        List<MatchDocument> matches = matchRepository
                 .findAllByPuuid(member.getPuuid());
 
         // Sort by gameCreation descending
@@ -245,7 +256,7 @@ public class MemberService {
         int recentLosses = 0;
         int recentCount = 0;
 
-        for (kr.draftgo.Draft_Go_BE.match.domain.MatchDocument match : matches) {
+        for (MatchDocument match : matches) {
             boolean isWin = checkWin(match, member.getPuuid());
             if (isWin)
                 totalWins++;
@@ -261,11 +272,11 @@ public class MemberService {
             }
         }
 
-        java.math.BigDecimal rankWinRate = calculateWinRate(totalWins, totalLosses);
-        java.math.BigDecimal recentWinRate = calculateWinRate(recentWins, recentLosses);
+        BigDecimal rankWinRate = calculateWinRate(totalWins, totalLosses);
+        BigDecimal recentWinRate = calculateWinRate(recentWins, recentLosses);
 
         // Fetch League Info (Rank, LP)
-        java.util.Map<String, Object> leagueInfo = riotApiService.getLeagueInfoByPuuid(member.getPuuid());
+        Map<String, Object> leagueInfo = riotApiService.getLeagueInfoByPuuid(member.getPuuid());
         String tier = (String) leagueInfo.get("tier");
         String rankStr = (String) leagueInfo.get("rank");
         String fullRank = (tier != null && rankStr != null) ? tier + " " + rankStr : null;
@@ -273,7 +284,7 @@ public class MemberService {
         Integer rankWins = (Integer) leagueInfo.get("wins");
         Integer rankLosses = (Integer) leagueInfo.get("losses");
 
-        java.math.BigDecimal rankTotalWinRate = null;
+        BigDecimal rankTotalWinRate = null;
         if (rankWins != null && rankLosses != null) {
             rankTotalWinRate = calculateWinRate(rankWins, rankLosses);
         } else {
@@ -297,17 +308,17 @@ public class MemberService {
         memberStatRepository.save(stat);
     }
 
-    private boolean checkWin(kr.draftgo.Draft_Go_BE.match.domain.MatchDocument match, String puuid) {
+    private boolean checkWin(MatchDocument match, String puuid) {
         // Extract win status from match data
-        java.util.Map<String, Object> data = match.getData();
+        Map<String, Object> data = match.getData();
         if (data == null || !data.containsKey("info"))
             return false;
 
-        java.util.Map<String, Object> info = (java.util.Map<String, Object>) data.get("info");
-        java.util.List<java.util.Map<String, Object>> participants = (java.util.List<java.util.Map<String, Object>>) info
+        Map<String, Object> info = (Map<String, Object>) data.get("info");
+        List<Map<String, Object>> participants = (List<Map<String, Object>>) info
                 .get("participants");
 
-        for (java.util.Map<String, Object> p : participants) {
+        for (Map<String, Object> p : participants) {
             if (puuid.equals(p.get("puuid"))) {
                 return (boolean) p.get("win");
             }
@@ -315,29 +326,29 @@ public class MemberService {
         return false;
     }
 
-    private java.math.BigDecimal calculateWinRate(int wins, int losses) {
+    private BigDecimal calculateWinRate(int wins, int losses) {
         int total = wins + losses;
         if (total == 0)
-            return java.math.BigDecimal.ZERO;
-        return java.math.BigDecimal.valueOf(wins)
-                .divide(java.math.BigDecimal.valueOf(total), 2, java.math.RoundingMode.HALF_UP)
-                .multiply(java.math.BigDecimal.valueOf(100));
+            return BigDecimal.ZERO;
+        return BigDecimal.valueOf(wins)
+                .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100));
     }
 
-    private kr.draftgo.Draft_Go_BE.member.domain.Position mapToPosition(String teamPosition) {
+    private Position mapToPosition(String teamPosition) {
         if (teamPosition == null)
             return null;
         switch (teamPosition) {
             case "TOP":
-                return kr.draftgo.Draft_Go_BE.member.domain.Position.TOP;
+                return Position.TOP;
             case "JUNGLE":
-                return kr.draftgo.Draft_Go_BE.member.domain.Position.JUNGLE;
+                return Position.JUNGLE;
             case "MIDDLE":
-                return kr.draftgo.Draft_Go_BE.member.domain.Position.MID;
+                return Position.MID;
             case "BOTTOM":
-                return kr.draftgo.Draft_Go_BE.member.domain.Position.BOT; // Assuming AD is BOTTOM Carry
+                return Position.BOT; // Assuming AD is BOTTOM Carry
             case "UTILITY":
-                return kr.draftgo.Draft_Go_BE.member.domain.Position.SUP; // Assuming SUP is UTILITY
+                return Position.SUP; // Assuming SUP is UTILITY
             default:
                 return null;
         }

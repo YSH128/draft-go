@@ -6,7 +6,7 @@ import kr.draftgo.Draft_Go_BE.draft.auction.redis.BidLuaExecutor;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
 // Correct package based on search result
-import kr.draftgo.Draft_Go_BE.draft.auction.service.InsufficientPointException;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
