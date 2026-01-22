@@ -1,7 +1,16 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
+import useAuthStore from "../../stores/useAuthStore";
 
 export default function Header() {
+  const navigate = useNavigate();
+  const { isAuthenticated, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    navigate(ROUTES.HOME);
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-primary/20 bg-background-dark/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 sm:h-20 sm:px-6 md:h-[88px] md:px-8">
@@ -31,18 +40,29 @@ export default function Header() {
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-3 sm:gap-8">
-          <Link
-            to="#"
-            className="hidden text-xs font-bold uppercase tracking-[0.15em] text-slate-400 transition-colors hover:text-primary sm:block"
-          >
-            Sign Up
-          </Link>
-          <Link
-            to={ROUTES.LOGIN}
-            className="rounded-[2px] border border-primary-bright/20 bg-gold-gradient px-4 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-background-dark shadow-[0_0_15px_rgba(200,155,60,0.2)] transition-all hover:brightness-110 active:scale-95 sm:px-8 sm:py-2.5 sm:text-xs"
-          >
-            Login
-          </Link>
+          {!isAuthenticated ? (
+            <>
+              <Link
+                to={ROUTES.SIGNUP}
+                className="hidden text-xs font-bold uppercase tracking-[0.15em] text-slate-400 transition-colors hover:text-primary sm:block"
+              >
+                Sign Up
+              </Link>
+              <Link
+                to={ROUTES.LOGIN}
+                className="rounded-[2px] border border-primary-bright/20 bg-gold-gradient px-4 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-background-dark shadow-[0_0_15px_rgba(200,155,60,0.2)] transition-all hover:brightness-110 active:scale-95 sm:px-8 sm:py-2.5 sm:text-xs"
+              >
+                Login
+              </Link>
+            </>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="rounded-[2px] border border-primary-bright/20 bg-gold-gradient px-4 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-background-dark shadow-[0_0_15px_rgba(200,155,60,0.2)] transition-all hover:brightness-110 active:scale-95 sm:px-8 sm:py-2.5 sm:text-xs"
+            >
+              Logout
+            </button>
+          )}
         </div>
       </div>
     </header>
