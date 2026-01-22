@@ -4,16 +4,19 @@ import {
   TournamentSection,
   CTASection,
 } from "./sections";
+import { useState } from "react";
+import JoinWithCodeModal from "../../components/Ui/JoinWithCodeModal";
 
 export default function HomePage() {
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+
   const handleCreateTournament = () => {
     console.log("Create tournament clicked");
     // TODO: 대회 생성 페이지로 이동 또는 모달 열기
   };
 
   const handleJoinWithCode = () => {
-    console.log("Join with code clicked");
-    // TODO: 참가 코드 입력 모달 열기
+    setIsJoinModalOpen(true);
   };
 
   const handleContact = () => {
@@ -32,6 +35,10 @@ export default function HomePage() {
       <CTASection
         onCreateClick={handleCreateTournament}
         onContactClick={handleContact}
+      />
+      <JoinWithCodeModal 
+        isOpen={isJoinModalOpen}
+        onClose={() => setIsJoinModalOpen(false)}
       />
     </>
   );

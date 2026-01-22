@@ -31,36 +31,48 @@
 
   /* 티어 색상 (배지용) */
   --color-tier-iron-bg: #544d50;
+  --color-tier-iron-badge-text: #a19d9e;
   --color-tier-iron-text: #a19d9e;
 
   --color-tier-bronze-bg: #8c523a;
-  --color-tier-bronze-text: #fcdba4;
+  --color-tier-bronze-badge-text: #fcdba4;
+  --color-tier-bronze-text: #8c523a;
 
   --color-tier-silver-bg: #80989d;
-  --color-tier-silver-text: #ffffff;
+  --color-tier-silver-badge-text: #ffffff;
+  --color-tier-silver-text: #80989d;
 
   --color-tier-gold-bg: #d4af37;
-  --color-tier-gold-text: #ffffff;
+  --color-tier-gold-badge-text: #ffffff;
+  --color-tier-gold-text: #d4af37;
 
   --color-tier-platinum-bg: #2a4f4f;
+  --color-tier-platinum-badge-text: #25c2a0;
   --color-tier-platinum-text: #25c2a0;
 
   --color-tier-emerald-bg: #05452f;
+  --color-tier-emerald-badge-text: #34d399;
   --color-tier-emerald-text: #34d399;
 
   --color-tier-diamond-bg: #3e4491;
+  --color-tier-diamond-badge-text: #b6d0f6;
   --color-tier-diamond-text: #b6d0f6;
 
   --color-tier-master-bg: #6c3a91;
+  --color-tier-master-badge-text: #eebaff;
   --color-tier-master-text: #eebaff;
 
   --color-tier-grandmaster-bg: #cb2d3e;
+  --color-tier-grandmaster-badge-text: #ffd1d1;
   --color-tier-grandmaster-text: #ffd1d1;
 
-  --color-tier-challenger-bg: #f4c025;
-  --color-tier-challenger-text: #091428;
+  --color-tier-challenger-bg: #F4C025;
+  --color-tier-challenger-badge-text: #1597E5;
+  --color-tier-challenger-text: #00F0FF;
+  
 
   /* 매핑 */
+  --header-height: 80px;
   --color-bg-main: var(--color-background-dark);
   --color-bg-card: var(--color-card-dark);
 
@@ -142,6 +154,28 @@ h6 {
     scrollbar-width: none;
   }
 
+  /* 커스텀 스크롤바 (Hover 시에만 표시 + 모던 골드 스타일) */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-button {
+    display: none;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 10px;
+  }
+  .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(200, 155, 60, 0.3);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(200, 155, 60, 0.6);
+  }
+
   /* 헥스텍 그라데이션 배경 */
   .bg-hextech-gradient {
     background: linear-gradient(135deg, #010a13 0%, #091428 100%);
@@ -184,8 +218,27 @@ h6 {
     border: 1px solid var(--color-tier-grandmaster-bg);
   }
   .tier-challenger {
-    box-shadow: 0 0 15px rgba(244, 192, 37, 0.4);
+    box-shadow: 0 0 20px rgba(244, 192, 37, 0.4);
     border: 1px solid var(--color-tier-challenger-bg);
+  }
+
+  /* 애니메이션 */
+  @keyframes shine {
+    0% { left: -100%; }
+    100% { left: 200%; }
+  }
+
+  .animate-shine {
+    animation: shine 1.5s ease-in-out infinite;
+  }
+
+  @keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out forwards;
   }
 }
 
