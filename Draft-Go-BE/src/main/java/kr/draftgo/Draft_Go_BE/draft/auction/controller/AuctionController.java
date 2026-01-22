@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/drafts/{draftId}/auction")
+@RequestMapping("/api/v1/auctions/{draftId}")
 @RequiredArgsConstructor
 public class AuctionController {
 

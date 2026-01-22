@@ -60,6 +60,21 @@ public class RedisAuctionRepository {
         redis.expire(AuctionKey.timer(draftId), seconds, TimeUnit.SECONDS);
     }
 
+    public void setTeamPoint(Long draftId, Long teamId, int point) {
+        redis.opsForValue().set(AuctionKey.teamPoint(draftId, teamId), point);
+    }
+
+    public Integer getTeamPoint(Long draftId, Long teamId) {
+        Object val = redis.opsForValue().get(AuctionKey.teamPoint(draftId, teamId));
+        if (val == null)
+            return 0;
+        return (Integer) val;
+    }
+
+    public void deductTeamPoint(Long draftId, Long teamId, int price) {
+        redis.opsForValue().decrement(AuctionKey.teamPoint(draftId, teamId), price);
+    }
+
     public void clear(Long draftId) {
         redis.delete(List.of(
                 AuctionKey.current(draftId),

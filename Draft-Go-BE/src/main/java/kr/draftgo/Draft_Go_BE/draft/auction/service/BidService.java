@@ -5,7 +5,8 @@ import kr.draftgo.Draft_Go_BE.draft.auction.redis.AuctionKey;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.BidLuaExecutor;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
-import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
+// Correct package based on search result
+import kr.draftgo.Draft_Go_BE.draft.auction.service.InsufficientPointException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +17,6 @@ public class BidService {
     private final BidLuaExecutor luaExecutor;
     private final RedisAuctionRepository redisRepo;
     private final AuctionEventPublisher publisher;
-    private final TeamRepository teamRepo;
 
     public void placeBid(Long draftId, Long leaderId, BidRequest req) {
 
@@ -26,7 +26,9 @@ public class BidService {
         }
 
         // 팀 포인트 사전 검증 (빠른 실패)
-        if (!teamRepo.hasEnoughPoint(req.teamId(), req.price())) {
+        // Redis에서 포인트 확인
+        Integer currentPoint = redisRepo.getTeamPoint(draftId, req.teamId());
+        if (currentPoint < req.price()) {
             throw new InsufficientPointException();
         }
 
