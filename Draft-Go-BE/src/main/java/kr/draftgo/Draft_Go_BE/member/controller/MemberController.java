@@ -45,12 +45,19 @@ public class MemberController {
         return createTokenResponse(tokenRes);
     }
 
-    @Operation(summary = "내 정보 조회", description = "현재 로그인한 회원의 정보를 조회합니다.")
+    @Operation(summary = "내 정보 조회 (상세)", description = "현재 로그인한 회원의 정보를 조회합니다. (전적/통계 포함)")
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MemberProfileRes> getMyProfile(Authentication authentication) {
         String username = authentication.getName();
         MemberProfileRes profile = memberService.getProfile(username);
+        return ResponseEntity.ok(profile);
+    }
+
+    @Operation(summary = "회원 정보 조회 (상세)", description = "특정 회원의 정보를 조회합니다. (전적/통계 포함)")
+    @GetMapping("/{memberId}")
+    public ResponseEntity<MemberProfileRes> getMemberProfile(@PathVariable Long memberId) {
+        MemberProfileRes profile = memberService.getProfileById(memberId);
         return ResponseEntity.ok(profile);
     }
 
@@ -84,6 +91,29 @@ public class MemberController {
             @RequestParam String gameName,
             @RequestParam String tagLine) {
         DuplicateCheckRes response = memberService.checkDuplicateSummonerName(gameName, tagLine);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Riot ID 실존 확인", description = "Riot API를 통해 해당 계정이 실존하는지 확인합니다.")
+    @GetMapping("/check/riot-id")
+    public ResponseEntity<DuplicateCheckRes> checkRiotId(
+            @RequestParam String gameName,
+            @RequestParam String tagLine) {
+        DuplicateCheckRes response = memberService.checkRiotId(gameName, tagLine);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "전적 갱신", description = "특정 회원의 전적을 수동으로 갱신합니다. (누구나 가능)")
+    @PostMapping("/{memberId}/refresh")
+    public ResponseEntity<String> refreshMemberData(@PathVariable Long memberId) {
+        String result = memberService.refreshMemberData(memberId);
+        return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "전적 갱신 상태 확인", description = "전적 갱신 진행 여부와 남은 쿨타임을 확인합니다.")
+    @GetMapping("/{username}/refresh-status")
+    public ResponseEntity<MemberRefreshStatusRes> getRefreshStatus(@PathVariable String username) {
+        MemberRefreshStatusRes response = memberService.getRefreshStatus(username);
         return ResponseEntity.ok(response);
     }
 
