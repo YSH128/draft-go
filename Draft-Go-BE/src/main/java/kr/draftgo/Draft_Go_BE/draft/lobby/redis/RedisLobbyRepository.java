@@ -71,12 +71,18 @@ public class RedisLobbyRepository {
             throw new CustomException(ErrorType.PARTICIPANT_NOT_FOUND);
         }
 
+        // LEADER로 변경 시 기존 포인트 유지 (없으면 0), MEMBER로 변경 시 0으로 초기화
+        Integer leaderPoint = "LEADER".equals(newRole)
+                ? (participant.getLeaderPoint() != null ? participant.getLeaderPoint() : 0)
+                : 0;
+
         LobbyParticipant updated = LobbyParticipant.builder()
                 .memberId(participant.getMemberId())
                 .gameName(participant.getGameName())
                 .role(newRole)
                 .position(participant.getPosition())
                 .isReady(false) // 역할 변경 시 준비 상태 초기화
+                .leaderPoint(leaderPoint)
                 .build();
 
         String key = getKey(draftId);
@@ -98,6 +104,7 @@ public class RedisLobbyRepository {
                 .role(participant.getRole())
                 .position(newPosition)
                 .isReady(participant.isReady())
+                .leaderPoint(participant.getLeaderPoint())
                 .build();
 
         String key = getKey(draftId);
@@ -119,6 +126,7 @@ public class RedisLobbyRepository {
                 .role(participant.getRole())
                 .position(participant.getPosition())
                 .isReady(isReady)
+                .leaderPoint(participant.getLeaderPoint())
                 .build();
 
         String key = getKey(draftId);
@@ -130,5 +138,31 @@ public class RedisLobbyRepository {
      */
     public void removeParticipant(Long draftId, Long memberId) {
         exit(draftId, memberId);
+    }
+
+    /**
+     * 팀장 포인트 설정 (관리자 전용)
+     */
+    public void setLeaderPoint(Long draftId, Long leaderId, Integer point) {
+        LobbyParticipant participant = getParticipant(draftId, leaderId);
+        if (participant == null) {
+            throw new CustomException(ErrorType.PARTICIPANT_NOT_FOUND);
+        }
+
+        if (!"LEADER".equals(participant.getRole())) {
+            throw new CustomException(ErrorType.UNAUTHORIZED_LEADER_ONLY, "팀장만 포인트를 설정할 수 있습니다.");
+        }
+
+        LobbyParticipant updated = LobbyParticipant.builder()
+                .memberId(participant.getMemberId())
+                .gameName(participant.getGameName())
+                .role(participant.getRole())
+                .position(participant.getPosition())
+                .isReady(participant.isReady())
+                .leaderPoint(point)
+                .build();
+
+        String key = getKey(draftId);
+        redisTemplate.opsForHash().put(key, leaderId.toString(), updated);
     }
 }

@@ -18,4 +18,6 @@ public class LobbyParticipant {
     private String role; // "LEADER" or "MEMBER"
     private Position position;
     private boolean isReady; // LEADER ONLY
+    @Builder.Default
+    private Integer leaderPoint = 0; // LEADER ONLY - 팀장의 포인트, 기본값 0
 }
