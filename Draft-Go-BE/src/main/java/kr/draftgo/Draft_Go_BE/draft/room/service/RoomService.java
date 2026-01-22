@@ -11,6 +11,7 @@ import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomJoinReq;
 import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
 import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
+import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -59,8 +60,8 @@ public class RoomService {
         LobbyParticipant ownerParticipant = LobbyParticipant.builder()
                 .memberId(owner.getId())
                 .gameName(owner.getGameName())
-                .role("MEMBER")  // 방장은 기본적으로 MEMBER 역할
-                .position(kr.draftgo.Draft_Go_BE.member.domain.Position.OBSERVER)
+                .role("MEMBER") // 방장은 기본적으로 MEMBER 역할
+                .position(Position.OBSERVER)
                 .isReady(false)
                 .build();
 

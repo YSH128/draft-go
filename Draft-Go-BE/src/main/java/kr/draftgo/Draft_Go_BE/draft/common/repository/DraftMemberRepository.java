@@ -20,6 +20,8 @@ public interface DraftMemberRepository extends JpaRepository<DraftMember, Long> 
     @Query("SELECT dm FROM DraftMember dm WHERE dm.draft.id = :draftId AND dm.status = 'WAITING' ORDER BY dm.turnOrder ASC LIMIT 1")
     Optional<DraftMember> findNextUpcoming(@Param("draftId") Long draftId);
 
+    java.util.List<DraftMember> findAllByDraftIdOrderByTurnOrderAsc(Long draftId);
+
     default void complete(Long draftMemberId) {
         findById(draftMemberId).ifPresent(dm -> {
             dm.complete();

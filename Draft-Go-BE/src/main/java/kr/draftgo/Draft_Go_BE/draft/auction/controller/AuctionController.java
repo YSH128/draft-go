@@ -1,10 +1,16 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.controller;
 
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.AuctionStatusResponse;
+import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.DraftMemberResponse;
+import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.TeamInfoResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionService;
 import kr.draftgo.Draft_Go_BE.draft.auction.service.BidService;
 import lombok.RequiredArgsConstructor;
+import java.util.List;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.SendTo;
 
 @RestController
 @RequestMapping("/api/v1/auctions/{draftId}")
@@ -30,5 +36,29 @@ public class AuctionController {
     @GetMapping
     public AuctionStatusResponse getState(@PathVariable Long draftId) {
         return auctionService.getCurrentState(draftId);
+    }
+
+    @GetMapping("/queue")
+    public List<DraftMemberResponse> getDraftQueue(
+            @PathVariable Long draftId) {
+        return auctionService.getDraftQueue(draftId);
+    }
+
+    @GetMapping("/teams")
+    public List<TeamInfoResponse> getTeamInfos(
+            @PathVariable Long draftId) {
+        return auctionService.getTeamInfos(draftId);
+    }
+
+    @MessageMapping("/auction/{draftId}/queue")
+    @SendTo("/topic/auction/{draftId}/queue")
+    public List<DraftMemberResponse> getDraftQueuews(@DestinationVariable Long draftId) {
+        return auctionService.getDraftQueue(draftId);
+    }
+
+    @MessageMapping("/auction/{draftId}/teams")
+    @SendTo("/topic/auction/{draftId}/teams")
+    public List<TeamInfoResponse> getTeamInfosWs(@DestinationVariable Long draftId) {
+        return auctionService.getTeamInfos(draftId);
     }
 }
