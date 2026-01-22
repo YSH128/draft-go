@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.request.ChangePositionReq;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.request.ChangeRoleReq;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.request.ReadyToggleReq;
@@ -50,7 +51,7 @@ public class LobbyController {
 
     @Operation(summary = "역할 변경 (관리자 전용)", description = "참여자의 역할을 팀장(LEADER) 또는 팀원(MEMBER)으로 변경합니다.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "역할 변경 성공"),
+            @ApiResponse(responseCode = "200", description = "역할 변경 성공", content = @Content()),
             @ApiResponse(responseCode = "403", description = "UNAUTHORIZED_ADMIN_ONLY - 관리자만 역할을 변경할 수 있습니다",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "DRAFT_NOT_FOUND - 존재하지 않는 드래프트입니다 / PARTICIPANT_NOT_FOUND - 참가자를 찾을 수 없습니다",
@@ -60,14 +61,14 @@ public class LobbyController {
     @PreAuthorize("isAuthenticated()")
     public void changeRole(
             @Parameter(description = "드래프트 ID") @PathVariable Long draftId,
-            @RequestBody ChangeRoleReq req,
+            @Valid @RequestBody ChangeRoleReq req,
             @CurrentMember Member member) {
         lobbyService.changeRole(draftId, req, member.getId());
     }
 
     @Operation(summary = "포지션 변경", description = "참여자의 포지션을 변경합니다. (TOP, JUNGLE, MID, BOT, SUP, OBSERVER)")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "포지션 변경 성공"),
+            @ApiResponse(responseCode = "200", description = "포지션 변경 성공", content = @Content()),
             @ApiResponse(responseCode = "403", description = "UNAUTHORIZED_POSITION_CHANGE - 본인 또는 관리자만 포지션을 변경할 수 있습니다",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "DRAFT_NOT_FOUND - 존재하지 않는 드래프트입니다 / PARTICIPANT_NOT_FOUND - 참가자를 찾을 수 없습니다",
@@ -77,7 +78,7 @@ public class LobbyController {
     @PreAuthorize("isAuthenticated()")
     public void changePosition(
             @Parameter(description = "드래프트 ID") @PathVariable Long draftId,
-            @RequestBody ChangePositionReq req,
+            @Valid @RequestBody ChangePositionReq req,
             @CurrentMember Member member) {
         lobbyService.changePosition(draftId, req, member.getId());
     }
@@ -150,7 +151,7 @@ public class LobbyController {
     @PreAuthorize("isAuthenticated()")
     public void toggleReady(
             @Parameter(description = "드래프트 ID") @PathVariable Long draftId,
-            @RequestBody ReadyToggleReq req,
+            @Valid @RequestBody ReadyToggleReq req,
             @CurrentMember Member member) {
         lobbyService.toggleReady(draftId, req, member.getId());
     }

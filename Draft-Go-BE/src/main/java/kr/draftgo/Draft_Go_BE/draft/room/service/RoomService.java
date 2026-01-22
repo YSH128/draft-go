@@ -104,11 +104,15 @@ public class RoomService {
             throw new CustomException(ErrorType.ALREADY_PARTICIPATING);
         }
 
+        // position이 null이면 OBSERVER를 기본값으로 사용
+        Position selectedPosition =
+                req.getPosition() != null ? req.getPosition() : Position.OBSERVER;
+
         LobbyParticipant participant = LobbyParticipant.builder()
                 .memberId(member.getId())
                 .gameName(member.getGameName())
                 .role(role)
-                .position(req.getPosition())
+                .position(selectedPosition)
                 .isReady(false)
                 .build();
 
