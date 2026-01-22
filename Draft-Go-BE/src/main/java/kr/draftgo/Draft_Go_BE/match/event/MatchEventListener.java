@@ -4,7 +4,8 @@ import kr.draftgo.Draft_Go_BE.match.service.RiotApiService;
 import kr.draftgo.Draft_Go_BE.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import kr.draftgo.Draft_Go_BE.member.event.MemberSignupEvent;
@@ -19,7 +20,7 @@ public class MatchEventListener {
         private final RiotApiService riotApiService;
 
         @Async
-        @EventListener
+        @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
         public void handleMemberSignupEvent(MemberSignupEvent event) {
                 log.info("Async match fetch started for NEW user: {}", event.getMember().getUsername());
                 processMatchRefresh(event.getMember());
@@ -36,19 +37,11 @@ public class MatchEventListener {
 
         private void processMatchRefresh(Member member) {
                 try {
-                        String result = riotApiService.refreshMatches(member);
-                        log.info("Async match fetch completed for {}: {}", member.getUsername(), result);
-
-                        // Feature 2: Auto-Positioning
-                        if (member.getMainPosition() == null) {
-                                memberService.analyzeAndSetPositions(member);
-                        }
-
-                        // Feature 3 Extension: Update Stats (Rank, LP, etc.) on Signup/Refresh
-                        memberService.updateMemberStats(member.getId());
-
+                        log.info("Starting orchestrated match refresh for {}", member.getUsername());
+                        String result = memberService.refreshMemberData(member.getId());
+                        log.info("Orchestrated refresh completed for {}: {}", member.getUsername(), result);
                 } catch (Exception e) {
-                        log.error("Async match fetch failed for {}", member.getUsername(), e);
+                        log.error("Orchestrated refresh failed for {}", member.getUsername(), e);
                 }
         }
 }

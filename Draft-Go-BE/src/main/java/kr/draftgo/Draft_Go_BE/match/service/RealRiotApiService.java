@@ -11,6 +11,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
@@ -107,7 +109,20 @@ public class RealRiotApiService implements RiotApiService {
                                         .gameMode(mode)
                                         .build();
 
-                        return matchRepository.save(doc);
+                        if (doc == null) {
+                                log.error("MatchDocument is null before save for ID: {}", matchId);
+                                return null;
+                        }
+                        log.info("Attempting to save MatchDocument to MongoDB. ID: {}", matchId);
+                        MatchDocument savedDoc = matchRepository.save(doc);
+                        if (savedDoc != null) {
+                                log.info("Successfully saved match to MongoDB. ID: {}", savedDoc.getMatchId());
+                        } else {
+                                log.error("MongoDB save returned null for match ID: {}", matchId);
+                        }
+                        return savedDoc;
+                } catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e) {
+                        throw e;
                 } catch (Exception e) {
                         log.warn("Failed to fetch/save match {}", matchId, e);
                         return null;
@@ -140,15 +155,8 @@ public class RealRiotApiService implements RiotApiService {
         }
 
         @Override
+        @Transactional(propagation = Propagation.NOT_SUPPORTED)
         public String refreshMatches(Member member) {
-                // 0. Cooldown Check
-                if (member.getUpdatedAt() != null) {
-                        long diff = Duration.between(member.getUpdatedAt(), java.time.LocalDateTime.now()).toMinutes();
-                        if (diff < 2) {
-                                return "Matches are already up to date. (Try again later)";
-                        }
-                }
-
                 // 1. Resolve PUUID
                 String puuid = member.getPuuid();
                 if (puuid == null || puuid.isEmpty()) {
@@ -168,72 +176,68 @@ public class RealRiotApiService implements RiotApiService {
                                         .map(season -> season.getStartTime())
                                         .orElse(1767807600L);
 
-                        log.info("Refreshing matches for {} since epoch {}", member.getGameName(), seasonStart);
+                        log.info("Refreshing matches for {} since epoch {}. apiKey={}", member.getGameName(),
+                                        seasonStart, apiKey != null ? "Present" : "Missing");
 
                         List<String> matchIds = fetchAllMatchIds(puuid, seasonStart);
+                        log.info("Fetched {} match IDs from Riot API.", matchIds.size());
 
                         if (matchIds.isEmpty()) {
-                                return "No new matches found.";
+                                return "최신 상태입니다.";
                         }
 
                         int count = 0;
                         for (String matchId : matchIds) {
                                 if (!matchRepository.existsById(matchId)) {
-                                        fetchAndSaveMatch(matchId);
-                                        count++;
+                                        log.info("Match {} not found in DB. Fetching...", matchId);
+                                        MatchDocument saved = fetchAndSaveMatch(matchId);
+                                        if (saved != null)
+                                                count++;
                                         try {
-                                                Thread.sleep(200); // Rate limiting
+                                                Thread.sleep(1250); // Rate limiting (1250ms for 100 req/2min of App
+                                                                    // Limit)
                                         } catch (InterruptedException e) {
                                                 Thread.currentThread().interrupt();
                                         }
+                                } else {
+                                        log.debug("Match {} already exists in DB. Skipping.", matchId);
                                 }
                         }
 
                         if (count == 0) {
-                                return "Matches are already up to date.";
+                                return "최신 상태입니다.";
                         }
-                        return "Updated " + count + " new matches.";
+                        return count + "개의 전적이 갱신되었습니다.";
 
                 } finally {
                         redisTemplate.delete(lockKey);
                 }
         }
 
-    @Override
-    public java.util.Map<String, Object> getLeagueInfoByPuuid(String puuid) {
-        try {
-            String summonerId = getEncryptedSummonerId(puuid);
-            List<Map<String, Object>> leagueEntries = getLeagueEntries(summonerId);
-            
-            // Find RANKED_SOLO_5x5
-            for (Map<String, Object> entry : leagueEntries) {
-                if ("RANKED_SOLO_5x5".equals(entry.get("queueType"))) {
-                    return entry;
+        @Override
+        public java.util.Map<String, Object> getLeagueInfoByPuuid(String puuid) {
+                try {
+                        List<Map<String, Object>> leagueEntries = fetchLeagueEntriesByPuuid(puuid);
+
+                        // Find RANKED_SOLO_5x5
+                        for (Map<String, Object> entry : leagueEntries) {
+                                if ("RANKED_SOLO_5x5".equals(entry.get("queueType"))) {
+                                        return entry;
+                                }
+                        }
+                        return Collections.emptyMap();
+                } catch (Exception e) {
+                        log.error("Failed to get league info for puuid: {}", puuid, e);
+                        return Collections.emptyMap();
                 }
-            }
-            return Collections.emptyMap();
-        } catch (Exception e) {
-            log.error("Failed to get league info for puuid: {}", puuid, e);
-            return Collections.emptyMap();
         }
-    }
 
-    private String getEncryptedSummonerId(String puuid) {
-        Map<String, Object> summoner = restClient.get()
-                .uri("https://asia.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}", puuid)
-                .header("X-Riot-Token", apiKey)
-                .retrieve()
-                .body(new ParameterizedTypeReference<Map<String, Object>>() {
-                });
-        return (String) summoner.get("id");
-    }
-
-    private List<Map<String, Object>> getLeagueEntries(String summonerId) {
-        return restClient.get()
-                .uri("https://asia.api.riotgames.com/lol/league/v4/entries/by-summoner/{summonerId}", summonerId)
-                .header("X-Riot-Token", apiKey)
-                .retrieve()
-                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {
-                });
-    }
+        private List<Map<String, Object>> fetchLeagueEntriesByPuuid(String puuid) {
+                return restClient.get()
+                                .uri("https://kr.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}", puuid)
+                                .header("X-Riot-Token", apiKey)
+                                .retrieve()
+                                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {
+                                });
+        }
 }

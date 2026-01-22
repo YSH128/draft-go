@@ -7,6 +7,7 @@ import kr.draftgo.Draft_Go_BE.member.event.MemberSignupEvent;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import kr.draftgo.Draft_Go_BE.match.service.RiotApiService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -29,7 +30,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-@lombok.extern.slf4j.Slf4j
+@Slf4j
 public class MemberService {
 
     private final MemberRepository memberRepository;
@@ -90,13 +91,6 @@ public class MemberService {
                 refreshToken,
                 Duration.ofDays(7));
 
-        // 백그라운드 전적 갱신 이벤트 발행 (로그인 시) - 제거됨
-        // Registration 시점에만 수행하거나 수동 갱신을 사용함.
-        // Member member = memberRepository.findByUsername(req.getUsername())
-        // .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
-        // eventPublisher.publishEvent(new
-        // kr.draftgo.Draft_Go_BE.member.event.MemberLoginEvent(member));
-
         return TokenRes.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
@@ -142,7 +136,19 @@ public class MemberService {
     public MemberProfileRes getProfile(String username) {
         Member member = memberRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
-        return MemberProfileRes.from(member);
+        return getMemberProfileRes(member);
+    }
+
+    public MemberProfileRes getProfileById(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+        return getMemberProfileRes(member);
+    }
+
+    private MemberProfileRes getMemberProfileRes(Member member) {
+        kr.draftgo.Draft_Go_BE.member.domain.MemberStat stat = memberStatRepository.findByMemberId(member.getId())
+                .orElse(null);
+        return MemberProfileRes.from(member, MemberStatRes.from(stat));
     }
 
     @Transactional
@@ -161,16 +167,96 @@ public class MemberService {
         return isDuplicate ? DuplicateCheckRes.duplicated("소환사명") : DuplicateCheckRes.available("소환사명");
     }
 
+    public DuplicateCheckRes checkRiotId(String gameName, String tagLine) {
+        try {
+            String puuid = riotApiService.getPuuid(gameName, tagLine);
+            if (puuid == null) {
+                return DuplicateCheckRes.builder()
+                        .isDuplicate(true) // Treat as not available
+                        .message("존재하지 않는 Riot ID입니다.")
+                        .build();
+            }
+            return DuplicateCheckRes.available("Riot ID");
+        } catch (Exception e) {
+            return DuplicateCheckRes.builder()
+                    .isDuplicate(true) // Treat as not available
+                    .message("존재하지 않는 계정이거나 라이엇 API 오류입니다.")
+                    .build();
+        }
+    }
+
+    // --- Refactored Refresh Logic ---
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void updateMemberUpdatedAt(Member member) {
+        member.refreshUpdatedAt();
+        memberRepository.save(member);
+    }
+
+    public String refreshMemberData(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // 1. Cooldown Check
+        if (member.getUpdatedAt() != null) {
+            long diff = Duration.between(member.getUpdatedAt(), java.time.LocalDateTime.now()).toSeconds();
+            if (diff < 120) { // 2 minutes
+                return "2분 쿨타임이 적용 중입니다. 잠시 후 다시 시도해주세요.";
+            }
+        }
+
+        // 2. Redis Lock Check
+        String lockKey = "LOCK:MATCH:" + member.getUsername();
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
+            return "Update already in progress.";
+        }
+
+        // 3. Set Lock (10 min TTL)
+        redisTemplate.opsForValue().set(lockKey, "LOCKED", Duration.ofMinutes(10));
+
+        try {
+            // 4. Update Time Immediately (Separate Transaction)
+            // This ensures cooldown is enforced even if API fails later
+            updateMemberUpdatedAt(member);
+
+            // 5. External API Call & Analysis
+            String apiResult = riotApiService.refreshMatches(member);
+            log.info("Riot API Refresh Result for {}: {}", member.getUsername(), apiResult);
+
+            analyzeAndSetPositions(member);
+            updateMemberStats(member.getId());
+
+            return "전적 갱신이 완료되었습니다.";
+
+        } catch (Exception e) {
+            log.error("Refresh failed for member {}", member.getUsername(), e);
+            throw new RuntimeException("전적 갱신 실패: " + e.getMessage(), e);
+        } finally {
+            // 6. Release Lock
+            redisTemplate.delete(lockKey);
+        }
+    }
+
+    public MemberRefreshStatusRes getRefreshStatus(String username) {
+        Member member = memberRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
+        boolean isRefreshing = Boolean.TRUE.equals(redisTemplate.hasKey("LOCK:MATCH:" + username));
+        long remaining = 0;
+
+        if (member.getUpdatedAt() != null) {
+            long diff = Duration.between(member.getUpdatedAt(), java.time.LocalDateTime.now()).toSeconds();
+            if (diff < 120) {
+                remaining = 120 - diff;
+            }
+        }
+
+        return new MemberRefreshStatusRes(isRefreshing, remaining);
+    }
+
     @Transactional
     public void analyzeAndSetPositions(Member member) {
         // Feature 2: Auto-Positioning
-        // Calculate position counts from matches
-        // For simplicity, we can fetch all matches for the member and count positions.
-        // A optimized query would be better (e.g. group by position), but let's assume
-        // valid data processing here.
-
-        // This requires MatchRepository dependency in MemberService or a MatchService
-        // method.
         log.info("Analyzing positions for PUUID: {}", member.getPuuid());
 
         List<MatchDocument> matches = matchRepository
@@ -202,8 +288,7 @@ public class MemberService {
 
             for (Map<String, Object> p : participants) {
                 if (member.getPuuid().equals(p.get("puuid"))) {
-                    String teamPosition = (String) p.get("teamPosition"); // Can be TOP, JUNGLE, MIDDLE, BOTTOM,
-                                                                          // UTILITY, or ""
+                    String teamPosition = (String) p.get("teamPosition");
                     log.info("Match {} position: {}", match.getMatchId(), teamPosition);
 
                     // Map teamPosition to Enum
@@ -224,15 +309,19 @@ public class MemberService {
         Position mainPos = null;
         Position subPos = null;
 
-        if (!sorted.isEmpty()) {
+        // Only update if current position is null (preserve existing choice)
+        if (member.getMainPosition() == null && !sorted.isEmpty()) {
             mainPos = sorted.get(0).getKey();
         }
-        if (sorted.size() > 1) {
+
+        if (member.getSubPosition() == null && sorted.size() > 1) {
             subPos = sorted.get(1).getKey();
         }
 
-        member.updateProfile(mainPos, subPos);
-        memberRepository.save(member);
+        if (mainPos != null || subPos != null) {
+            member.updateProfile(mainPos, subPos);
+            memberRepository.save(member);
+        }
     }
 
     @Transactional
@@ -288,10 +377,7 @@ public class MemberService {
         if (rankWins != null && rankLosses != null) {
             rankTotalWinRate = calculateWinRate(rankWins, rankLosses);
         } else {
-            // Fallback to calculated if API doesn't return (unlikely for Ranked)
-            // or keep null if unranked
-            rankWins = totalWins; // Fallback to match history count if needed, but Riot API gives accurate ranked
-                                  // stats
+            rankWins = totalWins;
             rankLosses = totalLosses;
             rankTotalWinRate = rankWinRate;
         }
