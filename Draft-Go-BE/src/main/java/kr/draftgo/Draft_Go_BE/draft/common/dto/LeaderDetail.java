@@ -17,4 +17,5 @@ public class LeaderDetail {
     private Position position;
     private String name;
     private Long id;
+    private Integer leaderPoint; // 관리자가 설정한 팀장 포인트
 }

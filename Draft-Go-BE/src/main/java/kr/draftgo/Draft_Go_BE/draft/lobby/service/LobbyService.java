@@ -1,6 +1,9 @@
 package kr.draftgo.Draft_Go_BE.draft.lobby.service;
 
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.Team;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.Teammate;
 import kr.draftgo.Draft_Go_BE.draft.common.dto.CodeInfo;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.LobbyParticipant;
 import kr.draftgo.Draft_Go_BE.draft.common.dto.LeaderDetail;
@@ -12,8 +15,12 @@ import kr.draftgo.Draft_Go_BE.draft.lobby.dto.response.LobbyInfoRes;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.response.UserSummary;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
+import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
+import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
+import kr.draftgo.Draft_Go_BE.draft.common.repository.TeammateRepository;
 import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
 import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
+import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
@@ -38,6 +45,9 @@ public class LobbyService {
     private final DraftRepository draftRepository;
     private final MemberRepository memberRepository;
     private final MemberStatRepository memberStatRepository;
+    private final DraftMemberRepository draftMemberRepository;
+    private final TeamRepository teamRepository;
+    private final TeammateRepository teammateRepository;
     private final RedisLobbyRepository lobbyRedisRepository;
 
     /**
@@ -71,6 +81,7 @@ public class LobbyService {
                             .isReady(p.isReady())
                             .tier(stat != null ? stat.getRank() : null)
                             .leaguePoints(stat != null ? stat.getLeaguePoint() : null)
+                            .leaderPoint(p.getLeaderPoint())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -161,6 +172,22 @@ public class LobbyService {
         }
 
         lobbyRedisRepository.removeParticipant(draftId, targetUserId);
+    }
+
+    /**
+     * 팀장 포인트 설정 (관리자 전용)
+     */
+    @Transactional
+    public void setLeaderPoint(Long draftId, Long leaderId, Integer point, Long adminId) {
+        Draft draft = draftRepository.findById(draftId)
+                .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
+
+        // 관리자 권한 확인
+        if (!draft.getOwner().getId().equals(adminId)) {
+            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 팀장 포인트를 설정할 수 있습니다.");
+        }
+
+        lobbyRedisRepository.setLeaderPoint(draftId, leaderId, point);
     }
 
     /**
@@ -267,5 +294,51 @@ public class LobbyService {
         // 드래프트 상태를 IN_DRAFT로 변경
         draft.startDraft();
         draftRepository.save(draft);
+
+        // RDB에 세션 데이터 저장
+        // 1. 팀장별로 팀 생성 및 팀장을 teammate에 등록 (이미 선언된 leaders 변수 사용)
+        for (LobbyParticipant leader : leaders) {
+            // 팀 생성
+            Member leaderMember = memberRepository.findById(leader.getMemberId())
+                    .orElseThrow(() -> new CustomException(ErrorType.MEMBER_NOT_FOUND));
+
+            Team team = Team.builder()
+                    .teamName(leader.getGameName() + "팀")
+                    .draft(draft)
+                    .build();
+            teamRepository.save(team);
+
+            // 팀장을 teammate에 등록 (leaderPoint가 0보다 크면 사용, 아니면 draft.startPoint 사용)
+            Integer leaderPoint = (leader.getLeaderPoint() != null && leader.getLeaderPoint() > 0)
+                    ? leader.getLeaderPoint()
+                    : draft.getStartPoint();
+            Teammate leaderTeammate = Teammate.builder()
+                    .team(team)
+                    .member(leaderMember)
+                    .point(leaderPoint)
+                    .isLeader(true)
+                    .position(leader.getPosition())
+                    .build();
+            teammateRepository.save(leaderTeammate);
+        }
+
+        // 2. 팀원들을 DraftMember로 등록 (OBSERVER 제외)
+        List<LobbyParticipant> members = participants.stream()
+                .filter(p -> "MEMBER".equals(p.getRole()) && p.getPosition() != Position.OBSERVER)
+                .toList();
+
+        for (LobbyParticipant memberParticipant : members) {
+            Member member = memberRepository.findById(memberParticipant.getMemberId())
+                    .orElseThrow(() -> new CustomException(ErrorType.MEMBER_NOT_FOUND));
+
+            DraftMember draftMember = DraftMember.builder()
+                    .draft(draft)
+                    .member(member)
+                    .position(memberParticipant.getPosition())
+                    .build();
+            draftMemberRepository.save(draftMember);
+        }
+
+        // 관전자는 RDB에 저장하지 않지만 세션(Redis)에는 유지됨
     }
 }

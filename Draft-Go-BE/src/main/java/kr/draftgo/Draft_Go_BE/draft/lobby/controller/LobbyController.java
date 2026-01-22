@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.request.ChangePositionReq;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.request.ChangeRoleReq;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.request.ReadyToggleReq;
+import kr.draftgo.Draft_Go_BE.draft.lobby.dto.request.SetLeaderPointReq;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.response.LobbyInfoRes;
 import kr.draftgo.Draft_Go_BE.draft.lobby.service.LobbyService;
 import kr.draftgo.Draft_Go_BE.global.auth.CurrentMember;
@@ -96,6 +97,23 @@ public class LobbyController {
             @Parameter(description = "퇴장시킬 사용자 ID") @PathVariable Long userId,
             @CurrentMember Member member) {
         lobbyService.kickUser(draftId, userId, member.getId());
+    }
+
+    @Operation(summary = "팀장 포인트 설정 (관리자 전용)", description = "팀장의 시작 포인트를 임의로 설정합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "팀장 포인트 설정 성공"),
+            @ApiResponse(responseCode = "403", description = "UNAUTHORIZED_ADMIN_ONLY - 관리자만 팀장 포인트를 설정할 수 있습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "DRAFT_NOT_FOUND - 존재하지 않는 드래프트입니다 / PARTICIPANT_NOT_FOUND - 참가자를 찾을 수 없습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PostMapping("/leader-point")
+    @PreAuthorize("isAuthenticated()")
+    public void setLeaderPoint(
+            @Parameter(description = "드래프트 ID") @PathVariable Long draftId,
+            @RequestBody SetLeaderPointReq req,
+            @CurrentMember Member member) {
+        lobbyService.setLeaderPoint(draftId, req.getLeaderId(), req.getPoint(), member.getId());
     }
 
     @Operation(summary = "준비 완료 토글 (팀장 전용)", description = "팀장이 준비 완료 상태를 변경합니다.")
