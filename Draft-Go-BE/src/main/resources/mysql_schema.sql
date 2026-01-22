@@ -60,6 +60,7 @@ CREATE TABLE `draft_member` (
 CREATE TABLE `team` (
 	`id` BIGINT NOT NULL AUTO_INCREMENT,
 	`team_name` VARCHAR(15) NOT NULL,
+	`point` INT NOT NULL DEFAULT 0 COMMENT '팀의 남은 포인트',
 	`draft_id` BIGINT NOT NULL,
     PRIMARY KEY (`id`),
     CONSTRAINT `fk_team_draft` FOREIGN KEY (`draft_id`) REFERENCES `draft` (`id`)

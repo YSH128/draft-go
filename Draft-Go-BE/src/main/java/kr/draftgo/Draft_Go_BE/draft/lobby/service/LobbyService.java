@@ -15,6 +15,8 @@ import kr.draftgo.Draft_Go_BE.draft.lobby.dto.request.ReadyToggleReq;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.response.LobbyInfoRes;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.response.UserSummary;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
+import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
+import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyWebSocketService;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
@@ -50,6 +52,7 @@ public class LobbyService {
     private final TeamRepository teamRepository;
     private final TeammateRepository teammateRepository;
     private final RedisLobbyRepository lobbyRedisRepository;
+    private final LobbyWebSocketService lobbyWebSocketService;
 
     /**
      * 로비 정보 조회
@@ -150,6 +153,9 @@ public class LobbyService {
         }
 
         lobbyRedisRepository.changeRole(draftId, req.getTargetUserId(), req.getRole());
+
+        // WebSocket 브로드캐스트
+        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.ROLE_CHANGED);
     }
 
     /**
@@ -166,6 +172,9 @@ public class LobbyService {
         }
 
         lobbyRedisRepository.changePosition(draftId, req.getTargetUserId(), req.getPosition());
+
+        // WebSocket 브로드캐스트
+        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.POSITION_CHANGED);
     }
 
     /**
@@ -187,6 +196,9 @@ public class LobbyService {
         }
 
         lobbyRedisRepository.removeParticipant(draftId, targetUserId);
+
+        // WebSocket 브로드캐스트
+        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.PARTICIPANT_LEFT);
     }
 
     /**
@@ -203,6 +215,9 @@ public class LobbyService {
         }
 
         lobbyRedisRepository.setLeaderPoint(draftId, leaderId, point);
+
+        // WebSocket 브로드캐스트
+        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.LEADER_POINT_CHANGED);
     }
 
     /**
@@ -228,6 +243,9 @@ public class LobbyService {
         }
 
         draftRepository.save(draft);
+
+        // WebSocket 브로드캐스트
+        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.INVITE_CODE_REFRESHED);
     }
 
     /**
@@ -249,6 +267,9 @@ public class LobbyService {
         }
 
         lobbyRedisRepository.toggleReady(draftId, leaderId, req.getIsReady());
+
+        // WebSocket 브로드캐스트
+        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.READY_STATUS_CHANGED);
     }
 
     /**
@@ -380,5 +401,8 @@ public class LobbyService {
         }
 
         // 관전자는 RDB에 저장하지 않지만 세션(Redis)에는 유지됨
+
+        // WebSocket 브로드캐스트 - 드래프트 시작
+        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.DRAFT_STARTED);
     }
 }
