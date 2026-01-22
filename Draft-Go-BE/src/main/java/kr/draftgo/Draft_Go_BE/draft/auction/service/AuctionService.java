@@ -85,6 +85,10 @@ public class AuctionService {
 
         // 2. 각 팀별로 DTO 생성
         return teams.stream().map(team -> {
+            // [수정] 실시간 포인트 조회: DB 대신 Redis에서 조회 (없으면 DB 값 사용)
+            Integer redisPoint = redisRepo.getTeamPoint(draftId, team.getId());
+            int currentPoint = (redisPoint != null) ? redisPoint : team.getPoint();
+
             // 해당 팀의 팀원 조회
             List<Teammate> teammates = teammateRepo.findByTeamId(team.getId());
 
@@ -93,8 +97,13 @@ public class AuctionService {
                     .map(TeammateResponse::from)
                     .collect(Collectors.toList());
 
-            // Team -> TeamInfoResponse 변환
-            return TeamInfoResponse.of(team, memberResponses);
+            // TeamInfoResponse 직접 빌드 (Redis Point 반영)
+            return TeamInfoResponse.builder()
+                    .teamId(team.getId())
+                    .teamName(team.getTeamName())
+                    .currentPoint(currentPoint)
+                    .members(memberResponses)
+                    .build();
         }).collect(Collectors.toList());
     }
 }
