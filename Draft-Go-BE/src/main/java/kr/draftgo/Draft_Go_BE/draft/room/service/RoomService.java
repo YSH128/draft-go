@@ -3,6 +3,8 @@ package kr.draftgo.Draft_Go_BE.draft.room.service;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.LobbyParticipant;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
+import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
+import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyWebSocketService;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.DraftListRes;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateReq;
@@ -31,6 +33,7 @@ public class RoomService {
     private final DraftRepository draftRepository;
     private final MemberRepository memberRepository;
     private final RedisLobbyRepository lobbyRedisRepository;
+    private final LobbyWebSocketService lobbyWebSocketService;
 
     /**
      * 드래프트 방 생성
@@ -117,6 +120,9 @@ public class RoomService {
                 .build();
 
         lobbyRedisRepository.join(draftId, participant);
+
+        // WebSocket 브로드캐스트
+        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.PARTICIPANT_JOINED);
     }
 
     /**
