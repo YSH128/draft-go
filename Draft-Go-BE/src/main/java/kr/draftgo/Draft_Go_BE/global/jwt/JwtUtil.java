@@ -19,6 +19,7 @@ public class JwtUtil {
     private final Key key;
     private final long accessTokenValidityInMilliseconds;
     private final long refreshTokenValidityInMilliseconds;
+    private final long refreshTokenValidityInSeconds; // 쿠키 maxAge용
 
     public JwtUtil(
             @Value("${jwt.secret}") String secret,
@@ -29,6 +30,7 @@ public class JwtUtil {
 
         this.accessTokenValidityInMilliseconds = accessTokenValidityInSeconds * 1000;
         this.refreshTokenValidityInMilliseconds = refreshTokenValidityInSeconds * 1000;
+        this.refreshTokenValidityInSeconds = refreshTokenValidityInSeconds; // 쿠키 maxAge용 (초 단위)
     }
 
     public String createAccessToken(String username) {
@@ -102,6 +104,10 @@ public class JwtUtil {
 
     /**
      * RefreshToken을 쿠키로 생성합니다.
+     *
+     * Path를 /api/v1/members로 제한하여 회원 관련 API에서만 쿠키가 전송되도록 합니다.
+     * 이를 통해 다른 경로에서의 불필요한 쿠키 전송을 방지하고 보안을 강화합니다.
+     *
      * @param refreshToken RefreshToken 문자열
      * @return ResponseCookie 객체
      */
@@ -109,9 +115,26 @@ public class JwtUtil {
         return ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
                 .secure(false) // 로컬 개발 환경: false, 프로덕션: true
-                .path("/")
-                .maxAge(7 * 24 * 60 * 60) // 7일
-                .sameSite("Strict")
+                .path("/api/v1/members") // 회원 관련 API로 경로 제한
+                .maxAge(refreshTokenValidityInSeconds) // 초 단위로 정확한 만료 시간 설정
+                .sameSite("Lax") // Lax로 설정하여 일반적인 탐색에서도 쿠키 전송 허용
+                .build();
+    }
+
+    /**
+     * RefreshToken 쿠키를 삭제합니다. (로그아웃 시 사용)
+     *
+     * maxAge를 0으로 설정하여 브라우저가 쿠키를 즉시 삭제하도록 합니다.
+     *
+     * @return ResponseCookie 객체 (삭제용)
+     */
+    public ResponseCookie deleteRefreshTokenCookie() {
+        return ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(false) // 로컬 개발 환경: false, 프로덕션: true
+                .path("/api/v1/members") // 생성 시와 동일한 경로
+                .maxAge(0) // 즉시 삭제
+                .sameSite("Lax") // 생성 시와 동일한 설정
                 .build();
     }
 }
