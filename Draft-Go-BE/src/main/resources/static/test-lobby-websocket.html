@@ -159,6 +159,93 @@
         .instructions li {
             margin: 5px 0;
         }
+        .room-list {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .room-list h3 {
+            margin-top: 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .btn-refresh {
+            background: #17a2b8;
+            color: white;
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+        .room-items {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .room-item {
+            background: white;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .room-item:hover {
+            background: #e7f3ff;
+            transform: translateX(5px);
+        }
+        .room-item.selected {
+            background: #cfe2ff;
+            border-left-color: #0d6efd;
+            box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+        }
+        .room-info {
+            flex: 1;
+        }
+        .room-id {
+            font-weight: bold;
+            color: #0056b3;
+            font-size: 14px;
+        }
+        .room-details {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .room-status {
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .status-waiting {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-in-progress {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .no-rooms {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-style: italic;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
@@ -166,10 +253,21 @@
         <h1>🏀 Draft Lobby WebSocket Test</h1>
         <p class="subtitle">로비 실시간 이벤트 브로드캐스트 테스트</p>
 
+        <div class="room-list">
+            <h3>
+                📋 방 목록
+                <button class="btn-refresh" onclick="loadRoomList()">🔄 새로고침</button>
+            </h3>
+            <div class="room-items" id="roomList">
+                <div class="loading">방 목록을 불러오는 중...</div>
+            </div>
+        </div>
+
         <div class="instructions">
             <h3>📋 사용 방법</h3>
             <ol>
-                <li>Draft ID를 입력하고 "연결" 버튼 클릭</li>
+                <li>위 방 목록에서 테스트할 Draft를 클릭하거나 직접 Draft ID 입력</li>
+                <li>"연결" 버튼을 클릭하여 WebSocket 연결</li>
                 <li>Postman이나 다른 클라이언트로 로비 API 호출 (포지션 변경, 참가자 추가 등)</li>
                 <li>아래 메시지 영역에서 실시간 이벤트 수신 확인</li>
             </ol>
@@ -199,6 +297,157 @@
         let stompClient = null;
         let currentDraftId = null;
 
+        // WebSocket URL 가져오기 (환경에 따라 변경 가능)
+        function getWebSocketUrl() {
+            // 프로덕션 환경
+            if (window.location.hostname === 'draft-go.com' || window.location.hostname === 'www.draft-go.com') {
+                return 'https://draft-go.com/ws';
+            }
+            // 로컬 개발 환경
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'http://localhost:8080/ws';
+            }
+            // 기타 환경 (현재 호스트 사용)
+            const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+            return `${protocol}//${window.location.host}/ws`;
+        }
+
+        // API URL 가져오기
+        function getApiUrl() {
+            // 프로덕션 환경
+            if (window.location.hostname === 'draft-go.com' || window.location.hostname === 'www.draft-go.com') {
+                return 'https://draft-go.com/api/v1';
+            }
+            // 로컬 개발 환경
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'http://localhost:8080/api/v1';
+            }
+            // 기타 환경 (현재 호스트 사용)
+            const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+            return `${protocol}//${window.location.host}/api/v1`;
+        }
+
+        // 페이지 로드 시 방 목록 불러오기
+        window.addEventListener('DOMContentLoaded', () => {
+            loadRoomList();
+            addMessage('👋 WebSocket 테스트 페이지에 오신 것을 환영합니다!', 'info');
+            addMessage('📌 Draft ID를 입력하고 연결 버튼을 클릭하세요.', 'info');
+
+            // 환경 정보 표시
+            const wsUrl = getWebSocketUrl();
+            const apiUrl = getApiUrl();
+            addMessage(`🔧 WebSocket URL: ${wsUrl}`, 'info');
+            addMessage(`🔧 API URL: ${apiUrl}`, 'info');
+            addMessage(`🌐 현재 호스트: ${window.location.hostname}`, 'info');
+            addMessage(`🔒 프로토콜: ${window.location.protocol}`, 'info');
+        });
+
+        // 방 목록 불러오기
+        async function loadRoomList() {
+            const roomListDiv = document.getElementById('roomList');
+            roomListDiv.innerHTML = '<div class="loading">방 목록을 불러오는 중...</div>';
+
+            try {
+                const response = await fetch(`${getApiUrl()}/drafts`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayRoomList(data || []);
+            } catch (error) {
+                console.error('Error loading room list:', error);
+                roomListDiv.innerHTML = '<div class="no-rooms">⚠️ 방 목록을 불러오는데 실패했습니다.</div>';
+                addMessage(`❌ 방 목록 로드 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 방 목록 표시
+        function displayRoomList(rooms) {
+            const roomListDiv = document.getElementById('roomList');
+
+            if (!rooms || rooms.length === 0) {
+                roomListDiv.innerHTML = '<div class="no-rooms">현재 활성화된 방이 없습니다.</div>';
+                return;
+            }
+
+            roomListDiv.innerHTML = '';
+            rooms.forEach(room => {
+                const roomItem = document.createElement('div');
+                roomItem.className = 'room-item';
+                if (currentDraftId == room.draftId) {
+                    roomItem.classList.add('selected');
+                }
+
+                const statusClass = getStatusClass(room.status);
+                const statusText = getStatusText(room.status);
+
+                roomItem.innerHTML = `
+                    <div class="room-info">
+                        <div class="room-id">${room.title || `Draft #${room.draftId}`}</div>
+                        <div class="room-details">
+                            👤 방장: ${room.ownerName || 'N/A'} |
+                            👥 참가자: ${room.participantCount || 0}명 |
+                            🏆 최대 팀: ${room.maxTeamCount || 0}팀
+                        </div>
+                    </div>
+                    <span class="room-status ${statusClass}">${statusText}</span>
+                `;
+
+                roomItem.onclick = () => selectRoom(room.draftId);
+                roomListDiv.appendChild(roomItem);
+            });
+
+            addMessage(`✅ 방 목록 로드 완료: ${rooms.length}개`, 'info');
+        }
+
+        // 방 선택
+        function selectRoom(draftId) {
+            document.getElementById('draftId').value = draftId;
+
+            // 선택 상태 업데이트
+            document.querySelectorAll('.room-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+
+            addMessage(`🎯 Draft #${draftId} 선택됨`, 'info');
+        }
+
+        // 상태에 따른 클래스 반환
+        function getStatusClass(status) {
+            switch(status) {
+                case 'WAITING':
+                    return 'status-waiting';
+                case 'READY':
+                    return 'status-ready';
+                case 'IN_PROGRESS':
+                    return 'status-in-progress';
+                default:
+                    return 'status-waiting';
+            }
+        }
+
+        // 상태 텍스트 반환
+        function getStatusText(status) {
+            switch(status) {
+                case 'WAITING':
+                    return '대기중';
+                case 'READY':
+                    return '준비완료';
+                case 'IN_PROGRESS':
+                    return '진행중';
+                default:
+                    return '알수없음';
+            }
+        }
+
         function connect() {
             const draftId = document.getElementById('draftId').value;
             if (!draftId) {
@@ -212,9 +461,11 @@
             }
 
             currentDraftId = draftId;
+            const wsUrl = getWebSocketUrl();
             addMessage(`🔄 연결 시도 중... (Draft ID: ${draftId})`, 'info');
+            addMessage(`🔧 WebSocket URL: ${wsUrl}`, 'info');
 
-            const socket = new SockJS('http://localhost:8080/ws');
+            const socket = new SockJS(wsUrl);
             stompClient = Stomp.over(socket);
 
             // 디버그 로그 활성화
@@ -247,6 +498,18 @@
                 updateStatus(false);
                 addMessage(`❌ 연결 실패: ${error}`, 'error');
                 console.error('Connection error:', error);
+
+                // 추가 디버깅 정보
+                if (error && error.headers) {
+                    addMessage(`🔍 에러 헤더: ${JSON.stringify(error.headers)}`, 'error');
+                }
+
+                // 일반적인 문제 해결 팁
+                addMessage(`💡 해결 방법:`, 'info');
+                addMessage(`&nbsp;&nbsp;1. Spring Boot 애플리케이션이 실행 중인지 확인`, 'info');
+                addMessage(`&nbsp;&nbsp;2. NGINX WebSocket 프록시 설정 확인 (docs/nginx_websocket_setup.md 참고)`, 'info');
+                addMessage(`&nbsp;&nbsp;3. 방화벽/보안그룹에서 포트가 열려있는지 확인`, 'info');
+
                 stompClient = null;
             });
         }
@@ -300,10 +563,6 @@
                 stompClient.disconnect();
             }
         });
-
-        // 초기 메시지
-        addMessage('👋 WebSocket 테스트 페이지에 오신 것을 환영합니다!', 'info');
-        addMessage('📌 Draft ID를 입력하고 연결 버튼을 클릭하세요.', 'info');
     </script>
 </body>
 </html>

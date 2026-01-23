@@ -16,6 +16,8 @@ public enum ErrorType {
 
     DUPLICATE_USERNAME(HttpStatus.CONFLICT, "DUPLICATE_USERNAME", "이미 존재하는 아이디입니다"),
     DUPLICATE_SUMMONER(HttpStatus.CONFLICT, "DUPLICATE_SUMMONER", "이미 등록된 소환사 닉네임입니다"),
+    REQUIRED_FIELD_MISSING(HttpStatus.BAD_REQUEST, "REQUIRED_FIELD_MISSING", "필수 입력 항목이 누락되었습니다"),
+    REFRESH_TOKEN_MISMATCH(HttpStatus.UNAUTHORIZED, "REFRESH_TOKEN_MISMATCH", "Refresh Token이 일치하지 않습니다"),
 
     // Draft 관련 에러
     DRAFT_NOT_FOUND(HttpStatus.NOT_FOUND, "DRAFT_NOT_FOUND", "존재하지 않는 드래프트입니다"),

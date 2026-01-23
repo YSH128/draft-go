@@ -1,10 +1,13 @@
 ## 1. 인증 및 멤버 (Auth & Member)
 
+### 인증 (Authentication)
+
 ### [POST] 회원가입
 
 * **URL:** `/api/v1/members/signup`
 * **Req:** `username`, `password`, `gameName`, `tagLine`
-* **Res:** `201 Created`
+* **Res:** `201 Created` - `accessToken`, `refreshToken` (Cookie)
+* **Note:** 회원가입 즉시 자동 로그인되어 토큰이 발급됩니다. 별도의 로그인 API 호출이 불필요합니다.
 
 ### [POST] 로그인
 
@@ -12,20 +15,49 @@
 * **Req:** `username`, `password`
 * **Res:** `accessToken`, `refreshToken` (Cookie)
 
+### [POST] 로그아웃
+* **URL:** `/api/v1/members/logout`
+* **Req:** `accessToken`, `refreshToken` (Cookie)
+* **Res:** `200 OK`
+
 ### [POST] 토큰 재발급
 
 * **URL:** `/api/v1/members/reissue`
-* **Req:** `refreshToken`
+* **Req:** `refreshToken` (Cookie)
 * **Res:** `accessToken`, `refreshToken` (Cookie)
+
+---
+
+### 회원 정보 (Member)
 
 ### [GET] 내 정보 조회
 * **URL:** `/api/v1/members/me`
 * **Res:** `memberId`, `username`, `gameName`, `tagLine`, `rank`, `leaguePoints`, `wins`, `losses`
 
-### [POST] 로그아웃
-* **URL:** `/api/v1/members/logout`
-* **Req:** `accessToken`, `refreshToken` (Cookie)
+### [GET] 회원 정보 조회
+* **URL:** `/api/v1/members/{memberId}`
+* **Res:** `memberId`, `username`, `gameName`, `tagLine`, `rank`, `leaguePoints`, `wins`, `losses`
+
+### [PUT] 프로필 수정
+* **URL:** `/api/v1/members/{memberId}/profile`
+* **Req:** `mainPosition`, `subPosition`
 * **Res:** `200 OK`
+
+### [GET] 아이디 중복 확인
+* **URL:** `/api/v1/members/check/username`
+* **Query:** `username`
+* **Res:** `{ "isDuplicate": boolean }`
+
+### [GET] 소환사명 중복 확인
+* **URL:** `/api/v1/members/check/summoner`
+* **Query:** `gameName`, `tagLine`
+* **Res:** `{ "isDuplicate": boolean }`
+
+### [GET] Riot ID 실존 확인
+* **URL:** `/api/v1/members/check/riot-id`
+* **Query:** `gameName`, `tagLine`
+* **Res:** `{ "isValid": boolean }`
+
 ---
 
 ## 2. 메인 화면 (Main Discovery)

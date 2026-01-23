@@ -79,7 +79,8 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/members/signup", "/api/v1/members/login", "/api/v1/members/reissue",
+                        .requestMatchers("/api/v1/members/signup", "/api/v1/members/login",
+                                "/api/v1/members/logout", "/api/v1/members/reissue",
                                 "/api/v1/admin/**", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/**")
                         .permitAll()
                         .anyRequest().permitAll()) // 기본적으로 모든 요청 허용, @PreAuthorize로 보호된 엔드포인트만 인증 필요

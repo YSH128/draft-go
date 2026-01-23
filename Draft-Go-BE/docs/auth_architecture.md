@@ -34,6 +34,14 @@
     -   `username` 중복 여부를 확인합니다.
     -   `BCryptPasswordEncoder`를 사용하여 비밀번호를 암호화합니다.
     -   DB에 `Member` 정보를 저장합니다.
+    -   **자동 로그인**: 회원가입 직후 JWT 토큰을 자동으로 생성합니다.
+        -   **Access Token** 생성 (HS512 서명).
+        -   **Refresh Token** 생성.
+        -   **Redis**에 `RefreshToken` 저장 (Key: `RT:{username}`, TTL: 7일).
+3.  **컨트롤러**:
+    -   `RefreshToken`을 **HttpOnly, Secure, SameSite=Strict 쿠키**에 설정합니다.
+    -   `AccessToken`을 JSON 응답 Body에 담아 반환합니다.
+    -   ✅ **별도의 로그인 API 호출 불필요**: 회원가입 즉시 인증된 상태로 서비스 이용 가능합니다.
 
 ### B. 로그인 프로세스 (`POST /api/v1/members/login`)
 1.  **클라이언트**: `username`, `password`를 전송합니다.
