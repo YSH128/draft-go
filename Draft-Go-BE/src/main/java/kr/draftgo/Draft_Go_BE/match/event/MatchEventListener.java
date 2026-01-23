@@ -1,7 +1,7 @@
 package kr.draftgo.Draft_Go_BE.match.event;
 
+import kr.draftgo.Draft_Go_BE.match.service.MatchService;
 import kr.draftgo.Draft_Go_BE.match.service.RiotApiService;
-import kr.draftgo.Draft_Go_BE.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.event.TransactionPhase;
@@ -16,7 +16,7 @@ import kr.draftgo.Draft_Go_BE.member.domain.Member;
 @RequiredArgsConstructor
 public class MatchEventListener {
 
-        private final MemberService memberService;
+        private final MatchService matchService;
         private final RiotApiService riotApiService;
 
         @Async
@@ -38,7 +38,7 @@ public class MatchEventListener {
         private void processMatchRefresh(Member member) {
                 try {
                         log.info("Starting orchestrated match refresh for {}", member.getUsername());
-                        String result = memberService.refreshMemberData(member.getId());
+                        String result = matchService.refreshMemberData(member.getId());
                         log.info("Orchestrated refresh completed for {}: {}", member.getUsername(), result);
                 } catch (Exception e) {
                         log.error("Orchestrated refresh failed for {}", member.getUsername(), e);

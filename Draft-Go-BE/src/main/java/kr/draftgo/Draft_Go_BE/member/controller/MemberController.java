@@ -13,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Member", description = "회원 관리 API")
 @RestController
@@ -100,20 +99,6 @@ public class MemberController {
             @RequestParam String gameName,
             @RequestParam String tagLine) {
         DuplicateCheckRes response = memberService.checkRiotId(gameName, tagLine);
-        return ResponseEntity.ok(response);
-    }
-
-    @Operation(summary = "전적 갱신", description = "특정 회원의 전적을 수동으로 갱신합니다. (누구나 가능)")
-    @PostMapping("/{memberId}/refresh")
-    public ResponseEntity<String> refreshMemberData(@PathVariable Long memberId) {
-        String result = memberService.refreshMemberData(memberId);
-        return ResponseEntity.ok(result);
-    }
-
-    @Operation(summary = "전적 갱신 상태 확인", description = "전적 갱신 진행 여부와 남은 쿨타임을 확인합니다.")
-    @GetMapping("/{username}/refresh-status")
-    public ResponseEntity<MemberRefreshStatusRes> getRefreshStatus(@PathVariable String username) {
-        MemberRefreshStatusRes response = memberService.getRefreshStatus(username);
         return ResponseEntity.ok(response);
     }
 
