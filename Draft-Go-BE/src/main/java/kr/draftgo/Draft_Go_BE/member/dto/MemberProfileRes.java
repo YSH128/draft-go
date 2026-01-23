@@ -1,11 +1,15 @@
 package kr.draftgo.Draft_Go_BE.member.dto;
 
+import kr.draftgo.Draft_Go_BE.match.dto.MostChampionRes;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -19,10 +23,11 @@ public class MemberProfileRes {
     private String puuid;
     private Position mainPosition;
     private Position subPosition;
-    private java.time.LocalDateTime updatedAt;
-    private MemberStatRes stats; // Keep stats field as it's used in one from method
+    private LocalDateTime updatedAt;
+    private MemberStatRes stats;
+    private List<MostChampionRes> mostChampions; // Added field
 
-    public static MemberProfileRes from(Member member, MemberStatRes stats) {
+    public static MemberProfileRes from(Member member, MemberStatRes stats, List<MostChampionRes> mostChampions) {
         return MemberProfileRes.builder()
                 .memberId(member.getId())
                 .username(member.getUsername())
@@ -32,20 +37,17 @@ public class MemberProfileRes {
                 .mainPosition(member.getMainPosition())
                 .subPosition(member.getSubPosition())
                 .stats(stats)
+                .mostChampions(mostChampions)
                 .updatedAt(member.getUpdatedAt())
                 .build();
     }
 
+    // Overloaded for backward compatibility or when stats/champs are null
+    public static MemberProfileRes from(Member member, MemberStatRes stats) {
+        return from(member, stats, null);
+    }
+
     public static MemberProfileRes from(Member member) {
-        return MemberProfileRes.builder()
-                .memberId(member.getId())
-                .username(member.getUsername())
-                .gameName(member.getGameName())
-                .tagLine(member.getTagLine())
-                .puuid(member.getPuuid())
-                .mainPosition(member.getMainPosition())
-                .subPosition(member.getSubPosition())
-                .updatedAt(member.getUpdatedAt())
-                .build();
+        return from(member, null, null);
     }
 }
