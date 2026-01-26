@@ -24,6 +24,7 @@ public class MemberProfileRes {
     private Position mainPosition;
     private Position subPosition;
     private String bio;
+    private String profileIconUrl;
     private LocalDateTime updatedAt;
     private MemberStatRes stats;
     private List<MostChampionRes> mostChampions; // Added field

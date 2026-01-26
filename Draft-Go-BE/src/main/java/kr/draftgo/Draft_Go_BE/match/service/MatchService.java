@@ -139,35 +139,87 @@ public class MatchService {
         List<MatchDocument> matches = matchRepository.findAllByPuuid(member.getPuuid());
 
         if (matches.isEmpty()) {
+            // Special Case: New User with no matches (and no icon?)
+            // If profileIconId is null, fetch from API (Hybrid Strategy)
+            if (member.getProfileIconId() == null) {
+                try {
+                    Map<String, Object> summonerInfo = riotApiService.getSummonerInfo(member.getPuuid());
+                    if (summonerInfo != null && summonerInfo.containsKey("profileIconId")) {
+                        Integer iconId = ((Number) summonerInfo.get("profileIconId")).intValue();
+                        member.updateProfileIcon(iconId);
+                        memberRepository.save(member);
+                        log.info("Initialized profileIconId for new user: {}", member.getUsername());
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to fetch initial profile icon for {}", member.getUsername(), e);
+                }
+            }
             return;
         }
 
         Map<Position, Integer> positionCounts = new HashMap<>();
+        Integer latestProfileIconId = null;
 
-        for (MatchDocument match : matches) {
+        for (int i = 0; i < matches.size(); i++) {
+            MatchDocument match = matches.get(i);
+
+            // Extract Profile Icon from the LATEST match (index 0 because we handle it
+            // below or assume sorted? Wait, matches are fetched from DB)
+            // findAllByPuuid returns unspecified order?
+            // findAllByPuuid in analyzeAndSetPositions implementation used above:
+            // List<MatchDocument> matches =
+            // matchRepository.findAllByPuuid(member.getPuuid());
+            // Need to find the latest match by gameCreation.
+
             Map<String, Object> data = match.getData();
             if (data == null)
                 continue;
-
             Map<String, Object> info = (Map<String, Object>) data.get("info");
             if (info == null)
                 continue;
-
             List<Map<String, Object>> participants = (List<Map<String, Object>>) info.get("participants");
             if (participants == null)
                 continue;
 
             for (Map<String, Object> p : participants) {
                 if (member.getPuuid().equals(p.get("puuid"))) {
+                    // Position Logic
                     String teamPosition = (String) p.get("teamPosition");
                     Position pos = mapToPosition(teamPosition);
                     if (pos != null) {
                         positionCounts.put(pos, positionCounts.getOrDefault(pos, 0) + 1);
                     }
+
+                    // Profile Icon Logic (Candidate)
+                    // We need the icon from the match with the largest gameCreation.
+                    // Let's do a second pass or sort.
                     break;
                 }
             }
         }
+
+        // Find latest match for Icon
+        matches.stream()
+                .max((m1, m2) -> Long.compare(m1.getGameCreation(), m2.getGameCreation()))
+                .ifPresent(latestMatch -> {
+                    Map<String, Object> data = latestMatch.getData();
+                    if (data != null) {
+                        Map<String, Object> info = (Map<String, Object>) data.get("info");
+                        if (info != null) {
+                            List<Map<String, Object>> participants = (List<Map<String, Object>>) info
+                                    .get("participants");
+                            if (participants != null) {
+                                for (Map<String, Object> p : participants) {
+                                    if (member.getPuuid().equals(p.get("puuid"))) {
+                                        Integer iconId = ((Number) p.get("profileIcon")).intValue();
+                                        member.updateProfileIcon(iconId); // Set logic
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
 
         List<Map.Entry<Position, Integer>> sorted = new ArrayList<>(positionCounts.entrySet());
         sorted.sort((a, b) -> b.getValue().compareTo(a.getValue()));
@@ -185,8 +237,8 @@ public class MatchService {
 
         if (mainPos != null || subPos != null) {
             member.updateProfile(mainPos, subPos, null);
-            memberRepository.save(member);
         }
+        memberRepository.save(member);
     }
 
     @Transactional
