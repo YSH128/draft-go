@@ -68,4 +68,51 @@ public class Draft {
     public void refreshLeaderCode() {
         this.leaderCode = UUID.randomUUID().toString().substring(0, 6);
     }
+
+    /**
+     * 드래프트 제목 수정
+     */
+    public void updateTitle(String title) {
+        if (title != null) {
+            this.title = title;
+        }
+    }
+
+    /**
+     * 시작 가격 수정
+     */
+    public void updateStartPrice(Integer startPrice) {
+        if (startPrice != null) {
+            this.startPrice = startPrice;
+        }
+    }
+
+    /**
+     * 시작 포인트 수정
+     */
+    public void updateStartPoint(Integer startPoint) {
+        if (startPoint != null) {
+            this.startPoint = startPoint;
+        }
+    }
+
+    /**
+     * 최대 팀 수 수정
+     */
+    public void updateMaxTeamCount(Integer maxTeamCount) {
+        if (maxTeamCount != null) {
+            this.maxTeamCount = maxTeamCount;
+        }
+    }
+
+    /**
+     * 드래프트 정보 수정 (null이 아닌 값만 업데이트)
+     */
+    public void updateDraftInfo(String title, Integer startPrice, Integer startPoint, Integer maxTeamCount) {
+        updateTitle(title);
+        updateStartPrice(startPrice);
+        updateStartPoint(startPoint);
+        updateMaxTeamCount(maxTeamCount);
+    }
 }
+

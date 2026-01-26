@@ -1,6 +1,7 @@
 package kr.draftgo.Draft_Go_BE.draft.room.service;
 
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.LobbyParticipant;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
@@ -10,6 +11,7 @@ import kr.draftgo.Draft_Go_BE.draft.room.dto.DraftListRes;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateReq;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateRes;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomJoinReq;
+import kr.draftgo.Draft_Go_BE.draft.room.dto.UpdateDraftInfoReq;
 import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
 import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
@@ -145,5 +147,45 @@ public class RoomService {
                             .build();
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 드래프트 정보 수정 (관리자 전용)
+     */
+    @Transactional
+    public void updateDraftInfo(Long draftId, UpdateDraftInfoReq req, Long adminId) {
+        Draft draft = draftRepository.findById(draftId)
+                .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
+
+        // 관리자 권한 확인
+        if (!draft.getOwner().getId().equals(adminId)) {
+            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 드래프트 정보를 수정할 수 있습니다.");
+        }
+
+        // 로비 상태가 아니면 수정 불가
+        if (draft.getStatus() != DraftStatus.LOBBY) {
+            throw new CustomException(ErrorType.DRAFT_NOT_IN_LOBBY, "로비 상태에서만 드래프트 정보를 수정할 수 있습니다.");
+        }
+
+        // 시작 가격과 시작 포인트 검증 (둘 다 null이 아닌 경우)
+        Integer finalStartPrice = req.getStartPrice() != null ? req.getStartPrice() : draft.getStartPrice();
+        Integer finalStartPoint = req.getStartPoint() != null ? req.getStartPoint() : draft.getStartPoint();
+
+        if (finalStartPrice > finalStartPoint) {
+            throw new CustomException(ErrorType.DRAFT_START_PRICE_INVALID);
+        }
+
+        // 드래프트 정보 업데이트 (null이 아닌 값만 업데이트됨)
+        draft.updateDraftInfo(
+                req.getTitle(),
+                req.getStartPrice(),
+                req.getStartPoint(),
+                req.getMaxTeamCount()
+        );
+
+        draftRepository.save(draft);
+
+        // WebSocket 브로드캐스트 - 드래프트 정보 변경 알림
+        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.REFRESH_REQUIRED);
     }
 }
