@@ -1,13 +1,21 @@
 package kr.draftgo.Draft_Go_BE.draft.room.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.DraftListRes;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateReq;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateRes;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomJoinReq;
+import kr.draftgo.Draft_Go_BE.draft.room.dto.UpdateDraftInfoReq;
 import kr.draftgo.Draft_Go_BE.draft.room.service.RoomService;
 import kr.draftgo.Draft_Go_BE.global.auth.CurrentMember;
+import kr.draftgo.Draft_Go_BE.global.exception.ErrorResponse;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -47,5 +55,28 @@ public class RoomController {
             @RequestBody RoomJoinReq req,
             @CurrentMember Member member) {
         return roomService.joinRoom(req, member.getId());
+    }
+
+    @Operation(summary = "드래프트 정보 수정 (관리자 전용)", description = "드래프트 제목, 시작 가격, 시작 포인트, 최대 팀 수를 수정합니다. (로비 상태에서만 가능)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "드래프트 정보 수정 성공", content = @Content()),
+            @ApiResponse(responseCode = "400", description = """
+                    DRAFT_NOT_IN_LOBBY - 로비 상태에서만 정보를 수정할 수 있습니다
+                    
+                    DRAFT_START_PRICE_INVALID - 시작 가격은 시작 포인트보다 작거나 같아야 합니다
+                    """,
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "UNAUTHORIZED_ADMIN_ONLY - 관리자만 드래프트 정보를 수정할 수 있습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "DRAFT_NOT_FOUND - 존재하지 않는 드래프트입니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PutMapping("/{draftId}")
+    @PreAuthorize("isAuthenticated()")
+    public void updateDraftInfo(
+            @Parameter(description = "드래프트 ID") @PathVariable Long draftId,
+            @Valid @RequestBody UpdateDraftInfoReq req,
+            @CurrentMember Member member) {
+        roomService.updateDraftInfo(draftId, req, member.getId());
     }
 }
