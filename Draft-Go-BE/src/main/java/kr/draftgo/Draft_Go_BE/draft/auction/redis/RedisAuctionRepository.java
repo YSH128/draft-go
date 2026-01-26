@@ -1,6 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.redis;
 
-import kr.draftgo.Draft_Go_BE.draft.auction.domain.AuctionStageStatus;
+import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -17,12 +17,12 @@ public class RedisAuctionRepository {
     private final RedisTemplate<String, Object> redis;
     private final StringRedisTemplate stringRedis;
 
-    public void setCurrent(Long draftId, AuctionStageStatus state) {
+    public void setCurrent(Long draftId, RoundStatus state) {
         redis.opsForValue().set(AuctionKey.current(draftId), state);
     }
 
-    public AuctionStageStatus getCurrent(Long draftId) {
-        return (AuctionStageStatus) redis.opsForValue().get(AuctionKey.current(draftId));
+    public RoundStatus getCurrent(Long draftId) {
+        return (RoundStatus) redis.opsForValue().get(AuctionKey.current(draftId));
     }
 
     public BidInfo getBid(Long draftId) {

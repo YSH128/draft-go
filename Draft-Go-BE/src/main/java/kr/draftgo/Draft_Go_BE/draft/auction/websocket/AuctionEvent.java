@@ -1,7 +1,7 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.websocket;
 
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.AuctionEventType;
-import kr.draftgo.Draft_Go_BE.draft.auction.domain.AuctionStageStatus;
+import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,7 +16,7 @@ public class AuctionEvent {
     private AuctionEventType type;
     private Object data;
 
-    public static AuctionEvent newBidding(AuctionStageStatus state) {
+    public static AuctionEvent newBidding(RoundStatus state) {
         return AuctionEvent.builder()
                 .type(AuctionEventType.NEW_BIDDING)
                 .data(state)

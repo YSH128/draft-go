@@ -13,19 +13,19 @@ import lombok.ToString;
 @Builder
 @ToString
 @AllArgsConstructor
-public class AuctionStageStatus implements Serializable {
+public class RoundStatus implements Serializable {
 
     private Long draftId;
     private String playerName;
     private Long draftMemberId;
     private int turnOrder;
-    private StagedMemberStatus stagedMemberStatus;
+    private CurrentMemberStatus currentMemberStatus;
     private LocalDateTime startedAt;
 
-    public static AuctionStageStatus start(Long draftId, Long draftMemberId, String playerName) {
-        return AuctionStageStatus.builder()
+    public static RoundStatus start(Long draftId, Long draftMemberId, String playerName) {
+        return RoundStatus.builder()
                 .draftId(draftId)
-                .stagedMemberStatus(StagedMemberStatus.BIDDING)
+                .currentMemberStatus(CurrentMemberStatus.BIDDING)
                 .turnOrder(1)
                 .draftMemberId(draftMemberId)
                 .playerName(playerName)

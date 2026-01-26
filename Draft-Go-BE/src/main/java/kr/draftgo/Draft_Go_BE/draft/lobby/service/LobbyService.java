@@ -417,6 +417,6 @@ public class LobbyService {
         lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.DRAFT_STARTED);
 
         // 경매 자동 시작
-        auctionService.processNextMember(draftId);
+        auctionService.processNextRound(draftId);
     }
 }

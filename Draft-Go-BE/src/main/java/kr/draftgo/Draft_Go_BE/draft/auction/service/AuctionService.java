@@ -1,6 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.service;
 
-import kr.draftgo.Draft_Go_BE.draft.auction.domain.AuctionStageStatus;
+import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.AuctionStatusResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.DraftMemberResponse;
@@ -47,7 +47,7 @@ public class AuctionService {
      * - 경매가 중단되었을 때 수동으로 재개하는 용도입니다.
      */
     @Transactional
-    public void processNextMemberByOwner(Long draftId, Member admin) {
+    public void processNextRoundByOwner(Long draftId, Member admin) {
         // 관리자 권한 확인
         Draft draft = draftRepository.findById(draftId)
                 .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
@@ -57,7 +57,7 @@ public class AuctionService {
         }
 
         // 실제 경매 시작 로직 호출
-        processNextMember(draftId);
+        processNextRound(draftId);
     }
 
     /**
@@ -67,13 +67,13 @@ public class AuctionService {
      * - AuctionTimeOverService.completeAuction()에서 다음 경매를 시작할 때도 호출됩니다.
      */
     @Transactional
-    public void processNextMember(Long draftId) {
+    public void processNextRound(Long draftId) {
         draftMemberRepo.findNextWaiting(draftId).ifPresentOrElse(next -> {
             // [추가] DB 상태 업데이트: WAITING -> BIDDING
             next.bidding(); // Entity method to change status
             draftMemberRepo.save(next);
 
-            AuctionStageStatus state = AuctionStageStatus.start(draftId, next.getId(), next.getName());
+            RoundStatus state = RoundStatus.start(draftId, next.getId(), next.getName());
             redisRepo.setCurrent(draftId, state);
             redisRepo.startTimer(draftId, 30);
             publisher.newBidding(draftId, state);
@@ -106,7 +106,7 @@ public class AuctionService {
     }
 
     public AuctionStatusResponse getCurrentState(Long draftId) {
-        AuctionStageStatus state = redisRepo.getCurrent(draftId);
+        RoundStatus state = redisRepo.getCurrent(draftId);
         BidInfo bid = redisRepo.getBid(draftId);
         String nextPlayerName = draftMemberRepo.findNextUpcoming(draftId)
                 .map(DraftMember::getName)

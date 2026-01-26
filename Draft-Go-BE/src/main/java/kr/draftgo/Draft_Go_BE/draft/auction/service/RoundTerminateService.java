@@ -1,6 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.service;
 
-import kr.draftgo.Draft_Go_BE.draft.auction.domain.AuctionStageStatus;
+import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class AuctionTimeOverService {
+public class RoundTerminateService {
 
     private final RedisAuctionRepository redisRepo;
     private final TeamRepository teamRepo;
@@ -26,10 +26,10 @@ public class AuctionTimeOverService {
     private final AuctionService auctionService;
     private final AuctionEventPublisher publisher;
 
-    public void processTimeOver(Long draftId) {
+    public void terminateRound(Long draftId) {
 
         BidInfo bid = redisRepo.getBid(draftId);
-        AuctionStageStatus state = redisRepo.getCurrent(draftId);
+        RoundStatus state = redisRepo.getCurrent(draftId);
 
         if (bid.exists()) {
             // Redis에서 포인트 차감 (실시간 경매용)
@@ -64,6 +64,6 @@ public class AuctionTimeOverService {
         publisher.publishDraftQueue(draftId, auctionService.getDraftQueue(draftId));
         publisher.publishTeamInfo(draftId, auctionService.getTeamInfos(draftId));
 
-        auctionService.processNextMember(draftId); // 다음 경매 or 종료
+        auctionService.processNextRound(draftId); // 다음 경매 or 종료
     }
 }

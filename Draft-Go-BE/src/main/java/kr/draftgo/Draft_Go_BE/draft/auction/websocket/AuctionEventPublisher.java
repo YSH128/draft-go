@@ -1,6 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.websocket;
 
-import kr.draftgo.Draft_Go_BE.draft.auction.domain.AuctionStageStatus;
+import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.DraftMemberResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.TeamInfoResponse;
@@ -17,7 +17,7 @@ public class AuctionEventPublisher {
 
     private final SimpMessagingTemplate template;
 
-    public void newBidding(Long draftId, AuctionStageStatus state) {
+    public void newBidding(Long draftId, RoundStatus state) {
         template.convertAndSend(
                 "/ws/auction/" + draftId,
                 AuctionEvent.newBidding(state));

@@ -33,7 +33,7 @@ public class AuctionController {
     public void startAuction(
             @PathVariable Long draftId,
             @CurrentMember Member member) {
-        auctionService.processNextMemberByOwner(draftId, member);
+        auctionService.processNextRoundByOwner(draftId, member);
     }
 
     @PostMapping("/bid")
