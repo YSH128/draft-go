@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
 import PositionIcon from '../ui/PositionIcon';
 import { ROUTES } from '../../constants/routes';
+import { joinDraftRoom } from '../../api/draft';
 
 export default function JoinWithCodeModal({ isOpen, onClose }) {
   const navigate = useNavigate();
@@ -15,7 +16,14 @@ export default function JoinWithCodeModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const handleJoin = () => {
+
+  // 포지션 매핑 (프론트엔드 → 백엔드)
+  const mapPositionToAPI = (position) => {
+    const mapping = { 'JNG': 'JUNGLE', 'ADC': 'BOT' };
+    return mapping[position] || position;
+  };
+
+  const handleJoin = async () => {
     if (!code) {
         alert("참가 코드를 입력해주세요.");
         return;
@@ -25,15 +33,38 @@ export default function JoinWithCodeModal({ isOpen, onClose }) {
         return;
     }
 
-    // Navigate to DraftLobby with state
-    navigate(ROUTES.DRAFT_LOBBY, { 
-        state: { 
-            code, 
-            position: selectedPosition, 
-            role: 'PLAYER' 
-        } 
-    });
-    onClose();
+    try {
+        console.log('[JoinModal] 참가 요청:', { draftCode: code, position: mapPositionToAPI(selectedPosition) });
+        
+        const result = await joinDraftRoom({ 
+            draftCode: code, 
+            position: mapPositionToAPI(selectedPosition)
+        });
+        
+        console.log('[JoinModal] API 응답:', result);
+        
+        // API 응답에서 draftId 확인 (숫자로 직접 반환되는 경우 포함)
+        let draftId;
+        if (typeof result === 'number') {
+            draftId = result; // API가 숫자를 직접 반환한 경우
+        } else {
+            draftId = result?.draftId || result?.id || result?.data?.draftId;
+        }
+
+        if (draftId) {
+            console.log('[JoinModal] 이동할 draftId:', draftId);
+            onClose();
+            navigate(`/draft-lobby/${draftId}`);
+        } else {
+            console.error('[JoinModal] draftId를 찾을 수 없음:', result);
+            alert("방 정보를 찾을 수 없습니다. 응답: " + JSON.stringify(result));
+        }
+    } catch (error) {
+        console.error("[JoinModal] 참가 실패:", error);
+        console.error("[JoinModal] 에러 응답:", error.response?.data);
+        const errorMessage = error.response?.data?.message || "참가에 실패했습니다.";
+        alert(errorMessage);
+    }
   };
 
   const handleSpectatorJoin = () => {
@@ -102,7 +133,7 @@ export default function JoinWithCodeModal({ isOpen, onClose }) {
                                 : 'bg-[#0f0e0b] border-[#393528] text-[#555] hover:border-[#f4c025] hover:text-[#f4c025]'
                             }`}
                         >
-                            <PositionIcon position={pos} className="text-2xl mb-1" />
+                            <PositionIcon position={pos} className="w-8 h-8 mb-1" />
                             <span className="text-[10px] font-bold tracking-wider">{pos}</span>
                         </button>
                     ))}

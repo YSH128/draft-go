@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login } from "../../api/auth";
+import { login, getMyProfile } from "../../api/auth";
 import AuthInput from "../../components/ui/AuthInput";
 import AuthButton from "../../components/ui/AuthButton";
 import SectionDivider from "../../components/ui/SectionDivider";
@@ -33,7 +33,22 @@ const LoginPage = () => {
 
     try {
       const response = await login(formData);
-      loginAction(response.accessToken); // Zustand Action 호출
+      // 먼저 토큰 저장 (me API 호출 시 인증 헤더에 필요)
+      loginAction(response.accessToken);
+      
+      // 사용자 정보 조회 후 저장
+      try {
+        const userInfo = await getMyProfile();
+        loginAction(response.accessToken, {
+          id: userInfo.memberId,
+          username: userInfo.username,
+          gameName: userInfo.gameName,
+          tagLine: userInfo.tagLine,
+        });
+      } catch (profileError) {
+        console.warn("프로필 조회 실패, 토큰만 저장됨:", profileError);
+      }
+      
       navigate("/");
     } catch (err) {
       const serverMessage =
