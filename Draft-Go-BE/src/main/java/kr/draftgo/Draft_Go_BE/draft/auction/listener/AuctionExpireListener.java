@@ -1,6 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.listener;
 
-import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionResultService;
+import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionTimeOverService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.Message;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AuctionExpireListener implements MessageListener {
 
-    private final AuctionResultService auctionResultService;
+    private final AuctionTimeOverService auctionTimeOverService;
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
@@ -24,7 +24,7 @@ public class AuctionExpireListener implements MessageListener {
         }
 
         Long draftId = extractDraftId(expiredKey);
-        auctionResultService.completeAuction(draftId);
+        auctionTimeOverService.processTimeOver(draftId);
     }
 
     private Long extractDraftId(String key) {

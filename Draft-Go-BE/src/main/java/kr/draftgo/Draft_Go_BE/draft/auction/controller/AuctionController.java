@@ -5,8 +5,11 @@ import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.DraftMemberResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.TeamInfoResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionService;
 import kr.draftgo.Draft_Go_BE.draft.auction.service.BidService;
+import kr.draftgo.Draft_Go_BE.global.auth.CurrentMember;
+import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -20,9 +23,17 @@ public class AuctionController {
     private final AuctionService auctionService;
     private final BidService bidService;
 
+    /**
+     * 경매 수동 시작/재개 (관리자 전용)
+     * - 일반적으로는 LobbyService.startDraft()에서 자동으로 호출됩니다.
+     * - 이 엔드포인트는 경매가 중단되거나 에러가 발생했을 때 수동으로 재개하기 위한 용도입니다.
+     */
     @PostMapping("/start")
-    public void startAuction(@PathVariable Long draftId) {
-        auctionService.startAuction(draftId);
+    @PreAuthorize("isAuthenticated()")
+    public void startAuction(
+            @PathVariable Long draftId,
+            @CurrentMember Member member) {
+        auctionService.processNextMemberByOwner(draftId, member);
     }
 
     @PostMapping("/bid")
