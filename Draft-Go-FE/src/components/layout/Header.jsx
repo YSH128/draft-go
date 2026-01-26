@@ -56,12 +56,20 @@ export default function Header() {
               </Link>
             </>
           ) : (
-            <button
-              onClick={handleLogout}
-              className="rounded-[2px] border border-primary-bright/20 bg-gold-gradient px-4 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-background-dark shadow-[0_0_15px_rgba(200,155,60,0.2)] transition-all hover:brightness-110 active:scale-95 sm:px-8 sm:py-2.5 sm:text-xs"
-            >
-              Logout
-            </button>
+            <>
+              <Link
+                to={ROUTES.PROFILE}
+                className="hidden text-xs font-bold uppercase tracking-[0.15em] text-slate-400 transition-colors hover:text-primary sm:block"
+              >
+                My Page
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="rounded-[2px] border border-primary-bright/20 bg-gold-gradient px-4 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-background-dark shadow-[0_0_15px_rgba(200,155,60,0.2)] transition-all hover:brightness-110 active:scale-95 sm:px-8 sm:py-2.5 sm:text-xs"
+              >
+                Logout
+              </button>
+            </>
           )}
         </div>
       </div>
