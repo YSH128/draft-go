@@ -36,4 +36,14 @@ public interface RiotApiService {
      * @return Map containing league info
      */
     java.util.Map<String, Object> getLeagueInfoByPuuid(String puuid);
+
+    /**
+     * Get Summoner Info (Profile Icon, Level, etc.) by PUUID.
+     * Uses SUMMONER-V4 API.
+     *
+     * @param puuid
+     * @return Map containing summoner info (id, accountId, puuid, name,
+     *         profileIconId, revisionDate, summonerLevel)
+     */
+    java.util.Map<String, Object> getSummonerInfo(String puuid);
 }

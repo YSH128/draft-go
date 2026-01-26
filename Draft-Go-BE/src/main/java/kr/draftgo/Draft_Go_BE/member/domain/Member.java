@@ -44,6 +44,9 @@ public class Member {
     @Column(name = "bio", length = 150)
     private String bio;
 
+    @Column(name = "profile_icon_id")
+    private Integer profileIconId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private Role role;
@@ -78,6 +81,12 @@ public class Member {
             this.bio = bio;
         }
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateProfileIcon(Integer profileIconId) {
+        if (profileIconId != null) {
+            this.profileIconId = profileIconId;
+        }
     }
 
     public void refreshUpdatedAt() {

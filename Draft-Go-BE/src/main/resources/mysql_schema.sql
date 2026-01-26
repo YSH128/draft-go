@@ -8,6 +8,7 @@ CREATE TABLE `member` (
 	`main_position` VARCHAR(15) NULL COMMENT '사용자가 선택 가능한 포지션',
 	`sub_position` VARCHAR(15) NULL COMMENT '사용자가 선택 가능한 포지션',
 	`bio` VARCHAR(150) NULL COMMENT '한 줄 소개',
+    `profile_icon_id` INT NULL COMMENT '소환사 프로필 아이콘 ID',
     `role` VARCHAR(10) NOT NULL DEFAULT 'USER' COMMENT '사용자 권한 (USER, ADMIN)',
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,

@@ -240,4 +240,20 @@ public class RealRiotApiService implements RiotApiService {
                                 .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {
                                 });
         }
+
+        @Override
+        public Map<String, Object> getSummonerInfo(String puuid) {
+                try {
+                        return restClient.get()
+                                        .uri("https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}",
+                                                        puuid)
+                                        .header("X-Riot-Token", apiKey)
+                                        .retrieve()
+                                        .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                                        });
+                } catch (Exception e) {
+                        log.error("Failed to get summoner info for puuid: {}", puuid, e);
+                        return Collections.emptyMap();
+                }
+        }
 }

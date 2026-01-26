@@ -151,4 +151,9 @@ public class DataDragonService {
             return null;
         return String.format("https://ddragon.leagueoflegends.com/cdn/%s/img/spell/%s", this.version, imageFile);
     }
+
+    public String getProfileIconUrl(int profileIconId) {
+        return String.format("https://ddragon.leagueoflegends.com/cdn/%s/img/profileicon/%d.png", this.version,
+                profileIconId);
+    }
 }

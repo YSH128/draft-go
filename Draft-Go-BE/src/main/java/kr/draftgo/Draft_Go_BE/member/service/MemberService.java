@@ -33,6 +33,7 @@ public class MemberService {
     private final MemberStatRepository memberStatRepository;
     private final MostChampionStatRepository mostChampionStatRepository;
     private final RiotApiService riotApiService;
+    private final kr.draftgo.Draft_Go_BE.match.service.DataDragonService dataDragonService;
 
     /**
      * 사용자명으로 회원 프로필 조회
@@ -146,6 +147,31 @@ public class MemberService {
                         .collect(Collectors.toList()))
                 .orElse(Collections.emptyList());
 
-        return MemberProfileRes.from(member, MemberStatRes.from(stat), mostChampions);
+        MemberProfileRes res = MemberProfileRes.from(member, MemberStatRes.from(stat), mostChampions);
+
+        // Populate Profile Icon URL
+        if (member.getProfileIconId() != null) {
+            String iconUrl = dataDragonService.getProfileIconUrl(member.getProfileIconId());
+            // Need a setter or update builder to set this extra field, but DTO is
+            // immutable-ish (Builder).
+            // Let's modify MemberProfileRes.from or create a builder copy.
+            // Actually, MemberProfileRes uses @Builder.
+            return MemberProfileRes.builder()
+                    .memberId(res.getMemberId())
+                    .username(res.getUsername())
+                    .gameName(res.getGameName())
+                    .tagLine(res.getTagLine())
+                    .puuid(res.getPuuid())
+                    .mainPosition(res.getMainPosition())
+                    .subPosition(res.getSubPosition())
+                    .bio(res.getBio())
+                    .profileIconUrl(iconUrl)
+                    .stats(res.getStats())
+                    .mostChampions(res.getMostChampions())
+                    .updatedAt(res.getUpdatedAt())
+                    .build();
+        }
+
+        return res;
     }
 }
