@@ -38,8 +38,11 @@ public class Member {
     private Position mainPosition;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 15)
+    @Column(name = "sub_position", length = 15)
     private Position subPosition;
+
+    @Column(name = "bio", length = 150)
+    private String bio;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
@@ -64,12 +67,15 @@ public class Member {
         this.createdAt = LocalDateTime.now();
     }
 
-    public void updateProfile(Position mainPosition, Position subPosition) {
+    public void updateProfile(Position mainPosition, Position subPosition, String bio) {
         if (mainPosition != null) {
             this.mainPosition = mainPosition;
         }
         if (subPosition != null) {
             this.subPosition = subPosition;
+        }
+        if (bio != null) {
+            this.bio = bio;
         }
         this.updatedAt = LocalDateTime.now();
     }

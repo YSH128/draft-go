@@ -11,4 +11,5 @@ import lombok.Setter;
 public class MemberProfileUpdateReq {
     private Position mainPosition;
     private Position subPosition;
+    private String bio;
 }

@@ -184,7 +184,7 @@ public class MatchService {
         }
 
         if (mainPos != null || subPos != null) {
-            member.updateProfile(mainPos, subPos);
+            member.updateProfile(mainPos, subPos, null);
             memberRepository.save(member);
         }
     }
