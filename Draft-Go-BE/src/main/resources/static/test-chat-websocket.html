@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Draft Chat Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        input[type="number"], input[type="text"] {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        input[type="number"] {
+            width: 100px;
+        }
+        input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .btn-connect {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-connect:hover {
+            background: #45a049;
+        }
+        .btn-disconnect {
+            background: #f44336;
+            color: white;
+        }
+        .btn-disconnect:hover {
+            background: #da190b;
+        }
+        .btn-send {
+            background: #2196F3;
+            color: white;
+        }
+        .btn-send:hover {
+            background: #0b7dda;
+        }
+        .btn-clear {
+            background: #ff9800;
+            color: white;
+        }
+        .btn-clear:hover {
+            background: #e68900;
+        }
+        #status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .connected {
+            background: #4CAF50;
+            color: white;
+        }
+        .disconnected {
+            background: #f44336;
+            color: white;
+        }
+        .login-section {
+            background: #f0f8ff;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 2px solid #2196F3;
+        }
+        .login-section h3 {
+            margin-top: 0;
+            color: #2196F3;
+        }
+        .login-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .login-form input {
+            flex: 1;
+            min-width: 150px;
+        }
+        .btn-login {
+            background: #2196F3;
+            color: white;
+        }
+        .btn-login:hover {
+            background: #0b7dda;
+        }
+        .btn-logout {
+            background: #9E9E9E;
+            color: white;
+        }
+        .btn-logout:hover {
+            background: #757575;
+        }
+        .auth-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 12px;
+            background: #e0e0e0;
+            color: #666;
+        }
+        .auth-status.logged-in {
+            background: #4CAF50;
+            color: white;
+        }
+        .user-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+        #messages {
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            background: #fafafa;
+            margin-top: 20px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .message-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .message-time {
+            font-size: 12px;
+            color: #999;
+        }
+        .message-content {
+            color: #333;
+            word-wrap: break-word;
+        }
+        .message.chat {
+            border-left: 4px solid #2196F3;
+        }
+        .message.system {
+            border-left: 4px solid #ff9800;
+            background: #fff3e0;
+        }
+        .message.join {
+            border-left: 4px solid #4CAF50;
+            background: #e8f5e9;
+        }
+        .message.leave {
+            border-left: 4px solid #f44336;
+            background: #ffebee;
+        }
+        .sender-name {
+            color: #2196F3;
+        }
+        .message-type {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: #ddd;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💬 Draft Chat Test</h1>
+        <p class="subtitle">드래프트 단체 채팅 WebSocket 테스트</p>
+
+        <!-- 로그인 섹션 -->
+        <div class="login-section">
+            <h3>🔐 로그인</h3>
+            <div class="login-form" id="loginForm">
+                <input type="text" id="loginId" placeholder="로그인 ID (예: user1)" onkeypress="handleLoginKeyPress(event)" />
+                <input type="password" id="password" placeholder="비밀번호 (예: password123)" onkeypress="handleLoginKeyPress(event)" />
+                <button class="btn-login" onclick="login()">로그인</button>
+            </div>
+            <div style="display: none;" id="loggedInInfo">
+                <div class="user-info">
+                    <strong>로그인 사용자:</strong> <span id="currentUser"></span>
+                    <button class="btn-logout" onclick="logout()" style="margin-left: 10px;">로그아웃</button>
+                </div>
+            </div>
+            <span id="authStatus" class="auth-status">● 로그인 필요</span>
+        </div>
+
+        <div class="controls">
+            <input type="number" id="draftId" placeholder="Draft ID" value="1" min="1" />
+            <button class="btn-connect" onclick="connect()">🔌 연결</button>
+            <button class="btn-disconnect" onclick="disconnect()">⏹️ 연결 해제</button>
+            <span id="status" class="disconnected">● 연결 안됨</span>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="messageInput" placeholder="메시지를 입력하세요..." onkeypress="handleKeyPress(event)" />
+            <button class="btn-send" onclick="sendMessage()">📤 전송</button>
+            <button class="btn-clear" onclick="clearMessages()">🗑️ 메시지 지우기</button>
+        </div>
+
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let currentDraftId = null;
+        let accessToken = null;
+        let currentUserNickname = null;
+
+        // WebSocket URL 가져오기 (환경에 따라 변경 가능)
+        function getWebSocketUrl() {
+            // 프로덕션 환경
+            if (window.location.hostname === 'draft-go.com' || window.location.hostname === 'www.draft-go.com') {
+                return 'https://draft-go.com/ws';
+            }
+            // 로컬 환경
+            return 'http://localhost:8080/ws';
+        }
+
+        // API Base URL 가져오기
+        function getApiBaseUrl() {
+            if (window.location.hostname === 'draft-go.com' || window.location.hostname === 'www.draft-go.com') {
+                return 'https://draft-go.com/api/v1';
+            }
+            return 'http://localhost:8080/api/v1';
+        }
+
+        // 로그인
+        async function login() {
+            const username = document.getElementById('loginId').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!username || !password) {
+                alert('⚠️ 로그인 ID와 비밀번호를 입력하세요!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${getApiBaseUrl()}/members/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    accessToken = data.accessToken;
+                    currentUserNickname = data.nickname || username;
+
+                    // 로컬 스토리지에 저장
+                    localStorage.setItem('accessToken', accessToken);
+                    localStorage.setItem('userNickname', currentUserNickname);
+
+                    updateAuthUI(true);
+                    addMessage('SYSTEM', null, `✅ 로그인 성공! (${currentUserNickname})`, null);
+                } else {
+                    const error = await response.json();
+                    alert(`❌ 로그인 실패: ${error.message || '인증 정보를 확인하세요'}`);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('❌ 로그인 중 오류가 발생했습니다. 서버 연결을 확인하세요.');
+            }
+        }
+
+        // 로그아웃
+        function logout() {
+            accessToken = null;
+            currentUserNickname = null;
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('userNickname');
+
+            // WebSocket 연결 해제
+            if (stompClient !== null && stompClient.connected) {
+                disconnect();
+            }
+
+            updateAuthUI(false);
+            addMessage('SYSTEM', null, '👋 로그아웃 되었습니다.', null);
+        }
+
+        // 인증 UI 업데이트
+        function updateAuthUI(isLoggedIn) {
+            const authStatus = document.getElementById('authStatus');
+            const loginForm = document.getElementById('loginForm');
+            const loggedInInfo = document.getElementById('loggedInInfo');
+            const currentUserSpan = document.getElementById('currentUser');
+
+            if (isLoggedIn) {
+                authStatus.textContent = '● 로그인됨';
+                authStatus.className = 'auth-status logged-in';
+                loginForm.style.display = 'none';
+                loggedInInfo.style.display = 'block';
+                currentUserSpan.textContent = currentUserNickname;
+            } else {
+                authStatus.textContent = '● 로그인 필요';
+                authStatus.className = 'auth-status';
+                loginForm.style.display = 'flex';
+                loggedInInfo.style.display = 'none';
+            }
+        }
+
+        // 페이지 로드 시 저장된 토큰 확인
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedToken = localStorage.getItem('accessToken');
+            const savedNickname = localStorage.getItem('userNickname');
+
+            if (savedToken && savedNickname) {
+                accessToken = savedToken;
+                currentUserNickname = savedNickname;
+                updateAuthUI(true);
+                addMessage('SYSTEM', null, `✅ 저장된 로그인 정보로 복원되었습니다. (${currentUserNickname})`, null);
+            }
+        });
+
+        function updateStatus(connected) {
+            const statusElement = document.getElementById('status');
+            if (connected) {
+                statusElement.textContent = '● 연결됨';
+                statusElement.className = 'connected';
+            } else {
+                statusElement.textContent = '● 연결 안됨';
+                statusElement.className = 'disconnected';
+            }
+        }
+
+        function addMessage(type, senderName, content, timestamp) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type.toLowerCase()}`;
+
+            let typeLabel = '';
+            switch(type) {
+                case 'CHAT':
+                    typeLabel = '채팅';
+                    break;
+                case 'SYSTEM':
+                    typeLabel = '시스템';
+                    break;
+                case 'JOIN':
+                    typeLabel = '입장';
+                    break;
+                case 'LEAVE':
+                    typeLabel = '퇴장';
+                    break;
+            }
+
+            const time = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <span>
+                        <span class="message-type">${typeLabel}</span>
+                        ${senderName ? `<span class="sender-name">${senderName}</span>` : ''}
+                    </span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div class="message-content">${content}</div>
+            `;
+
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function connect() {
+            // 로그인 확인
+            if (!accessToken) {
+                alert('⚠️ 먼저 로그인하세요!');
+                return;
+            }
+
+            const draftId = document.getElementById('draftId').value;
+            if (!draftId) {
+                alert('⚠️ Draft ID를 입력하세요!');
+                return;
+            }
+
+            if (stompClient !== null && stompClient.connected) {
+                alert('⚠️ 이미 연결되어 있습니다.');
+                return;
+            }
+
+            currentDraftId = draftId;
+            const wsUrl = getWebSocketUrl();
+            addMessage('SYSTEM', null, `🔄 연결 시도 중... (Draft ID: ${draftId})`, null);
+            console.log('Connecting to:', wsUrl);
+
+            const socket = new SockJS(wsUrl);
+            stompClient = Stomp.over(socket);
+
+            // 디버그 로그 활성화
+            stompClient.debug = (str) => {
+                console.log('STOMP Debug:', str);
+            };
+
+            // JWT 토큰을 헤더에 포함하여 연결
+            const headers = {
+                'Authorization': `Bearer ${accessToken}`
+            };
+
+            stompClient.connect(headers, (frame) => {
+                updateStatus(true);
+                addMessage('SYSTEM', null, `✅ 연결 성공! (Draft ID: ${draftId})`, null);
+                console.log('Connected:', frame);
+
+                // 채팅 구독
+                stompClient.subscribe(`/topic/chat/${draftId}`, (message) => {
+                    const data = JSON.parse(message.body);
+                    console.log('Chat message received:', data);
+
+                    addMessage(
+                        data.type,
+                        data.senderNickname,
+                        data.content,
+                        data.timestamp
+                    );
+                });
+
+                addMessage('SYSTEM', null, '📨 채팅 구독 완료! 메시지를 보내보세요.', null);
+
+            }, (error) => {
+                updateStatus(false);
+                addMessage('SYSTEM', null, `❌ 연결 실패: ${error}`, null);
+                console.error('Connection error:', error);
+
+                // 인증 오류인 경우
+                if (error && error.toString().includes('401')) {
+                    addMessage('SYSTEM', null, '⚠️ 인증 오류: 다시 로그인하세요.', null);
+                    logout();
+                }
+
+                stompClient = null;
+            });
+        }
+
+        function disconnect() {
+            if (stompClient !== null && stompClient.connected) {
+                stompClient.disconnect(() => {
+                    updateStatus(false);
+                    addMessage('SYSTEM', null, '🔌 연결 해제됨', null);
+                    stompClient = null;
+                });
+            } else {
+                alert('⚠️ 연결되어 있지 않습니다.');
+            }
+        }
+
+        function sendMessage() {
+            if (!accessToken) {
+                alert('⚠️ 먼저 로그인하세요!');
+                return;
+            }
+
+            if (!stompClient || !stompClient.connected) {
+                alert('⚠️ 먼저 연결하세요!');
+                return;
+            }
+
+            const messageInput = document.getElementById('messageInput');
+            const content = messageInput.value.trim();
+
+            if (!content) {
+                alert('⚠️ 메시지를 입력하세요!');
+                return;
+            }
+
+            const chatMessageRequest = {
+                content: content
+            };
+
+            // JWT 토큰을 헤더에 포함하여 전송
+            const headers = {
+                'Authorization': `Bearer ${accessToken}`
+            };
+
+            stompClient.send(
+                `/app/chat/${currentDraftId}`,
+                headers,
+                JSON.stringify(chatMessageRequest)
+            );
+
+            console.log('Message sent:', chatMessageRequest);
+            messageInput.value = '';
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function handleLoginKeyPress(event) {
+            if (event.key === 'Enter') {
+                login();
+            }
+        }
+
+        function clearMessages() {
+            const confirmed = confirm('모든 메시지를 지우시겠습니까?');
+            if (confirmed) {
+                document.getElementById('messages').innerHTML = '';
+                addMessage('SYSTEM', null, '🗑️ 메시지가 지워졌습니다.', null);
+            }
+        }
+
+        // 페이지 언로드 시 연결 해제
+        window.addEventListener('beforeunload', () => {
+            if (stompClient !== null && stompClient.connected) {
+                stompClient.disconnect();
+            }
+        });
+    </script>
+</body>
+</html>

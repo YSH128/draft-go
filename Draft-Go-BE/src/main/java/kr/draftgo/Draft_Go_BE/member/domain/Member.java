@@ -83,4 +83,8 @@ public class Member {
     public void refreshUpdatedAt() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    public String getNickname() {
+        return this.gameName + "#" + this.tagLine;
+    }
 }

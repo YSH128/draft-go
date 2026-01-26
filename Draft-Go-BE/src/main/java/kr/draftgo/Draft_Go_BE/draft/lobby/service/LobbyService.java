@@ -17,6 +17,7 @@ import kr.draftgo.Draft_Go_BE.draft.lobby.dto.response.UserSummary;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyWebSocketService;
+import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
@@ -53,6 +54,7 @@ public class LobbyService {
     private final TeammateRepository teammateRepository;
     private final RedisLobbyRepository lobbyRedisRepository;
     private final LobbyWebSocketService lobbyWebSocketService;
+    private final ChatWebSocketController chatWebSocketController;
 
     /**
      * 로비 정보 조회
@@ -195,10 +197,17 @@ public class LobbyService {
             throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 다른 참가자를 퇴장시킬 수 있습니다.");
         }
 
+        // 퇴장 전 참가자 정보 가져오기 (채팅 알림용)
+        LobbyParticipant participant = lobbyRedisRepository.getParticipant(draftId, targetUserId);
+        String nickname = participant != null ? participant.getGameName() : "알 수 없는 사용자";
+
         lobbyRedisRepository.removeParticipant(draftId, targetUserId);
 
         // WebSocket 브로드캐스트
         lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.PARTICIPANT_LEFT);
+
+        // 채팅 퇴장 알림
+        chatWebSocketController.sendLeaveMessage(draftId, nickname);
     }
 
     /**

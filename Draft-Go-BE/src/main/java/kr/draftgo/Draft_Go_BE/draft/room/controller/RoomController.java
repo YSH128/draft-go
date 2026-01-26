@@ -54,7 +54,7 @@ public class RoomController {
     public Long joinRoom(
             @RequestBody RoomJoinReq req,
             @CurrentMember Member member) {
-        return roomService.joinRoom(req, member.getId());
+        return roomService.joinRoom(req, member);
     }
 
     @Operation(summary = "드래프트 정보 수정 (관리자 전용)", description = "드래프트 제목, 시작 가격, 시작 포인트, 최대 팀 수를 수정합니다. (로비 상태에서만 가능)")
