@@ -1,26 +1,32 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.service;
 
-import kr.draftgo.Draft_Go_BE.draft.auction.domain.AuctionState;
+import kr.draftgo.Draft_Go_BE.draft.auction.domain.AuctionStageStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.AuctionStatusResponse;
-import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
-import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
-import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
-import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
-import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
-import kr.draftgo.Draft_Go_BE.draft.common.repository.TeammateRepository;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.Team;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.Teammate;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.DraftMemberResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.TeamInfoResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.TeammateResponse;
-import java.util.List;
-import java.util.stream.Collectors;
+import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
+import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
+import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.Team;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.Teammate;
+import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
+import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
+import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
+import kr.draftgo.Draft_Go_BE.draft.common.repository.TeammateRepository;
+import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
+import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
+import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,26 +35,52 @@ public class AuctionService {
 
     private final RedisAuctionRepository redisRepo;
     private final DraftMemberRepository draftMemberRepo;
+    private final DraftRepository draftRepository;
     private final TeamRepository teamRepo;
     private final TeammateRepository teammateRepo;
     private final AuctionEventPublisher publisher;
     private final ChatWebSocketController chatWebSocketController;
 
+    /**
+     * 경매 시작 (관리자 권한 체크 포함)
+     * - Controller에서 호출되며, 관리자 권한을 검증합니다.
+     * - 경매가 중단되었을 때 수동으로 재개하는 용도입니다.
+     */
     @Transactional
-    public void startAuction(Long draftId) {
+    public void processNextMemberByOwner(Long draftId, Member admin) {
+        // 관리자 권한 확인
+        Draft draft = draftRepository.findById(draftId)
+                .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
+
+        if (!draft.getOwner().getId().equals(admin.getId())) {
+            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 경매를 시작할 수 있습니다.");
+        }
+
+        // 실제 경매 시작 로직 호출
+        processNextMember(draftId);
+    }
+
+    /**
+     * 경매 시작 (내부 로직)
+     * - 관리자 권한 체크 없이 내부 로직에서 호출됩니다.
+     * - LobbyService.startDraft()에서 자동으로 호출됩니다.
+     * - AuctionTimeOverService.completeAuction()에서 다음 경매를 시작할 때도 호출됩니다.
+     */
+    @Transactional
+    public void processNextMember(Long draftId) {
         draftMemberRepo.findNextWaiting(draftId).ifPresentOrElse(next -> {
             // [추가] DB 상태 업데이트: WAITING -> BIDDING
             next.bidding(); // Entity method to change status
             draftMemberRepo.save(next);
 
-            AuctionState state = AuctionState.start(next.getId(), next.getName());
+            AuctionStageStatus state = AuctionStageStatus.start(draftId, next.getId(), next.getName());
             redisRepo.setCurrent(draftId, state);
             redisRepo.startTimer(draftId, 30);
-            publisher.start(draftId, state);
+            publisher.newBidding(draftId, state);
 
             // 채팅 시스템 메시지 - 경매 시작
             chatWebSocketController.sendSystemMessage(draftId,
-                "🎯 경매가 시작되었습니다! 첫 번째 선수: " + next.getName());
+                "🎯 현재 선수: " + next.getName());
         }, () -> {
             log.info("No more members to draft. Auction finished for draftId: {}", draftId);
 
@@ -74,7 +106,7 @@ public class AuctionService {
     }
 
     public AuctionStatusResponse getCurrentState(Long draftId) {
-        AuctionState state = redisRepo.getCurrent(draftId);
+        AuctionStageStatus state = redisRepo.getCurrent(draftId);
         BidInfo bid = redisRepo.getBid(draftId);
         String nextPlayerName = draftMemberRepo.findNextUpcoming(draftId)
                 .map(DraftMember::getName)

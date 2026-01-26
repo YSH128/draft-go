@@ -1,7 +1,7 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.domain;
 
 public enum AuctionEventType {
-    START,
+    NEW_BIDDING,
     BID,
-    END
+    TIME_OVER
 }

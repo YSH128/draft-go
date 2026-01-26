@@ -1,5 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.lobby.service;
 
+import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionService;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
@@ -55,6 +56,7 @@ public class LobbyService {
     private final RedisLobbyRepository lobbyRedisRepository;
     private final LobbyWebSocketService lobbyWebSocketService;
     private final ChatWebSocketController chatWebSocketController;
+    private final AuctionService auctionService;
 
     /**
      * 로비 정보 조회
@@ -413,5 +415,8 @@ public class LobbyService {
 
         // WebSocket 브로드캐스트 - 드래프트 시작
         lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.DRAFT_STARTED);
+
+        // 경매 자동 시작
+        auctionService.processNextMember(draftId);
     }
 }

@@ -13,24 +13,22 @@ import lombok.ToString;
 @Builder
 @ToString
 @AllArgsConstructor
-public class AuctionState implements Serializable {
+public class AuctionStageStatus implements Serializable {
 
     private Long draftId;
     private String playerName;
     private Long draftMemberId;
-    private Long memberId;
     private int turnOrder;
-    private AuctionStatus status;
+    private StagedMemberStatus stagedMemberStatus;
     private LocalDateTime startedAt;
 
-    public static AuctionState start(Long draftMemberId, String playerName) {
-        return AuctionState.builder()
-                .draftId(1L) // dummy
-                .status(AuctionStatus.BIDDING)
+    public static AuctionStageStatus start(Long draftId, Long draftMemberId, String playerName) {
+        return AuctionStageStatus.builder()
+                .draftId(draftId)
+                .stagedMemberStatus(StagedMemberStatus.BIDDING)
                 .turnOrder(1)
                 .draftMemberId(draftMemberId)
                 .playerName(playerName)
-                .memberId(100L) // dummy value
                 .startedAt(LocalDateTime.now())
                 .build();
     }
