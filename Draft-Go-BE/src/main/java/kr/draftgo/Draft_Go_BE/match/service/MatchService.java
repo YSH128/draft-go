@@ -3,7 +3,7 @@ package kr.draftgo.Draft_Go_BE.match.service;
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import kr.draftgo.Draft_Go_BE.match.domain.MostChampionStat;
 import kr.draftgo.Draft_Go_BE.match.domain.MostChampionStat.MostChampion;
-import kr.draftgo.Draft_Go_BE.match.dto.MatchRes;
+
 import kr.draftgo.Draft_Go_BE.match.repository.MatchRepository;
 import kr.draftgo.Draft_Go_BE.match.repository.MostChampionStatRepository;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
@@ -40,9 +40,10 @@ public class MatchService {
     private final MostChampionStatRepository mostChampionStatRepository;
     private final RiotApiService riotApiService;
     private final StringRedisTemplate redisTemplate;
+    private final DataDragonService dataDragonService;
 
     @Transactional(readOnly = true)
-    public List<MatchRes> getMatchHistory(Long memberId, Pageable pageable) {
+    public List<kr.draftgo.Draft_Go_BE.match.dto.MatchDetailRes> getMatchHistory(Long memberId, Pageable pageable) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
@@ -59,7 +60,7 @@ public class MatchService {
         Page<MatchDocument> matches = matchRepository.findAllByPuuid(puuid, pageable);
 
         return matches.stream()
-                .map(match -> convertToMatchRes(match, puuid))
+                .map(this::convertToMatchDetailRes)
                 .filter(res -> res != null)
                 .collect(Collectors.toList());
     }
@@ -400,7 +401,7 @@ public class MatchService {
         }
     }
 
-    private MatchRes convertToMatchRes(MatchDocument match, String puuid) {
+    private kr.draftgo.Draft_Go_BE.match.dto.MatchDetailRes convertToMatchDetailRes(MatchDocument match) {
         try {
             Map<String, Object> data = match.getData();
             if (data == null)
@@ -414,52 +415,114 @@ public class MatchService {
             Long gameDuration = ((Number) info.get("gameDuration")).longValue();
             String gameMode = (String) info.get("gameMode");
 
-            List<Map<String, Object>> participants = (List<Map<String, Object>>) info.get("participants");
-            if (participants == null)
+            List<Map<String, Object>> participantsData = (List<Map<String, Object>>) info.get("participants");
+            if (participantsData == null)
                 return null;
 
-            Map<String, Object> myData = null;
-            for (Map<String, Object> p : participants) {
-                if (puuid.equals(p.get("puuid"))) {
-                    myData = p;
-                    break;
-                }
-            }
+            List<kr.draftgo.Draft_Go_BE.match.dto.ParticipantRes> participants = participantsData.stream()
+                    .map(this::mapToParticipantRes)
+                    .collect(Collectors.toList());
 
-            if (myData == null)
-                return null;
-
-            String championName = (String) myData.get("championName");
-            Integer championId = (Integer) myData.get("championId");
-            int kills = ((Number) myData.get("kills")).intValue();
-            int deaths = ((Number) myData.get("deaths")).intValue();
-            int assists = ((Number) myData.get("assists")).intValue();
-            boolean win = (boolean) myData.get("win");
-
-            double kda = 0.0;
-            if (deaths == 0)
-                kda = (double) (kills + assists);
-            else
-                kda = (double) (kills + assists) / deaths;
-            kda = Math.round(kda * 100.0) / 100.0;
-
-            return MatchRes.builder()
+            return kr.draftgo.Draft_Go_BE.match.dto.MatchDetailRes.builder()
                     .matchId(match.getMatchId())
                     .gameCreation(gameCreation)
                     .gameDuration(gameDuration)
                     .gameMode(gameMode)
-                    .championName(championName)
-                    .championId(championId)
-                    .kills(kills)
-                    .deaths(deaths)
-                    .assists(assists)
-                    .kda(kda)
-                    .win(win)
+                    .participants(participants)
                     .build();
 
         } catch (Exception e) {
-            log.warn("Error converting match {} for puuid {}", match.getMatchId(), puuid, e);
+            log.warn("Error converting match {} detail", match.getMatchId(), e);
             return null;
         }
+    }
+
+    private kr.draftgo.Draft_Go_BE.match.dto.ParticipantRes mapToParticipantRes(Map<String, Object> p) {
+        String summonerName = (String) p.get("riotIdGameName");
+        String tagLine = (String) p.get("riotIdTagline");
+        String championName = (String) p.get("championName");
+        Integer championId = (Integer) p.get("championId");
+
+        String championIconUrl = dataDragonService.getChampionIconUrl(championName);
+
+        Integer teamId = (Integer) p.get("teamId");
+        String teamPosition = (String) p.get("teamPosition");
+
+        int kills = ((Number) p.get("kills")).intValue();
+        int deaths = ((Number) p.get("deaths")).intValue();
+        int assists = ((Number) p.get("assists")).intValue();
+        boolean win = (boolean) p.get("win");
+
+        double kda = 0.0;
+        if (deaths == 0)
+            kda = (double) (kills + assists);
+        else
+            kda = (double) (kills + assists) / deaths;
+        kda = Math.round(kda * 100.0) / 100.0;
+
+        // Items
+        List<String> itemUrls = new ArrayList<>();
+        for (int i = 0; i <= 6; i++) {
+            int itemId = ((Number) p.get("item" + i)).intValue();
+            itemUrls.add(dataDragonService.getItemIconUrl(itemId));
+        }
+
+        // Spells
+        List<String> spellUrls = new ArrayList<>();
+        spellUrls.add(dataDragonService.getSpellIconUrl(((Number) p.get("summoner1Id")).intValue()));
+        spellUrls.add(dataDragonService.getSpellIconUrl(((Number) p.get("summoner2Id")).intValue()));
+
+        // Runes
+        List<String> runeUrls = new ArrayList<>();
+        Map<String, Object> perks = (Map<String, Object>) p.get("perks");
+        if (perks != null) {
+            List<Map<String, Object>> styles = (List<Map<String, Object>>) perks.get("styles");
+            if (styles != null) {
+                // Primary Style (Index 0) -> First Selection (Key Stone)
+                if (!styles.isEmpty()) {
+                    Map<String, Object> primaryStyle = styles.get(0);
+                    List<Map<String, Object>> selections = (List<Map<String, Object>>) primaryStyle.get("selections");
+                    if (selections != null && !selections.isEmpty()) {
+                        int keyStoneId = ((Number) selections.get(0).get("perk")).intValue();
+                        runeUrls.add(dataDragonService.getRuneIconUrl(keyStoneId));
+                    } else {
+                        runeUrls.add(null);
+                    }
+                }
+
+                // Sub Style (Index 1) -> Style Icon
+                if (styles.size() > 1) {
+                    Map<String, Object> subStyle = styles.get(1);
+                    int subStyleId = ((Number) subStyle.get("style")).intValue();
+                    runeUrls.add(dataDragonService.getRuneIconUrl(subStyleId));
+                } else {
+                    runeUrls.add(null);
+                }
+            }
+        }
+
+        int totalMinionsKilled = ((Number) p.get("totalMinionsKilled")).intValue()
+                + ((Number) p.get("neutralMinionsKilled")).intValue();
+        int championLevel = ((Number) p.get("champLevel")).intValue();
+
+        return kr.draftgo.Draft_Go_BE.match.dto.ParticipantRes.builder()
+                .summonerName(summonerName)
+                .tagLine(tagLine)
+                .championName(championName)
+                .championIconUrl(championIconUrl)
+                .championId(championId)
+                .teamId(teamId)
+                .teamPosition(teamPosition)
+                .kills(kills)
+                .deaths(deaths)
+                .assists(assists)
+                .kda(kda)
+                .win(win)
+                .itemUrls(itemUrls)
+                .spellUrls(spellUrls)
+                .runeUrls(runeUrls)
+                .totalMinionsKilled(totalMinionsKilled)
+                .championLevel(championLevel)
+                .build();
     }
 }

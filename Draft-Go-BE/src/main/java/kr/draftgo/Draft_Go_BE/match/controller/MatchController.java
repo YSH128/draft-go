@@ -1,6 +1,5 @@
 package kr.draftgo.Draft_Go_BE.match.controller;
 
-import kr.draftgo.Draft_Go_BE.match.dto.MatchRes;
 import kr.draftgo.Draft_Go_BE.match.service.MatchService;
 import kr.draftgo.Draft_Go_BE.member.dto.MemberRefreshStatusRes;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,7 +25,7 @@ public class MatchController {
 
     @Operation(summary = "회원 매치 히스토리 조회", description = "특정 회원의 전적 리스트를 조회합니다. (페이징 지원)")
     @GetMapping("/history/{memberId}")
-    public ResponseEntity<List<MatchRes>> getMatchHistory(
+    public ResponseEntity<List<kr.draftgo.Draft_Go_BE.match.dto.MatchDetailRes>> getMatchHistory(
             @PathVariable Long memberId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -34,8 +33,7 @@ public class MatchController {
         // Pageable (Sort by gameCreation desc)
         Pageable pageable = PageRequest.of(page, size, Sort.by("gameCreation").descending());
 
-        List<MatchRes> history = matchService.getMatchHistory(memberId, pageable);
-        return ResponseEntity.ok(history);
+        return ResponseEntity.ok(matchService.getMatchHistory(memberId, pageable));
     }
 
     @Operation(summary = "전적 갱신", description = "특정 회원의 전적을 수동으로 갱신합니다. (누구나 가능)")
