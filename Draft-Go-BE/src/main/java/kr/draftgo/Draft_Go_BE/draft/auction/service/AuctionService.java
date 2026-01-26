@@ -5,6 +5,7 @@ import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.AuctionStatusResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
+import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
@@ -31,6 +32,7 @@ public class AuctionService {
     private final TeamRepository teamRepo;
     private final TeammateRepository teammateRepo;
     private final AuctionEventPublisher publisher;
+    private final ChatWebSocketController chatWebSocketController;
 
     @Transactional
     public void startAuction(Long draftId) {
@@ -43,6 +45,10 @@ public class AuctionService {
             redisRepo.setCurrent(draftId, state);
             redisRepo.startTimer(draftId, 30);
             publisher.start(draftId, state);
+
+            // 채팅 시스템 메시지 - 경매 시작
+            chatWebSocketController.sendSystemMessage(draftId,
+                "🎯 경매가 시작되었습니다! 첫 번째 선수: " + next.getName());
         }, () -> {
             log.info("No more members to draft. Auction finished for draftId: {}", draftId);
 
@@ -61,6 +67,9 @@ public class AuctionService {
             }
             teamRepo.saveAll(teams);
             log.info("Final team points synchronized to DB for draftId: {}", draftId);
+
+            // 채팅 시스템 메시지 - 경매 종료
+            chatWebSocketController.sendSystemMessage(draftId, "🎉 모든 경매가 종료되었습니다!");
         });
     }
 
