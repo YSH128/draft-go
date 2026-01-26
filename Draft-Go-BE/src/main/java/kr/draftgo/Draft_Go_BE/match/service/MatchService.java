@@ -519,6 +519,8 @@ public class MatchService {
                 .kda(kda)
                 .win(win)
                 .itemUrls(itemUrls)
+                .roleBoundItemUrl(
+                        dataDragonService.getItemIconUrl(((Number) p.getOrDefault("roleBoundItem", 0)).intValue()))
                 .spellUrls(spellUrls)
                 .runeUrls(runeUrls)
                 .totalMinionsKilled(totalMinionsKilled)

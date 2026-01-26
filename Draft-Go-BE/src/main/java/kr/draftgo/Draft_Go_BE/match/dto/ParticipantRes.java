@@ -25,6 +25,7 @@ public class ParticipantRes {
 
     // Items
     private List<String> itemUrls; // 0-5 + 6(Ward)
+    private String roleBoundItemUrl; // New field for roleBoundItem -> treated as item URL
 
     // Spells
     private List<String> spellUrls; // D, F
