@@ -5,14 +5,15 @@ import {
   CTASection,
 } from "./sections";
 import { useState } from "react";
-import JoinWithCodeModal from "../../components/Ui/JoinWithCodeModal";
+import JoinWithCodeModal from "../../components/ui/JoinWithCodeModal";
+import CreateDraftModal from "../../components/ui/CreateDraftModal";
 
 export default function HomePage() {
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const handleCreateTournament = () => {
-    console.log("Create tournament clicked");
-    // TODO: 대회 생성 페이지로 이동 또는 모달 열기
+    setIsCreateModalOpen(true);
   };
 
   const handleJoinWithCode = () => {
@@ -39,6 +40,10 @@ export default function HomePage() {
       <JoinWithCodeModal 
         isOpen={isJoinModalOpen}
         onClose={() => setIsJoinModalOpen(false)}
+      />
+      <CreateDraftModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
       />
     </>
   );

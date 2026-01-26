@@ -5,5 +5,5 @@ export const ROUTES = {
   SIGNUP: "/signup",
   MY: "/my",
   DESIGN_PREVIEW: "/preview",
-  DRAFT_LOBBY: "/draft-lobby"
+  DRAFT_LOBBY: "/draft-lobby/:draftId"
 };

@@ -29,18 +29,41 @@ export default function ParticipantProfileModal({
   const data = participantData || defaultData;
   
   // 소환사 라이엇 레벨
-  const tierName = data.tier.split(' ')[0];
+  // 소환사 라이엇 레벨
+  const tierStr = data.tier || "Unranked";
+  const tierName = tierStr.split(' ')[0];
   const tierLower = tierName.toLowerCase();
 
-  // Cooldown
+  // Cooldown Calculation Logic
+  const calculateRemainingTime = () => {
+    if (!data.lastUpdated) return 0;
+    const lastUpdate = new Date(data.lastUpdated).getTime();
+    const now = Date.now();
+    const elapsed = (now - lastUpdate) / 1000;
+    // 쿨타임 120초 (2분)
+    return Math.max(0, 120 - Math.floor(elapsed));
+  };
+
+
+
+  // Initialize and Interval based on timestamp
   useEffect(() => {
-    if (refreshCooldown > 0) {
-      const timer = setInterval(() => {
-        setRefreshCooldown(prev => Math.max(0, prev - 1));
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [refreshCooldown]);
+    // Open될 때, 혹은 data가 바뀔 때 초기 계산
+    setRefreshCooldown(calculateRemainingTime());
+
+    const timer = setInterval(() => {
+        const remaining = calculateRemainingTime();
+        setRefreshCooldown(remaining);
+        
+        if (remaining <= 0) {
+            // clearInterval(timer); // Keeps running to catch updates if needed, but could stop if 0. 
+            // Better to keep running if we expect external updates (Global Sync via Polling), 
+            // but for now standard polling updates `data` prop which triggers this effect again.
+        }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [data.lastUpdated, data.summonerName]); // Depend on data
 
   const handleRefresh = async () => {
     if (refreshCooldown > 0 || isRefreshing) return;
@@ -48,7 +71,9 @@ export default function ParticipantProfileModal({
     setIsRefreshing(true);
     try {
       await onRefresh?.();
-      setRefreshCooldown(120); // 2분 쿨다운
+      // Optimistic Update handled by parent re-fetch, 
+      // but we can set a temp cooldown or wait for prop update.
+      // If we wait for prop, spinner runs until data comes back with new time.
     } catch (error) {
       console.error('소환사 정보 갱신 실패:', error);
     } finally {
@@ -162,7 +187,7 @@ export default function ParticipantProfileModal({
               {data.mainPosition && (
                 <div className="bg-[#010a13]/50 border border-white/10 rounded-lg p-3 flex items-center justify-center gap-3 relative overflow-hidden group hover:border-primary/30 transition-colors">
                   <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <PositionIcon position={data.mainPosition} className="text-primary text-2xl relative z-10" />
+                  <PositionIcon position={data.mainPosition} className="w-8 h-8 relative z-10" />
                   <div className="relative z-10 text-left">
                     <p className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-0.5">주포지션</p>
                     <p className="text-white font-bold text-sm leading-none">{data.mainPosition}</p>
@@ -174,7 +199,7 @@ export default function ParticipantProfileModal({
               {data.subPosition && (
                 <div className="bg-[#010a13]/50 border border-white/10 rounded-lg p-3 flex items-center justify-center gap-3 relative overflow-hidden group hover:border-primary/30 transition-colors">
                   <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <PositionIcon position={data.subPosition} className="text-gray-400 text-2xl relative z-10" />
+                  <PositionIcon position={data.subPosition} className="w-8 h-8 relative z-10" />
                   <div className="relative z-10 text-left">
                     <p className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-0.5">부포지션</p>
                     <p className="text-white font-bold text-sm leading-none">{data.subPosition}</p>

@@ -2,9 +2,9 @@
 import React, { useState } from "react";
 import Button from "../ui/Button";
 
-export default function TeamLeaderSettingsModal({ isOpen, onClose, captain, onSave, pool = [] }) {
+export default function TeamLeaderSettingsModal({ isOpen, onClose, captain, onSave, pool = [], defaultStartPoint = 1000 }) {
   const [selectedLeader, setSelectedLeader] = useState(captain?.name || "");
-  const [initialPoints, setInitialPoints] = useState(captain?.points || 1000);
+  const [initialPoints, setInitialPoints] = useState(captain?.points || defaultStartPoint);
 
   if (!isOpen) return null;
 
