@@ -23,6 +23,7 @@ public class MemberProfileRes {
     private String puuid;
     private Position mainPosition;
     private Position subPosition;
+    private String bio;
     private LocalDateTime updatedAt;
     private MemberStatRes stats;
     private List<MostChampionRes> mostChampions; // Added field
@@ -36,6 +37,7 @@ public class MemberProfileRes {
                 .puuid(member.getPuuid())
                 .mainPosition(member.getMainPosition())
                 .subPosition(member.getSubPosition())
+                .bio(member.getBio())
                 .stats(stats)
                 .mostChampions(mostChampions)
                 .updatedAt(member.getUpdatedAt())

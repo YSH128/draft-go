@@ -62,14 +62,14 @@ public class MemberService {
      * 회원 프로필 수정
      *
      * @param memberId 회원 ID
-     * @param req 프로필 수정 요청 정보
+     * @param req      프로필 수정 요청 정보
      */
     @Transactional
     public void updateProfile(Long memberId, MemberProfileUpdateReq req) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorType.MEMBER_NOT_FOUND));
 
-        member.updateProfile(req.getMainPosition(), req.getSubPosition());
+        member.updateProfile(req.getMainPosition(), req.getSubPosition(), req.getBio());
         memberRepository.save(member);
 
         log.info("Profile updated for member ID: {}", memberId);
@@ -90,7 +90,7 @@ public class MemberService {
      * 소환사명 중복 확인
      *
      * @param gameName 게임 내 닉네임
-     * @param tagLine 태그
+     * @param tagLine  태그
      * @return 중복 여부 응답
      */
     public DuplicateCheckRes checkDuplicateSummonerName(String gameName, String tagLine) {
@@ -104,7 +104,7 @@ public class MemberService {
      * Riot API를 통해 해당 계정이 실제로 존재하는지 확인합니다.
      *
      * @param gameName 게임 내 닉네임
-     * @param tagLine 태그
+     * @param tagLine  태그
      * @return 실존 여부 응답
      */
     public DuplicateCheckRes checkRiotId(String gameName, String tagLine) {
