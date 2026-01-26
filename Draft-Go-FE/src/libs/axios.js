@@ -37,7 +37,7 @@ instance.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       if (window.location.pathname !== "/login") {
-        alert("세션이 만료되었습니다. 다시 로그인해주세요.");
+        alert("로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
         localStorage.removeItem("auth-storage");
         window.location.href = "/login";
       }
