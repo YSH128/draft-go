@@ -8,6 +8,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
+    define: {
+      global: 'globalThis',
+    },
     plugins: [
       react(),
       tailwindcss()
@@ -15,7 +18,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: env.VITE_PROXY_TARGET || 'https://draft-go.com', 
+          target: env.VITE_PROXY_TARGET || 'https://draft-go.com',
           changeOrigin: true,
           secure: false,
         },
