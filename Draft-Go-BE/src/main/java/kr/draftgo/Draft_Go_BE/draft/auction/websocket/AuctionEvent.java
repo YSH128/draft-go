@@ -23,10 +23,14 @@ public class AuctionEvent {
                 .build();
     }
 
-    public static AuctionEvent bid(Long teamId, int price) {
+    public static AuctionEvent bid(Long teamId, int price, Integer remainingSeconds) {
         return AuctionEvent.builder()
                 .type(AuctionEventType.BID)
-                .data(new BidInfo(teamId, price))
+                .data(BidInfo.builder()
+                        .teamId(teamId)
+                        .price(price)
+                        .remainingSeconds(remainingSeconds)
+                        .build())
                 .build();
     }
 

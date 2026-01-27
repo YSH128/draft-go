@@ -60,6 +60,11 @@ public class RedisAuctionRepository {
         redis.expire(AuctionKey.timer(draftId), seconds, TimeUnit.SECONDS);
     }
 
+    public Integer getRemainingTime(Long draftId) {
+        Long ttl = redis.getExpire(AuctionKey.timer(draftId), TimeUnit.SECONDS);
+        return ttl != null && ttl > 0 ? ttl.intValue() : 0;
+    }
+
     public void setTeamPoint(Long draftId, Long teamId, int point) {
         redis.opsForValue().set(AuctionKey.teamPoint(draftId, teamId), point);
     }

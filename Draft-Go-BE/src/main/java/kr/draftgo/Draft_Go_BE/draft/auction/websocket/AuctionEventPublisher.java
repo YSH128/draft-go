@@ -23,10 +23,10 @@ public class AuctionEventPublisher {
                 AuctionEvent.newBidding(state));
     }
 
-    public void bidUpdated(Long draftId, Long teamId, int price) {
+    public void bidUpdated(Long draftId, Long teamId, int price, Integer remainingSeconds) {
         template.convertAndSend(
                 "/ws/auction/" + draftId,
-                AuctionEvent.bid(teamId, price));
+                AuctionEvent.bid(teamId, price, remainingSeconds));
     }
 
     public void timeOver(Long draftId, BidInfo bid) {

@@ -39,6 +39,9 @@ public class BidService {
                 leaderId,
                 req.price());
 
-        publisher.bidUpdated(draftId, req.teamId(), req.price());
+        // 입찰 후 남은 시간 조회 (타이머가 30초로 리셋되었으므로)
+        Integer remainingSeconds = redisRepo.getRemainingTime(draftId);
+
+        publisher.bidUpdated(draftId, req.teamId(), req.price(), remainingSeconds);
     }
 }
