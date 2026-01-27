@@ -145,3 +145,17 @@ export const getTierColorKey = (tierValue) => {
 
   return "default";
 };
+
+// 티어와 단계(Division)를 받아서 포맷팅하는 헬퍼
+export const formatTier = (tier, division) => {
+  if (!tier) return "";
+  if (!division || division === "I" || division === "NA") { 
+     // If division is literally "I", "II" etc.
+     if (["I", "II", "III", "IV"].includes(division)) {
+         return `${tier} ${division}`;
+     }
+  }
+  // 만약 division이 없거나 특수 케이스라면
+  if (division) return `${tier} ${division}`;
+  return tier;
+};

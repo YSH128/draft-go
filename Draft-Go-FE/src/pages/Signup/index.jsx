@@ -7,7 +7,7 @@ import SectionDivider from "../../components/ui/SectionDivider";
 import TextLink, { FooterLinks } from "../../components/ui/TextLink";
 
 import useSignupForm from "../../hooks/useSignupForm";
-import { POSITIONS, TIERS } from "../../constants/riot";
+import { POSITIONS } from "../../constants/riot";
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -16,7 +16,6 @@ const SignupPage = () => {
   // Layout State for new fields (Position/Tier)
   const [mainPosition, setMainPosition] = useState(null);
   const [subPosition, setSubPosition] = useState(null);
-  const [tier, setTier] = useState("");
 
   const {
     formData,
@@ -29,9 +28,9 @@ const SignupPage = () => {
     handleGameNameChange,
     handleTagLineChange,
     validFields,
-    handleCheckDuplicate,
+    handleUsernameBlur,
     handleSummonerBlur,
-    isSummonerChecked,
+    isSummonerVerified,
   } = useSignupForm();
 
   const handleApiSignup = async () => {
@@ -52,8 +51,6 @@ const SignupPage = () => {
         tagLine: formData.tagLine.replace(/^#/, ""),
         mainPosition,
         subPosition,
-        rank: tier,
-        leaguePoint: 0,
       });
 
       alert("회원가입이 완료되었습니다!");
@@ -86,6 +83,7 @@ const SignupPage = () => {
               label="아이디"
               value={formData.username}
               onChange={handleUsernameChange}
+              onBlur={handleUsernameBlur}
               error={errors.username}
               isLoading={loadingFields.username}
               isError={duplicateErrors.username}
@@ -130,14 +128,6 @@ const SignupPage = () => {
                 </svg>
               )}
 
-              {/* 중복확인 버튼 */}
-              <button
-                type="button"
-                onClick={handleCheckDuplicate}
-                className="rounded bg-[#3c3c41] px-2 py-1 text-[11px] text-gray-300 hover:bg-[#505055] transition-colors whitespace-nowrap"
-              >
-                중복확인
-              </button>
             </div>
           </div>
 
@@ -182,7 +172,7 @@ const SignupPage = () => {
               라이엇 ID
             </label>
             <div className="flex gap-3">
-              <div className="flex-[2]">
+              <div className="flex-[2] relative">
                 <AuthInput
                   id="gameName"
                   label="소환사명"
@@ -190,22 +180,35 @@ const SignupPage = () => {
                   value={formData.gameName}
                   onChange={handleGameNameChange}
                   onBlur={handleSummonerBlur}
-                  error={
-                    errors.gameName ||
-                    (duplicateErrors.tagLine
-                      ? "이미 가입된 소환사 계정입니다."
-                      : "")
-                  }
+                  error={errors.gameName}
                   isLoading={loadingFields.gameName}
-                  isError={duplicateErrors.tagLine || !!errors.gameName}
+                  isError={!!errors.gameName}
                   isValid={
                     validFields.gameName &&
-                    isSummonerChecked &&
-                    !duplicateErrors.tagLine
+                    isSummonerVerified &&
+                    !errors.gameName
                   }
+                  inputClassName="pr-[40px]"
+                  hideStatusIcon={true}
                 />
+                <div className="absolute right-3 top-[21px] -translate-y-1/2 z-10 flex items-center gap-2">
+                  {/* Status Icon for GameName */}
+                  {loadingFields.gameName && (
+                    <div className="w-[14px] h-[14px] border-2 border-[#3c3c41] border-t-[#2ecc71] rounded-full animate-spin" />
+                  )}
+                  {!loadingFields.gameName && !!errors.gameName && (
+                    <div className="text-[#e84057]">
+                       <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </div>
+                  )}
+                  {!loadingFields.gameName && !errors.gameName && validFields.gameName && isSummonerVerified && (
+                    <div className="text-[#2ecc71]">
+                      <svg className="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 relative">
                 <AuthInput
                   id="tagLine"
                   label="TAG"
@@ -215,13 +218,31 @@ const SignupPage = () => {
                   onBlur={handleSummonerBlur}
                   error={errors.tagLine}
                   isLoading={loadingFields.tagLine}
-                  isError={duplicateErrors.tagLine || !!errors.tagLine}
+                  isError={!!errors.tagLine}
                   isValid={
                     validFields.tagLine &&
-                    isSummonerChecked &&
-                    !duplicateErrors.tagLine
+                    isSummonerVerified &&
+                    !errors.tagLine
                   }
+                  inputClassName="pr-[40px]"
+                  hideStatusIcon={true}
                 />
+                <div className="absolute right-3 top-[21px] -translate-y-1/2 z-10 flex items-center gap-2">
+                  {/* Status Icon for TagLine */}
+                  {loadingFields.tagLine && (
+                    <div className="w-[14px] h-[14px] border-2 border-[#3c3c41] border-t-[#2ecc71] rounded-full animate-spin" />
+                  )}
+                  {!loadingFields.tagLine && !!errors.tagLine && (
+                    <div className="text-[#e84057]">
+                       <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </div>
+                  )}
+                  {!loadingFields.tagLine && !errors.tagLine && validFields.tagLine && isSummonerVerified && (
+                    <div className="text-[#2ecc71]">
+                      <svg className="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -283,38 +304,8 @@ const SignupPage = () => {
             </div>
           </div>
 
-          {/* 티어 선택 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-400">
-              티어
-            </label>
-            <div className="relative">
-              <select
-                value={tier}
-                onChange={(e) => setTier(e.target.value)}
-                className="w-full appearance-none rounded border border-[#c8aa6e]/30 bg-gray-900/50 px-4 py-3 text-[#f0e6d2] placeholder-gray-500 focus:border-[#c8aa6e] focus:outline-none focus:ring-1 focus:ring-[#c8aa6e]"
-              >
-                <option value="" disabled>
-                  티어 선택
-                </option>
-                {TIERS.map((t) => (
-                  <option key={t.value} value={t.value} className="bg-gray-900">
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-                <svg
-                  className="h-4 w-4 fill-current"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                </svg>
-              </div>
-            </div>
-          </div>
 
+          
           {/* 가입 버튼 */}
           <div className="pt-2">
             <AuthButton
