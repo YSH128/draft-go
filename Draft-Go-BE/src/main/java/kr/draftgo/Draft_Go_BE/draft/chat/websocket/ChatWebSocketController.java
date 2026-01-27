@@ -9,7 +9,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
+
 
 /**
  * 채팅 WebSocket Controller
@@ -29,21 +31,35 @@ public class ChatWebSocketController {
      *
      * @param draftId 드래프트 ID
      * @param request 채팅 메시지 요청
-     * @param member 현재 인증된 사용자
+     * @param headerAccessor WebSocket 세션 헤더 (세션 속성 접근용)
      */
     @MessageMapping("/chat/{draftId}")
     public void sendMessage(
             @DestinationVariable Long draftId,
             @Payload ChatMessageRequest request,
-            @CurrentMember Member member) {
+            SimpMessageHeaderAccessor headerAccessor) {
 
-        log.info("Chat message received - draftId: {}, senderId: {}, content: {}",
-                draftId, member.getId(), request.getContent());
+        // 세션 속성에서 Member 정보 추출
+        if (headerAccessor.getSessionAttributes() == null) {
+            log.warn("No session attributes - draftId: {}", draftId);
+            return;
+        }
+
+        Long memberId = (Long) headerAccessor.getSessionAttributes().get("memberId");
+        String memberNickname = (String) headerAccessor.getSessionAttributes().get("memberNickname");
+
+        if (memberId == null || memberNickname == null) {
+            log.warn("Unauthenticated chat message attempt - draftId: {}", draftId);
+            return;
+        }
+
+        log.info("Chat message received - draftId: {}, senderId: {}, senderName: {}, content: {}",
+                draftId, memberId, memberNickname, request.getContent());
 
         chatService.broadcastChatMessage(
                 draftId,
-                member.getId(),
-                member.getNickname(),
+                memberId,
+                memberNickname,
                 request.getContent()
         );
     }
