@@ -1,5 +1,7 @@
 package kr.draftgo.Draft_Go_BE.draft.common.dto;
 
+import kr.draftgo.Draft_Go_BE.member.domain.Division;
+import kr.draftgo.Draft_Go_BE.member.domain.Tier;
 import lombok.Getter;
 import lombok.Builder;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
@@ -12,7 +14,8 @@ import kr.draftgo.Draft_Go_BE.member.domain.Position;
 public class LeaderDetail {
 
     private Integer leaguePoints;
-    private String tier;
+    private Tier tier;
+    private Division division;
     private Boolean isReady;
     private Position position;
     private String name;

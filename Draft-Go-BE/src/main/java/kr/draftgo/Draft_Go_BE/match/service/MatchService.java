@@ -9,6 +9,8 @@ import kr.draftgo.Draft_Go_BE.match.repository.MostChampionStatRepository;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
+import kr.draftgo.Draft_Go_BE.member.domain.Tier;
+import kr.draftgo.Draft_Go_BE.member.domain.Division;
 import kr.draftgo.Draft_Go_BE.member.dto.MemberRefreshStatusRes;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
@@ -278,9 +280,29 @@ public class MatchService {
         BigDecimal recentWinRate = calculateWinRate(recentWins, recentLosses);
 
         Map<String, Object> leagueInfo = riotApiService.getLeagueInfoByPuuid(member.getPuuid());
-        String tier = (String) leagueInfo.get("tier");
-        String rankStr = (String) leagueInfo.get("rank");
-        String fullRank = (tier != null && rankStr != null) ? tier + " " + rankStr : null;
+        String tierStr = (String) leagueInfo.get("tier");
+        String divisionStr = (String) leagueInfo.get("rank");
+
+        Tier tier = null;
+        Division division = null;
+
+        if (tierStr != null) {
+            try {
+                tier = Tier.valueOf(tierStr);
+            } catch (IllegalArgumentException e) {
+                tier = Tier.UNRANKED;
+            }
+        }
+
+        if (divisionStr != null) {
+            try {
+                division = Division.valueOf(divisionStr);
+            } catch (IllegalArgumentException e) {
+                // MASTER, GRANDMASTER, CHALLENGER는 division이 없음
+                division = null;
+            }
+        }
+
         Integer leaguePoints = (Integer) leagueInfo.get("leaguePoints");
         Integer rankWins = (Integer) leagueInfo.get("wins");
         Integer rankLosses = (Integer) leagueInfo.get("losses");
@@ -295,7 +317,7 @@ public class MatchService {
         }
 
         stat.updateProfile(
-                fullRank, leaguePoints, rankTotalWinRate, rankWins, rankLosses, recentWinRate, recentWins,
+                tier, division, leaguePoints, rankTotalWinRate, rankWins, rankLosses, recentWinRate, recentWins,
                 recentLosses);
         memberStatRepository.save(stat);
     }
