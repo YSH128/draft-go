@@ -304,7 +304,7 @@ const SignupPage = () => {
             </div>
           </div>
 
-          {/* 티어 선택 섹션 삭제 */}
+
           
           {/* 가입 버튼 */}
           <div className="pt-2">

@@ -93,8 +93,7 @@ const useSignupForm = () => {
 
     try {
        const data = await verifySummoner(gameName, tagLine);
-       console.log("Response:", data); 
-
+ 
        if (data && data.exists === true) {
          isVerified = true;
        } else {
