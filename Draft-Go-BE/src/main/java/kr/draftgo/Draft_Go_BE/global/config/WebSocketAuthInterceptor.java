@@ -1,6 +1,8 @@
 package kr.draftgo.Draft_Go_BE.global.config;
 
 import kr.draftgo.Draft_Go_BE.global.jwt.JwtUtil;
+import kr.draftgo.Draft_Go_BE.member.domain.Member;
+import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
@@ -26,6 +28,7 @@ import java.util.Collections;
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
     private final JwtUtil jwtUtil;
+    private final MemberRepository memberRepository;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -45,21 +48,29 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                     if (jwtUtil.validateToken(token)) {
                         String username = jwtUtil.getUsername(token);
 
-                        // Spring Security 인증 객체 생성
-                        UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                username,
-                                null,
-                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                            );
+                        // Member 정보 조회 및 세션에 저장
+                        memberRepository.findByUsername(username).ifPresent(member -> {
+                            // Spring Security 인증 객체 생성
+                            UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                    username,
+                                    null,
+                                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                                );
 
-                        // SecurityContext에 인증 정보 설정
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                            // SecurityContext에 인증 정보 설정
+                            SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                        // STOMP 세션에 사용자 정보 저장
-                        accessor.setUser(authentication);
+                            // STOMP 세션에 사용자 정보 저장
+                            accessor.setUser(authentication);
 
-                        log.info("WebSocket authentication successful - username: {}", username);
+                            // Member 정보를 세션 속성에 저장
+                            accessor.getSessionAttributes().put("memberId", member.getId());
+                            accessor.getSessionAttributes().put("memberNickname", member.getNickname());
+
+                            log.info("WebSocket authentication successful - username: {}, memberId: {}, nickname: {}",
+                                    username, member.getId(), member.getNickname());
+                        });
                     } else {
                         log.warn("WebSocket authentication failed - Invalid token");
                     }

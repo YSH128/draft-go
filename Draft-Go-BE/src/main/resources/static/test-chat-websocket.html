@@ -457,6 +457,8 @@
                 stompClient.subscribe(`/topic/chat/${draftId}`, (message) => {
                     const data = JSON.parse(message.body);
                     console.log('Chat message received:', data);
+                    console.log('Sender ID:', data.senderId);
+                    console.log('Sender Nickname:', data.senderNickname);
 
                     addMessage(
                         data.type,
