@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html class="dark" lang="ko"><head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>LoL Auction - Strategic Draft View</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans+KR:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#f4c025",
+            "hextech-gold": "#c89b3c",
+            "hextech-gold-bright": "#f0e6d2",
+            "hextech-blue": "#0ac8b9",
+            "background-dark": "#010a13",
+            "card-dark": "#091420",
+            "chat-dark": "#050c12",
+            "tier-challenger": "#f4c025",
+            "tier-grandmaster": "#cd4545",
+            "tier-master": "#9d48e0",
+            "tier-diamond": "#576bce",
+            "tier-emerald": "#3c926e",
+            "tier-platinum": "#4E8397",
+            "tier-gold": "#d6a133",
+          },
+          fontFamily: {
+            "display": ["Space Grotesk", "Noto Sans KR", "sans-serif"]
+          }
+        },
+      },
+    }
+  </script>
+  <style type="text/tailwindcss">
+      @layer utilities {
+          .hextech-border {
+              border: 1px solid theme('colors.hextech-gold');
+              box-shadow: inset 0 0 10px rgba(200, 155, 60, 0.2);
+          }
+          .reactive-border-gold {
+              border: 2px solid theme('colors.hextech-gold');
+              box-shadow: 0 0 25px rgba(200, 155, 60, 0.4), inset 0 0 15px rgba(200, 155, 60, 0.1);
+          }
+          .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: #010a13; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e2328; border-radius: 2px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #c89b3c; }
+          .gold-gradient-text {
+              background: linear-gradient(to bottom, #f4c025, #c89b3c);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+          }
+          .nav-link {
+              @apply text-[12px] font-bold tracking-[0.2em] text-hextech-gold-bright/70 hover:text-hextech-gold transition-colors uppercase;
+          }
+          .role-icon {
+              @apply text-base text-hextech-gold-bright drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)];
+          }
+          .tier-tag {
+              @apply text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm text-white shadow-sm leading-tight inline-block;
+          }
+      }
+  </style>
+</head>
+<body class="bg-[#010a13] font-display text-white selection:bg-primary/30 overflow-hidden h-screen flex flex-col">
+<header class="flex items-center justify-between border-b border-hextech-gold/30 px-10 h-16 bg-[#010a13] z-50 shrink-0">
+  <div class="flex items-center gap-3">
+    <div class="text-hextech-gold">
+      <svg class="size-8" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <path d="M13.8261 30.5736C16.7203 29.8826 20.2244 29.4783 24 29.4783C27.7756 29.4783 31.2797 29.8826 34.1739 30.5736C36.9144 31.2278 39.9967 32.7669 41.3563 33.8352L24.8486 7.36089C24.4571 6.73303 23.5429 6.73303 23.1514 7.36089L6.64374 33.8352C8.00331 32.7669 11.0856 31.2278 13.8261 30.5736Z" fill="currentColor"></path>
+      </svg>
+    </div>
+    <h1 class="text-xl font-bold tracking-[0.2em] text-hextech-gold uppercase italic">LoL Auction</h1>
+  </div>
+  <nav class="flex items-center gap-12">
+    <a class="nav-link text-hextech-gold" href="#">Home</a>
+    <a class="nav-link" href="#">Drafts</a>
+    <a class="nav-link" href="#">B/P Simulator</a>
+  </nav>
+  <div class="flex items-center gap-8">
+    <a class="text-[12px] font-bold tracking-[0.2em] text-hextech-gold-bright/80 hover:text-white transition-colors uppercase" href="#">Sign Up</a>
+    <button class="bg-hextech-gold hover:bg-primary text-background-dark font-black text-[12px] px-8 py-2.5 rounded-sm tracking-[0.2em] transition-all uppercase shadow-[0_0_15px_rgba(200,155,60,0.2)]">
+      Login
+    </button>
+  </div>
+</header>
+<main class="flex-1 flex overflow-hidden">
+  <aside class="w-[480px] border-r border-hextech-gold/20 bg-background-dark flex flex-col shrink-0 custom-scrollbar overflow-y-auto p-5 space-y-4 z-10">
+    <h2 class="text-xs font-bold text-hextech-gold uppercase tracking-widest px-1 mb-2">팀 리스트</h2>
+    <div class="bg-card-dark border border-hextech-gold/20 rounded p-4 space-y-4">
+      <div class="flex justify-between items-center">
+        <span class="text-base font-bold text-white">Team Alpha (캡틴)</span>
+        <span class="text-sm font-bold text-hextech-gold">420 P</span>
+      </div>
+      <div class="flex gap-2 justify-between">
+        <div class="flex flex-col items-center gap-1 relative group">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">swords</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">TOP</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/40 bg-cover bg-center relative flex items-center justify-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ')">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold font-medium">forest</span>
+            <span class="text-[10px] text-white font-medium truncate">Canyon</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">target</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">MID</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">counter_2</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">ADC</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">health_and_safety</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">SUP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-card-dark border-2 border-hextech-gold rounded p-4 space-y-4 shadow-[0_0_15px_rgba(200,155,60,0.1)]">
+      <div class="flex justify-between items-center">
+        <span class="text-base font-bold text-hextech-gold">Team Delta (캡틴)</span>
+        <span class="text-sm font-bold text-hextech-gold-bright">800 P</span>
+      </div>
+      <div class="flex gap-2 justify-between">
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">swords</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">TOP</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">forest</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">JGL</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">target</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">MID</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">counter_2</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">ADC</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">health_and_safety</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">SUP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-card-dark border border-hextech-gold/20 rounded p-4 space-y-4">
+      <div class="flex justify-between items-center">
+        <span class="text-base font-bold text-white">Team Omega (캡틴)</span>
+        <span class="text-sm font-bold text-hextech-gold">150 P</span>
+      </div>
+      <div class="flex gap-2 justify-between">
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/40 bg-cover bg-center relative flex items-center justify-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAAHaa0vUGiD04xPspuOZgKAzWb-WD_llpDK3uRHlEjEZPdm6YMjtjHDWrrAVkpfhNgo5h6zbS_WowLOC3QVjhG9fevkYQoMtWShFwM-eNmsfSMC2mO84tB3J8JnBjFoNcuwMhtrY0KqW0jLqKa6FMdhHJjZQQVC6humhSlcIlpB1RFQbGXQ-VNFeLnT-hmP6SE6K1f4OPsuI8LySfpHhRsO00x-ijfp1-Ed8jPuqRFAQoTyPBPgIoga0e6C64p0BECfSVSaeAnils')">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold font-medium">swords</span>
+            <span class="text-[10px] text-white font-medium truncate">Zeus</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/40 bg-cover bg-center relative flex items-center justify-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCy3gQVbu0BbQnkC_pIpwEJCJBr-xZFeTr2dLh3mwMLqg7xbQ9hRcoU4Da3GY5ZGu96cGakhgCjtKFebZkxvsjDjIVWuQB_QWlOevXCvChfKxE96fa5V4MpwLR3Pfgfq2Q5wQ3R4m1s3WnXYw0UxyltGHL6I0JNHmuq8Z412yjMuE9ZmOEFUnX3ANYjCf8aoTWCPPevCBrD3iM70_B_ql8I-oIhGVcJUheS14h665-qDkNBIT5CHgei_d7nl4gtTKMwbin_8qlE7H4')">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold font-medium">forest</span>
+            <span class="text-[10px] text-white font-medium truncate">Oner</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">target</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">MID</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">counter_2</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">ADC</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <div class="size-14 rounded border border-hextech-gold/10 bg-black/40 flex items-center justify-center relative">
+          </div>
+          <div class="flex items-center gap-1 w-14 justify-center">
+            <span class="material-symbols-outlined text-[10px] text-hextech-gold/50">health_and_safety</span>
+            <span class="text-[10px] text-hextech-gold/50 font-medium truncate">SUP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <section class="flex-1 flex flex-col bg-background-dark p-6 overflow-hidden relative">
+    <div class="absolute inset-0 bg-[linear-gradient(rgba(200,155,60,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(200,155,60,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none"></div>
+    <div class="flex-1 flex flex-col items-center justify-center min-h-0 mb-8 z-10">
+      <div class="relative w-full max-w-5xl reactive-border-gold bg-gradient-to-br from-card-dark to-background-dark rounded-xl p-8 shadow-2xl">
+        <div class="absolute -top-3 left-8 bg-hextech-gold text-background-dark px-4 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest z-10 shadow-[0_0_10px_rgba(200,155,60,0.4)]">
+          현재 경매 진행 중
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-8">
+            <div class="size-36 shrink-0 rounded-full border-2 border-hextech-gold p-1 shadow-[0_0_20px_rgba(200,155,60,0.3)] bg-card-dark relative group">
+              <div class="absolute inset-0 rounded-full border border-hextech-gold/30 animate-ping opacity-20"></div>
+              <div class="size-full rounded-full bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBXaW-3NUg7lTWLPOMLpeFh4fFkst_ea6g7lSPyVCJ-QmfelJo2Q_-F62cu0OJGGAghUcfvLOZ02R6PFGZEYhaos_cIYg7QzM_J4vlfxlD9rRTEx7Mg3_mYSeeYUF7yCI1pFNkSNDWobHsm_QSMyh5qOROnwhz894z0EuoKBE4lBZORX3kzyFgk2KxRI1kLc5aJi2XFi4uHaoLd56m9JyQrMel3-lyAt7hb-jgc72T4M18gKs0laYfMlq3lJpVKJpNa9mrrLkuYBcc')"></div>
+            </div>
+            <div class="flex flex-col gap-3">
+              <div class="flex items-center gap-4">
+                <h2 class="text-4xl font-bold text-white tracking-tight leading-none uppercase drop-shadow-lg">Challenger Player</h2>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="px-3 py-1 bg-gradient-to-r from-tier-challenger to-yellow-600 border border-hextech-gold/50 text-white font-black text-xs rounded uppercase shadow-[0_0_10px_rgba(244,192,37,0.3)]">챌린저</span>
+                <span class="text-hextech-gold/30">•</span>
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-hextech-gold text-base">swords</span>
+                  <span class="text-sm text-hextech-gold-bright font-bold uppercase tracking-wide">탑 / 정글</span>
+                </div>
+              </div>
+              <div class="flex gap-2 mt-1">
+                <div class="size-10 rounded border border-hextech-gold/30 bg-cover bg-center bg-black/40" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDlet6lImZKuX18MIRBIUM-THKtrrtA9azVi31BN-6CFdMI3JKoO5K2ZT2E6X_LdqG_I7qsOTrJ5LtTY3YwMFOrgu5C0Z7dhIT-43jiFtJvbcjb7cARx7KBTTz_yS4IqFvYKpCw9-vII-O5o7vGmfFgfmLsXHeIwLUom8axkIg3q6nynDy4DlAMuCDaD4PTY6uEVcj0w4pyQvhTD2pMr9OFCeSZMMNLAkK9gcVqy2u3M3iwNXq7QSSEkZf4Kso-zdH9Ed24ntve83E')"></div>
+                <div class="size-10 rounded border border-hextech-gold/30 bg-cover bg-center bg-black/40" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDJezZcoAQxJhe7Ct7UjN87v5bSMaF4pfnDYT_Ah_zkR2vvlQG4FAnOR9L6dmapD2mpJSYM0zZsEZGmYYx1U2Ew0eDf564wccFbvZBXLAd4y4qGmsx3BkdUNaDsxtAkAX_cJ_FohRqFJDsiRdxIwKDx3xArU3jr8Cqjr5J5_W5emEejf4BSwX3mBqaSbXrg9omOpBGX5OzCBRGDMoXxcgdYCeAwed3M4x5Cvf0mJtuFnTgwnaJ9BMVGUt4bwlNaITXY3gCbzhqDLnc')"></div>
+                <div class="size-10 rounded border border-hextech-gold/30 bg-cover bg-center bg-black/40" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC6WVGTLkuZWXkBYSQYZhsLsFzIcrQTq7dC1d1Jhut8zpX6KJ828FOcdUxyaRQVP5GmMT7ege7PDB1Mg4LjvWcxQYPlsOjZ1o3EeU-zwY8Zpg1xQxr76eZ87MG-RzM1ls5aPElvSgH34ykuXwaBte4_wtK9FwswYCI7bVajAvY6BrE_zeeA-oZnNpewlXoCXRg7N03L6ELfdaMyEbnDKBQjoN94PzU4EVOcFrdapwcm3OkjqtURe8rzE25LQW_85rdgsx7wattEd7w')"></div>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-10 border-l border-hextech-gold/10 pl-10 min-w-[200px] justify-end">
+            <div class="relative size-20 flex items-center justify-center">
+              <svg class="absolute inset-0 size-full -rotate-90">
+                <circle cx="40" cy="40" fill="transparent" r="36" stroke="#1e2328" stroke-width="4"></circle>
+                <circle class="transition-all duration-1000" cx="40" cy="40" fill="transparent" r="36" stroke="#c89b3c" stroke-dasharray="226" stroke-dashoffset="40" stroke-width="4"></circle>
+              </svg>
+              <span class="text-2xl font-black text-hextech-gold animate-pulse">10</span>
+            </div>
+            <div class="text-right flex flex-col items-end">
+              <p class="text-[10px] text-hextech-gold/60 font-bold uppercase tracking-widest mb-1">현재 입찰가</p>
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-5xl font-black gold-gradient-text tracking-tighter leading-none filter drop-shadow-[0_0_10px_rgba(200,155,60,0.3)]">240</span>
+                <span class="text-lg font-bold text-hextech-gold/60 uppercase">P</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-8 w-full max-w-lg space-y-3 flex flex-col items-center">
+        <button class="w-full h-18 py-4 bg-hextech-gold hover:bg-primary text-background-dark font-black text-2xl rounded shadow-[0_0_25px_rgba(200,155,60,0.3)] active:scale-[0.98] transition-all flex flex-col items-center justify-center leading-none group relative overflow-hidden ring-4 ring-hextech-gold/10 ring-offset-2 ring-offset-background-dark">
+          <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+          <span class="relative z-10 flex items-center gap-3">입찰 <span class="bg-black/10 px-2 rounded text-xl text-black/80">(+20 P)</span></span>
+          <span class="relative z-10 text-[10px] mt-1.5 opacity-70 font-bold tracking-[0.25em] uppercase text-black">다음 입찰가: 260 P</span>
+        </button>
+        <p class="text-center text-[10px] text-hextech-gold/50 font-medium tracking-wide">
+          입찰하려면 <kbd class="px-1.5 py-0.5 border border-hextech-gold/30 rounded bg-hextech-gold/10 text-hextech-gold/80 font-bold font-sans mx-1">[B]</kbd> 키를 누르세요
+        </p>
+      </div>
+    </div>
+    <div class="h-[28rem] flex shrink-0 border-t border-hextech-gold/10 pt-6 gap-0">
+      <div class="w-3/4 flex flex-col pr-6 border-r border-hextech-gold/10">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="material-symbols-outlined text-hextech-gold text-sm">groups</span>
+          <span class="text-xs font-bold text-hextech-gold uppercase tracking-[0.2em]">드래프트 대기열</span>
+          <div class="h-[1px] flex-1 bg-hextech-gold/20"></div>
+        </div>
+        <div class="grid grid-cols-6 gap-3 overflow-y-auto custom-scrollbar pr-2 pb-2">
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">target</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_01</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-diamond">Diamond</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAAHaa0vUGiD04xPspuOZgKAzWb-WD_llpDK3uRHlEjEZPdm6YMjtjHDWrrAVkpfhNgo5h6zbS_WowLOC3QVjhG9fevkYQoMtWShFwM-eNmsfSMC2mO84tB3J8JnBjFoNcuwMhtrY0KqW0jLqKa6FMdhHJjZQQVC6humhSlcIlpB1RFQbGXQ-VNFeLnT-hmP6SE6K1f4OPsuI8LySfpHhRsO00x-ijfp1-Ed8jPuqRFAQoTyPBPgIoga0e6C64p0BECfSVSaeAnils')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">health_and_safety</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_02</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-master">Master</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCy3gQVbu0BbQnkC_pIpwEJCJBr-xZFeTr2dLh3mwMLqg7xbQ9hRcoU4Da3GY5ZGu96cGakhgCjtKFebZkxvsjDjIVWuQB_QWlOevXCvChfKxE96fa5V4MpwLR3Pfgfq2Q5wQ3R4m1s3WnXYw0UxyltGHL6I0JNHmuq8Z412yjMuE9ZmOEFUnX3ANYjCf8aoTWCPPevCBrD3iM70_B_ql8I-oIhGVcJUheS14h665-qDkNBIT5CHgei_d7nl4gtTKMwbin_8qlE7H4')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">forest</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_03</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-emerald">Emerald</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAjSZaJUwAExse-oH8JC2mLgU1Q07fHcCK8eJFl_vHMCA8307eI8iGk15PCx5kv0SijbmasZBBxELAVcaqHFediwmwoQkLEIXIwS4Lz9_fDyopxZyvYllcGu9ypc3-nM6Oo1karnOEb4i2bNLmq7ZzXwwgwmIJSnYz0CKSlxQObn7h8q2qjF-ON0IgaPNKhkv_g-JT3hYhlADqRb-HgAkBJbhin0SaJ7qDrKfjdpGwPLkfHZgJNf1R4J1N_yV__qkNKTAgtfEfmbPg')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">counter_2</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_04</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-diamond">Diamond</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDlet6lImZKuX18MIRBIUM-THKtrrtA9azVi31BN-6CFdMI3JKoO5K2ZT2E6X_LdqG_I7qsOTrJ5LtTY3YwMFOrgu5C0Z7dhIT-43jiFtJvbcjb7cARx7KBTTz_yS4IqFvYKpCw9-vII-O5o7vGmfFgfmLsXHeIwLUom8axkIg3q6nynDy4DlAMuCDaD4PTY6uEVcj0w4pyQvhTD2pMr9OFCeSZMMNLAkK9gcVqy2u3M3iwNXq7QSSEkZf4Kso-zdH9Ed24ntve83E')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">swords</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_05</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-diamond">Diamond</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDJezZcoAQxJhe7Ct7UjN87v5bSMaF4pfnDYT_Ah_zkR2vvlQG4FAnOR9L6dmapD2mpJSYM0zZsEZGmYYx1U2Ew0eDf564wccFbvZBXLAd4y4qGmsx3BkdUNaDsxtAkAX_cJ_FohRqFJDsiRdxIwKDx3xArU3jr8Cqjr5J5_W5emEejf4BSwX3mBqaSbXrg9omOpBGX5OzCBRGDMoXxcgdYCeAwed3M4x5Cvf0mJtuFnTgwnaJ9BMVGUt4bwlNaITXY3gCbzhqDLnc')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">target</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_06</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-emerald">Emerald</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">health_and_safety</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_07</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-platinum">Platinum</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">swords</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_08</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-master">Master</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAAHaa0vUGiD04xPspuOZgKAzWb-WD_llpDK3uRHlEjEZPdm6YMjtjHDWrrAVkpfhNgo5h6zbS_WowLOC3QVjhG9fevkYQoMtWShFwM-eNmsfSMC2mO84tB3J8JnBjFoNcuwMhtrY0KqW0jLqKa6FMdhHJjZQQVC6humhSlcIlpB1RFQbGXQ-VNFeLnT-hmP6SE6K1f4OPsuI8LySfpHhRsO00x-ijfp1-Ed8jPuqRFAQoTyPBPgIoga0e6C64p0BECfSVSaeAnils')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">forest</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_09</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-diamond">Diamond</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">health_and_safety</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_10</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-diamond">Diamond</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAAHaa0vUGiD04xPspuOZgKAzWb-WD_llpDK3uRHlEjEZPdm6YMjtjHDWrrAVkpfhNgo5h6zbS_WowLOC3QVjhG9fevkYQoMtWShFwM-eNmsfSMC2mO84tB3J8JnBjFoNcuwMhtrY0KqW0jLqKa6FMdhHJjZQQVC6humhSlcIlpB1RFQbGXQ-VNFeLnT-hmP6SE6K1f4OPsuI8LySfpHhRsO00x-ijfp1-Ed8jPuqRFAQoTyPBPgIoga0e6C64p0BECfSVSaeAnils')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">swords</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_11</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-grandmaster">Grandmaster</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCy3gQVbu0BbQnkC_pIpwEJCJBr-xZFeTr2dLh3mwMLqg7xbQ9hRcoU4Da3GY5ZGu96cGakhgCjtKFebZkxvsjDjIVWuQB_QWlOevXCvChfKxE96fa5V4MpwLR3Pfgfq2Q5wQ3R4m1s3WnXYw0UxyltGHL6I0JNHmuq8Z412yjMuE9ZmOEFUnX3ANYjCf8aoTWCPPevCBrD3iM70_B_ql8I-oIhGVcJUheS14h665-qDkNBIT5CHgei_d7nl4gtTKMwbin_8qlE7H4')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">target</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_12</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-challenger text-black">Challenger</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDlet6lImZKuX18MIRBIUM-THKtrrtA9azVi31BN-6CFdMI3JKoO5K2ZT2E6X_LdqG_I7qsOTrJ5LtTY3YwMFOrgu5C0Z7dhIT-43jiFtJvbcjb7cARx7KBTTz_yS4IqFvYKpCw9-vII-O5o7vGmfFgfmLsXHeIwLUom8axkIg3q6nynDy4DlAMuCDaD4PTY6uEVcj0w4pyQvhTD2pMr9OFCeSZMMNLAkK9gcVqy2u3M3iwNXq7QSSEkZf4Kso-zdH9Ed24ntve83E')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">health_and_safety</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_13</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-diamond">Diamond</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC6WVGTLkuZWXkBYSQYZhsLsFzIcrQTq7dC1d1Jhut8zpX6KJ828FOcdUxyaRQVP5GmMT7ege7PDB1Mg4LjvWcxQYPlsOjZ1o3EeU-zwY8Zpg1xQxr76eZ87MG-RzM1ls5aPElvSgH34ykuXwaBte4_wtK9FwswYCI7bVajAvY6BrE_zeeA-oZnNpewlXoCXRg7N03L6ELfdaMyEbnDKBQjoN94PzU4EVOcFrdapwcm3OkjqtURe8rzE25LQW_85rdgsx7wattEd7w')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">forest</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_14</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-platinum">Platinum</span>
+              </div>
+            </div>
+          </div>
+          <div class="p-2.5 flex flex-col gap-2 items-center rounded hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+            <div class="relative size-14 rounded bg-cover bg-center border border-white/10 group-hover:border-hextech-gold/50 transition-colors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ')"></div>
+            <div class="w-full text-center">
+              <div class="flex items-center justify-center gap-1 mb-1">
+                <span class="material-symbols-outlined text-xs text-hextech-gold">counter_2</span>
+                <p class="text-xs font-bold text-white group-hover:text-hextech-gold transition-colors truncate">Player_15</p>
+              </div>
+              <div class="flex justify-center gap-1">
+                <span class="tier-tag bg-tier-master">Master</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="w-1/4 flex flex-col pl-6">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="material-symbols-outlined text-hextech-gold/60 text-sm">person_off</span>
+          <span class="text-xs font-bold text-hextech-gold/60 uppercase tracking-[0.2em]">유찰 대기열</span>
+          <div class="h-[1px] flex-1 bg-hextech-gold/10"></div>
+        </div>
+        <div class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
+          <div class="bg-card-dark/40 border border-white/5 p-2.5 flex gap-3 items-center rounded opacity-60 hover:opacity-100 transition-opacity group">
+            <div class="size-9 rounded bg-cover bg-center grayscale group-hover:grayscale-0" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ')"></div>
+            <div class="min-w-0 flex flex-col justify-center gap-1">
+              <div class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-[10px] text-hextech-gold">target</span>
+                <p class="text-[11px] font-bold text-white/70 group-hover:text-white truncate">Zed Master</p>
+              </div>
+              <div class="flex">
+                <span class="tier-tag bg-tier-emerald text-[8px] py-0 px-1">Emerald</span>
+              </div>
+            </div>
+          </div>
+          <div class="bg-card-dark/40 border border-white/5 p-2.5 flex gap-3 items-center rounded opacity-60 hover:opacity-100 transition-opacity group">
+            <div class="size-9 rounded bg-cover bg-center grayscale group-hover:grayscale-0" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAAHaa0vUGiD04xPspuOZgKAzWb-WD_llpDK3uRHlEjEZPdm6YMjtjHDWrrAVkpfhNgo5h6zbS_WowLOC3QVjhG9fevkYQoMtWShFwM-eNmsfSMC2mO84tB3J8JnBjFoNcuwMhtrY0KqW0jLqKa6FMdhHJjZQQVC6humhSlcIlpB1RFQbGXQ-VNFeLnT-hmP6SE6K1f4OPsuI8LySfpHhRsO00x-ijfp1-Ed8jPuqRFAQoTyPBPgIoga0e6C64p0BECfSVSaeAnils')"></div>
+            <div class="min-w-0 flex flex-col justify-center gap-1">
+              <div class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-[10px] text-hextech-gold">health_and_safety</span>
+                <p class="text-[11px] font-bold text-white/70 group-hover:text-white truncate">Forest Guard</p>
+              </div>
+              <div class="flex">
+                <span class="tier-tag bg-tier-platinum text-[8px] py-0 px-1">Platinum</span>
+              </div>
+            </div>
+          </div>
+          <div class="bg-card-dark/40 border border-white/5 p-2.5 flex gap-3 items-center rounded opacity-60 hover:opacity-100 transition-opacity group">
+            <div class="size-9 rounded bg-cover bg-center grayscale group-hover:grayscale-0" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ')"></div>
+            <div class="min-w-0 flex flex-col justify-center gap-1">
+              <div class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-[10px] text-hextech-gold">swords</span>
+                <p class="text-[11px] font-bold text-white/70 group-hover:text-white truncate">River King</p>
+              </div>
+              <div class="flex">
+                <span class="tier-tag bg-tier-diamond text-[8px] py-0 px-1">Diamond</span>
+              </div>
+            </div>
+          </div>
+          <div class="bg-card-dark/40 border border-white/5 p-2.5 flex gap-3 items-center rounded opacity-60 hover:opacity-100 transition-opacity group">
+            <div class="size-9 rounded bg-cover bg-center grayscale group-hover:grayscale-0" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDJezZcoAQxJhe7Ct7UjN87v5bSMaF4pfnDYT_Ah_zkR2vvlQG4FAnOR9L6dmapD2mpJSYM0zZsEZGmYYx1U2Ew0eDf564wccFbvZBXLAd4y4qGmsx3BkdUNaDsxtAkAX_cJ_FohRqFJDsiRdxIwKDx3xArU3jr8Cqjr5J5_W5emEejf4BSwX3mBqaSbXrg9omOpBGX5OzCBRGDMoXxcgdYCeAwed3M4x5Cvf0mJtuFnTgwnaJ9BMVGUt4bwlNaITXY3gCbzhqDLnc')"></div>
+            <div class="min-w-0 flex flex-col justify-center gap-1">
+              <div class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-[10px] text-hextech-gold">forest</span>
+                <p class="text-[11px] font-bold text-white/70 group-hover:text-white truncate">Shadow Step</p>
+              </div>
+              <div class="flex">
+                <span class="tier-tag bg-tier-emerald text-[8px] py-0 px-1">Emerald</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <aside class="w-80 bg-chat-dark flex flex-col border-l border-hextech-gold/20 shrink-0 z-10">
+    <div class="p-4 border-b border-hextech-gold/10 flex items-center justify-between">
+      <h2 class="text-xs font-bold text-hextech-gold uppercase tracking-widest flex items-center gap-2">
+        <span class="material-symbols-outlined text-sm">chat</span> 라이브 채팅
+      </h2>
+      <div class="flex items-center gap-1.5 px-2 py-0.5 bg-hextech-gold/5 rounded-full border border-hextech-gold/20">
+        <span class="size-1.5 rounded-full bg-hextech-gold animate-pulse"></span>
+        <span class="text-[10px] text-hextech-gold font-bold uppercase">2.4k</span>
+      </div>
+    </div>
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+      <div class="flex flex-col gap-1">
+        <span class="text-[10px] font-bold text-hextech-gold uppercase tracking-tighter">시스템</span>
+        <p class="text-xs text-hextech-gold/80 italic border-l-2 border-hextech-gold/30 pl-2">옥션 드래프트가 시작되었습니다. 첫 번째 선수가 공개되었습니다.</p>
+      </div>
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center gap-1">
+          <span class="text-xs font-bold text-blue-400">Blue Alpha</span>
+        </div>
+        <p class="text-xs text-white/80">이 선수는 무조건 데려갑니다. 챌린저 포스 ㄷㄷ</p>
+      </div>
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center gap-1">
+          <span class="text-xs font-bold text-hextech-gold">Green Delta</span>
+        </div>
+        <p class="text-xs text-hextech-gold-bright">어딜 감히? 240P 입찰합니다.</p>
+      </div>
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-bold text-gray-500">User_1029</span>
+        <p class="text-xs text-white/60">와 그린 캡틴 돈 많네 ㅋㅋㅋ</p>
+      </div>
+    </div>
+    <div class="p-4 bg-background-dark/80 border-t border-hextech-gold/10">
+      <div class="relative">
+        <input class="w-full bg-white/5 border border-hextech-gold/30 rounded px-4 py-2.5 text-xs focus:ring-1 focus:ring-hextech-gold focus:border-hextech-gold outline-none text-white placeholder-hextech-gold/20" placeholder="메시지 보내기..." type="text"/>
+        <button class="absolute right-2 top-2 text-hextech-gold hover:text-primary transition-colors">
+          <span class="material-symbols-outlined text-lg">send</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+</main>
+<footer class="px-10 py-2 bg-background-dark border-t border-hextech-gold/20 flex items-center justify-between text-[10px] text-hextech-gold/40 uppercase font-bold tracking-[0.2em] shrink-0 z-50">
+  <div class="flex gap-6">
+    <span>서버: KR-1</span>
+    <span>버전: 14.10.1</span>
+  </div>
+  <div class="italic">Hextech Auction Draft Engine - Pro Gold Edition</div>
+</footer>
+
+</body></html>
