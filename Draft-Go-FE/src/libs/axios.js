@@ -3,13 +3,14 @@ import axios from "axios";
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const instance = axios.create({
-  baseURL: BASE_URL,
+  baseURL: BASE_URL || '/api/v1',
   headers: {
     "Content-Type": "application/json",
   },
   withCredentials: true,
 });
 
+// 1. 요청 인터셉터 (토큰 주입)
 instance.interceptors.request.use(
   (config) => {
     // Zustand persist 형식에서 토큰 가져오기
@@ -32,6 +33,7 @@ instance.interceptors.request.use(
   }
 );
 
+// 2. 응답 인터셉터 (세션 만료 처리)
 instance.interceptors.response.use(
   (response) => response,
   (error) => {

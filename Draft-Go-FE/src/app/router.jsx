@@ -7,6 +7,7 @@ import ProfilePage from "../pages/Profile";
 import ResultPage from "../pages/DraftResult";
 import { ROUTES } from "../constants/routes";
 import Index from "../pages/DesignSystemPreview/index.jsx";
+import DraftLobby from "../pages/DraftLobby/index.jsx";
 
 export default function AppRouter() {
   return (
@@ -18,6 +19,7 @@ export default function AppRouter() {
         <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
         <Route path={ROUTES.RESULT} element={<ResultPage />} />
         <Route path={ROUTES.DESIGN_PREVIEW} element={<Index />} />
+        <Route path={ROUTES.DRAFT_LOBBY} element={<DraftLobby />} />
       </Route>
     </Routes>
   );
