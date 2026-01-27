@@ -122,7 +122,16 @@ export const createStompClient = ({ url, onConnect, onError }) => {
 
 export const buildWsUrl = (baseUrl) => {
   if (!baseUrl) return null;
-  const url = new URL(baseUrl);
-  const protocol = url.protocol === "https:" ? "https:" : "http:";
-  return `${protocol}//${url.host}/ws`;
+  try {
+    const proxyTarget = import.meta.env?.VITE_PROXY_TARGET;
+    const resolvedBase =
+      baseUrl.startsWith("/") && proxyTarget ? proxyTarget : baseUrl;
+    const url = new URL(resolvedBase, window.location.origin);
+    const isSecure = url.protocol === "https:" || url.protocol === "wss:";
+    const protocol = isSecure ? "https:" : "http:";
+    return `${protocol}//${url.host}/ws`;
+  } catch (error) {
+    console.error("Failed to build websocket url:", error);
+    return null;
+  }
 };
