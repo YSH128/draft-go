@@ -72,7 +72,7 @@ export const refreshInviteCode = async (draftId, codeType) => {
 /**
  * 역할 변경 (관리자 전용) - 팀장 <-> 팀원(대기열)
  * @param {number|string} draftId
- * @param {Object} data { targetUserId, role: 'LEADER' | 'MEMBER' } 
+ * @param {Object} data { targetUserId, role: 'LEADER' | 'MEMBER' }
  */
 export const changeRole = async (draftId, data) => {
   const response = await api.post(`/drafts/${draftId}/lobby/change-role`, data);
@@ -149,4 +149,34 @@ export const refreshMemberData = async (memberId) => {
 export const getMemberProfile = async (memberId) => {
     const response = await api.get(`/members/${memberId}`);
     return response.data;
+};
+
+// --------------- draft management ----------------------------------------------
+
+export const getAuctionState = async (draftId) => {
+  const response = await api.get(`/auctions/${draftId}`);
+  return response.data;
+};
+
+export const getDraftQueue = async (draftId) => {
+  const response = await api.get(`/auctions/${draftId}/queue`);
+  return response.data;
+};
+
+export const getTeamInfos = async (draftId) => {
+  const response = await api.get(`/auctions/${draftId}/teams`);
+  return response.data;
+};
+
+export const startAuction = async (draftId) => {
+  const response = await api.post(`/auctions/${draftId}/start`);
+  return response.data;
+};
+
+export const placeBid = async (draftId, teamId, price) => {
+  const response = await api.post(`/auctions/${draftId}/bid`, {
+    teamId,
+    price,
+  });
+  return response.data;
 };

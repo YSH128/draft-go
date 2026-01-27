@@ -1,49 +1,79 @@
 import axios from "axios";
+import useAuthStore from "../stores/useAuthStore";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-export const instance = axios.create({
-  baseURL: BASE_URL || '/api/v1',
-  headers: {
-    "Content-Type": "application/json",
-  },
-  withCredentials: true,
+const createClient = () =>
+  axios.create({
+    baseURL: BASE_URL || "/api/v1",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    withCredentials: true,
+  });
+
+export const instance = createClient();
+const refreshInstance = createClient();
+
+const isAuthRefreshTarget = (config) => {
+  const url = config?.url || "";
+  return (
+    url.includes("/members/login") ||
+    url.includes("/members/signup") ||
+    url.includes("/members/reissue")
+  );
+};
+
+const shouldRefresh = (error) => {
+  const status = error?.response?.status;
+  if (status !== 401) return false;
+  const code = error?.response?.data?.code;
+  return code === "EXPIRED_TOKEN" || code === "INVALID_TOKEN" || code === "MISSING_TOKEN";
+};
+
+instance.interceptors.request.use((config) => {
+  const { accessToken } = useAuthStore.getState();
+  if (accessToken && !config.headers?.Authorization) {
+    config.headers = {
+      ...config.headers,
+      Authorization: `Bearer ${accessToken}`,
+    };
+  }
+  return config;
 });
 
-// 1. 요청 인터셉터 (토큰 주입)
-instance.interceptors.request.use(
-  (config) => {
-    // Zustand persist 형식에서 토큰 가져오기
-    const authStorage = localStorage.getItem("auth-storage");
-    if (authStorage) {
-      try {
-        const parsed = JSON.parse(authStorage);
-        const token = parsed?.state?.accessToken;
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      } catch (e) {
-        console.error("토큰 파싱 실패:", e);
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// 2. 응답 인터셉터 (세션 만료 처리)
 instance.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      if (window.location.pathname !== "/login") {
-        alert("로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
-        localStorage.removeItem("auth-storage");
-        window.location.href = "/login";
-      }
+  async (error) => {
+    const originalRequest = error.config;
+    if (!originalRequest || originalRequest._retry) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+    if (isAuthRefreshTarget(originalRequest) || !shouldRefresh(error)) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+
+    try {
+      const refreshResponse = await refreshInstance.post("/members/reissue");
+      const newAccessToken = refreshResponse?.data?.accessToken;
+      if (!newAccessToken) {
+        throw new Error("No access token in refresh response");
+      }
+
+      const { login, user } = useAuthStore.getState();
+      login(newAccessToken, user);
+
+      originalRequest.headers = {
+        ...originalRequest.headers,
+        Authorization: `Bearer ${newAccessToken}`,
+      };
+
+      return instance(originalRequest);
+    } catch (refreshError) {
+      useAuthStore.getState().logout();
+      return Promise.reject(refreshError);
+    }
   }
 );

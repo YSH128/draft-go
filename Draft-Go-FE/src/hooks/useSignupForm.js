@@ -74,10 +74,10 @@ const useSignupForm = () => {
     try {
       if (field === "username") {
         const response = await checkUsernameDuplicate(value);
-        isDuplicate = response.duplicate;
+        isDuplicate = response.isDuplicate;
       } else if (field === "gameNameTagLine") {
          const response = await checkSummonerDuplicate(value, extraValue);
-         isDuplicate = response.duplicate;
+         isDuplicate = response.isDuplicate;
       }
     } catch (error) {
       console.error(error);

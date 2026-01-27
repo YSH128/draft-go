@@ -3,17 +3,17 @@ import { useParams, useNavigate } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import * as DraftApi from "../../api/draft"; 
 
-import TeamLeaderCard from "../../components/Ui/TeamLeaderCard";
+import TeamLeaderCard from "../../components/ui/TeamLeaderCard";
 import PositionIcon from "../../components/ui/PositionIcon";
-import ChatBubble from "../../components/Ui/ChatBubble";
-import ChatInput from "../../components/Ui/ChatInput";
+import ChatBubble from "../../components/ui/ChatBubble";
+import ChatInput from "../../components/ui/ChatInput";
 import SectionTitle from "../../components/ui/SectionTitle";
 import Button from "../../components/ui/Button";
 import CreateDraftModal from "../../components/ui/CreateDraftModal";
-import CodeGenerationModal from "../../components/Ui/CodeGenerationModal";
-import TeamLeaderSettingsModal from "../../components/Ui/TeamLeaderSettingsModal";
-import ParticipantProfileModal from "../../components/Ui/ParticipantProfileModal";
-import KickConfirmModal from "../../components/Ui/KickConfirmModal";
+import CodeGenerationModal from "../../components/ui/CodeGenerationModal";
+import TeamLeaderSettingsModal from "../../components/ui/TeamLeaderSettingsModal";
+import ParticipantProfileModal from "../../components/ui/ParticipantProfileModal";
+import KickConfirmModal from "../../components/ui/KickConfirmModal";
 import Badge from "../../components/ui/Badge";
 import useAuthStore from "../../stores/useAuthStore"; // Auth Store Import
 
@@ -1209,7 +1209,7 @@ export default function DraftLobby() {
                                 const targetId = draftId || 1;
                                 await DraftApi.startDraft(targetId);
                                 // 경매 페이지로 이동
-                                navigate(`/auction/${targetId}`);
+                                navigate(`/draft?draftId=${targetId}`);
                             } catch (e) {
                                 console.error("Start failed:", e);
                                 alert("드래프트 시작 실패: " + (e.response?.data?.message || e.message));
