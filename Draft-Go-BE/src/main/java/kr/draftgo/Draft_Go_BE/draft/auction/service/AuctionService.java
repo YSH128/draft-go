@@ -3,15 +3,6 @@ package kr.draftgo.Draft_Go_BE.draft.auction.service;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.AuctionStatusResponse;
-import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
-import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
-import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
-import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
-import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
-import kr.draftgo.Draft_Go_BE.draft.common.repository.TeammateRepository;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.Team;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.Teammate;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.DraftMemberResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.TeamInfoResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.TeammateResponse;
@@ -29,12 +20,15 @@ import kr.draftgo.Draft_Go_BE.draft.common.repository.TeammateRepository;
 import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
 import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
+import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
+import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -49,6 +43,7 @@ public class AuctionService {
     private final TeammateRepository teammateRepo;
     private final AuctionEventPublisher publisher;
     private final ChatWebSocketController chatWebSocketController;
+    private final MemberStatRepository memberStatRepository;
 
     /**
      * 경매 시작 (관리자 권한 체크 포함)
@@ -124,8 +119,22 @@ public class AuctionService {
     }
 
     public List<DraftMemberResponse> getDraftQueue(Long draftId) {
-        return draftMemberRepo.findAllByDraftIdOrderByTurnOrderAsc(draftId).stream()
-                .map(DraftMemberResponse::from)
+        List<DraftMember> draftMembers = draftMemberRepo.findAllByDraftIdOrderByTurnOrderAsc(draftId);
+
+        // N+1 문제 방지: 모든 memberId 수집하여 한 번에 MemberStat 조회
+        List<Long> memberIds = draftMembers.stream()
+                .map(dm -> dm.getMember().getId())
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Long, MemberStat> memberStatMap = memberStatRepository.findByMemberIdIn(memberIds).stream()
+                .collect(Collectors.toMap(MemberStat::getMemberId, stat -> stat));
+
+        return draftMembers.stream()
+                .map(dm -> {
+                    MemberStat stat = memberStatMap.get(dm.getMember().getId());
+                    return DraftMemberResponse.from(dm, stat);
+                })
                 .collect(Collectors.toList());
     }
 
