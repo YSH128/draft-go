@@ -155,17 +155,19 @@ export default function MyProfile({ data, onProfileUpdate, onRefreshMatches }) {
           <div className={`h-full bg-[#13161f] rounded-xl p-8 flex flex-col items-center text-center border border-white/5 relative z-10`}>
             {/* 프로필 이미지 영역 */}
             <div className="relative mb-6">
-               {/* 골드 링 */}
-               <div className="w-36 h-36 rounded-full border-2 border-[#c8aa6e] p-1.5 shadow-[0_0_15px_rgba(200,170,110,0.2)]">
-                  <div className="w-full h-full rounded-full overflow-hidden bg-black">
-                    <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500" />
-                  </div>
+               {/* 골드 링 제거 */}
+               <div className="w-36 h-36 rounded-full overflow-hidden bg-black shadow-2xl">
+                 <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500" />
                </div>
             </div>
 
             {/* 이름 및 티어 */}
             {/* 이름 및 티어 */}
-            <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">{data.gameName}</h2>
+            {/* 이름 및 티어 */}
+            <h2 className="text-2xl font-bold text-white mb-2 tracking-tight flex items-baseline justify-center gap-1">
+              {data.gameName}
+              <span className="text-lg text-gray-400 font-medium">#{data.tagLine}</span>
+            </h2>
             <div className="flex items-center gap-2 mb-2">
                {/* 티어 아이콘 (작게) */}
                <img src={tierImageSrc} alt={tierLabel} className="w-4 h-4 object-contain" />

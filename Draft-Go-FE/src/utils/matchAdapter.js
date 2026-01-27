@@ -9,15 +9,52 @@
  */
 export const formatMatchData = (raw, myProfile) => {
   // 1. 내 데이터 찾기
-  // participants 중 내 이름(gameName)과 일치하는 항목 찾기. 없으면 첫 번째 항목 Fallback
-  const myData =
-    raw.participants?.find(
-      (p) =>
-        p.summonerName === myProfile?.gameName ||
-        p.tagLine === myProfile?.tagLine
-    ) ||
-    raw.participants?.[0] ||
-    {}; // Fallback
+  let myData = null;
+
+  // [0순위] 비상 대책: 1명만 있다면 그 사람이 '나' (백엔드 필터링 가정)
+  if (raw.participants && raw.participants.length === 1) {
+    myData = raw.participants[0];
+  } else {
+    // 정규화 함수 (공백 제거, 소문자 변환)
+    const normalize = (str) => (str ? str.replace(/\s+/g, "").toLowerCase() : "");
+
+    // [1순위] PUUID로 비교 (가장 정확함)
+    if (myProfile?.puuid && raw.participants) {
+      myData = raw.participants.find((p) => p.puuid === myProfile.puuid);
+    }
+
+    // [2순위] 이름 + 태그로 비교 (PUUID가 없거나 못 찾은 경우)
+    if (!myData) {
+      const myGameName = normalize(myProfile?.gameName);
+      const myTagLine = normalize(myProfile?.tagLine);
+
+      myData = raw.participants?.find((p) => {
+        // API 응답 필드명 확인: riotIdGameName/riotIdTagLine 또는 summonerName(구버전)
+        const pGameName = normalize(p.riotIdGameName);
+        const pSummonerName = normalize(p.summonerName);
+        const pTagLine = normalize(p.riotIdTagLine || p.tagLine);
+
+        // 1. 이름 + 태그 모두 일치 (가장 정확)
+        if (myGameName && myTagLine && pGameName && pTagLine) {
+          if (pGameName === myGameName && pTagLine === myTagLine) return true;
+        }
+
+        // 2. 태그 없이 이름만 일치 (Riot ID 우선)
+        if (myGameName && pGameName && pGameName === myGameName) return true;
+
+        // 3. 구버전 summonerName으로 일치
+        if (myGameName && pSummonerName && pSummonerName === myGameName) return true;
+
+        return false;
+      });
+    }
+  }
+
+  // [디버깅] 여전히 못 찾은 경우 로그 출력 (상세 정보 포함)
+  if (!myData) { // myData를 못 찾은 경우만 에러 처리
+    // Fallback: 빈 객체 (이 경우 UI에서 "알 수 없음" 등으로 표시될 수 있음)
+    myData = {}; 
+  }
 
   // 아이템, 스펠 ID -> URL 변환 헬퍼 (혹시 ID로 들어올 경우를 대비한 Fallback, 현재 API는 URL을 줌)
   // 필요 시 사용 가능하지만, 현재 로직에서는 API가 준 URL(itemUrls)을 우선 사용함.

@@ -81,6 +81,14 @@ export const TIERS = [
 // 티어 value로 한글 label 반환
 export const getTierLabel = (tierValue) => {
   if (!tierValue) return "";
+
+  // Apex Tier (MASTER, GRANDMASTER, CHALLENGER) 처리
+  // "MASTER I" 처럼 뒤에 숫자가 붙어있을 경우 제거하고 순수 티어명으로 매핑 확인
+  const upper = tierValue.toUpperCase();
+  if (upper.startsWith("CHALLENGER")) return "챌린저";
+  if (upper.startsWith("GRANDMASTER")) return "그마";
+  if (upper.startsWith("MASTER")) return "마스터";
+
   const found = TIERS.find((t) => t.value === tierValue);
   return found?.label ?? tierValue;
 };
@@ -104,16 +112,18 @@ export const TIER_IMAGES = {
 export const getTierImage = (tierValue) => {
   if (!tierValue) return TIER_IMAGES.UNRANKED;
 
-  if (tierValue === "CHALLENGER") return TIER_IMAGES.CHALLENGER;
-  if (tierValue === "GRANDMASTER") return TIER_IMAGES.GRANDMASTER;
-  if (tierValue === "MASTER") return TIER_IMAGES.MASTER;
-  if (tierValue.startsWith("DIAMOND")) return TIER_IMAGES.DIAMOND;
-  if (tierValue.startsWith("EMERALD")) return TIER_IMAGES.EMERALD;
-  if (tierValue.startsWith("PLATINUM")) return TIER_IMAGES.PLATINUM;
-  if (tierValue.startsWith("GOLD")) return TIER_IMAGES.GOLD;
-  if (tierValue.startsWith("SILVER")) return TIER_IMAGES.SILVER;
-  if (tierValue.startsWith("BRONZE")) return TIER_IMAGES.BRONZE;
-  if (tierValue.startsWith("IRON")) return TIER_IMAGES.IRON;
+  const upper = tierValue.toUpperCase();
+
+  if (upper.startsWith("CHALLENGER")) return TIER_IMAGES.CHALLENGER;
+  if (upper.startsWith("GRANDMASTER")) return TIER_IMAGES.GRANDMASTER;
+  if (upper.startsWith("MASTER")) return TIER_IMAGES.MASTER;
+  if (upper.startsWith("DIAMOND")) return TIER_IMAGES.DIAMOND;
+  if (upper.startsWith("EMERALD")) return TIER_IMAGES.EMERALD;
+  if (upper.startsWith("PLATINUM")) return TIER_IMAGES.PLATINUM;
+  if (upper.startsWith("GOLD")) return TIER_IMAGES.GOLD;
+  if (upper.startsWith("SILVER")) return TIER_IMAGES.SILVER;
+  if (upper.startsWith("BRONZE")) return TIER_IMAGES.BRONZE;
+  if (upper.startsWith("IRON")) return TIER_IMAGES.IRON;
 
   return TIER_IMAGES.UNRANKED;
 };

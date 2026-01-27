@@ -23,6 +23,7 @@ export default function ProfilePage() {
       setLoading(true);
       setError(null);
       const data = await getMyProfile();
+      
       setProfileData(data);
 
       // 매치 히스토리도 함께 로드
@@ -33,11 +34,18 @@ export default function ProfilePage() {
         const modList = matches.content || matches || [];
         const validList = Array.isArray(modList) ? modList : [];
 
+
+
         // 데이터가 로드된 시점에는 profileData 상태가 아직 업데이트되지 않았을 수 있으므로
         // data(로컬 변수)를 직접 활용하여 매핑 로직 수행 필요.
         const transformedList = validList.map((raw) => formatMatchData(raw, data));
 
-        setMatchHistory(transformedList);
+        // 1. 최근 10개만 유지
+        const recentTen = transformedList.slice(0, 10);
+        
+
+
+        setMatchHistory(recentTen);
       }
     } catch (err) {
       console.error("프로필 로드 실패:", err);
@@ -50,24 +58,13 @@ export default function ProfilePage() {
   // 프로필 수정 핸들러
   const handleProfileUpdate = async (memberId, updateData) => {
     try {
-      // 1. 낙관적 업데이트 (Optimistic Update): API 요청 전에 화면 먼저 갱신
-      setProfileData((prev) => ({
-        ...prev,
-        ...updateData,
-      }));
-
-      // 2. 실제 API 호출
+      setProfileData((prev) => ({ ...prev, ...updateData }));
       await updateProfile(memberId, updateData);
-      
-      // 3. (선택) 최신 데이터 확인을 위해 백그라운드 리로드
-      // 사용자 입력과 서버 데이터 차이가 거의 없으므로 생략하거나 비동기로 처리 가능
       fetchProfileData();
-      
       return { success: true };
     } catch (err) {
       console.error("프로필 수정 실패:", err);
-      // 실패 시 롤백 로직이 필요할 수 있으나, 현재는 에러 메시지만 표시 후 리로드
-      fetchProfileData(); 
+      fetchProfileData();
       return { success: false, error: err.message };
     }
   };
@@ -75,21 +72,11 @@ export default function ProfilePage() {
   // 전적 갱신 핸들러
   const handleRefreshMatches = async (memberId, username) => {
     try {
-      // 갱신 상태 확인
       const status = await getRefreshStatus(username);
-      if (status.refreshing) {
-        return { success: false, error: "이미 갱신 중입니다." };
-      }
-      if (status.remainingCooldownSeconds > 0) {
-        return {
-          success: false,
-          error: `${status.remainingCooldownSeconds}초 후에 다시 시도해주세요.`,
-        };
-      }
-
-      // 전적 갱신 요청
+      if (status.refreshing) return { success: false, error: "이미 갱신 중입니다." };
+      if (status.remainingCooldownSeconds > 0) return { success: false, error: `${status.remainingCooldownSeconds}초 후에 다시 시도해주세요.` };
+      
       await refreshMatches(memberId);
-      // 갱신 후 프로필 다시 로드
       await fetchProfileData();
       return { success: true };
     } catch (err) {
@@ -102,7 +89,6 @@ export default function ProfilePage() {
     fetchProfileData();
   }, [fetchProfileData]);
 
-  // 로딩 상태
   if (loading) {
     return (
       <div className="bg-background-dark min-h-screen p-4 text-white md:p-10 flex items-center justify-center">
@@ -114,18 +100,40 @@ export default function ProfilePage() {
     );
   }
 
-  // 프로필 데이터가 없으면 기본값 사용
-  const displayData = profileData || {
-    memberId: null,
-    username: "-",
-    gameName: "소환사",
-    tagLine: "KR1",
-    mainPosition: "TOP",
-    subPosition: "JUNGLE",
-    stats: null,
-    mostChampions: [],
-    bio: "", // introduction -> bio
+  // 전적 통계 계산 (최근 10경기 기준)
+  const calculateRecentStats = () => {
+    if (!matchHistory || matchHistory.length === 0) return null;
+
+    const wins = matchHistory.filter((m) => m.win).length;
+    const losses = matchHistory.length - wins;
+    const winRate = matchHistory.length > 0 ? Math.round((wins / matchHistory.length) * 100) : 0;
+    
+    // API의 seasonal stats 대신 계산된 stats 사용
+    // 기존 stats의 구조를 유지하되, win/loss/rate만 덮어씀 (LP 등은 유지)
+    return {
+      ...profileData?.stats, 
+      wins,
+      losses,
+      winRate,
+    };
   };
+
+  const calculatedStats = calculateRecentStats();
+
+  // 프로필 데이터가 없으면 기본값 사용
+  const displayData = profileData
+    ? { ...profileData, stats: calculatedStats || profileData.stats } // 계산된 통계 우선 적용
+    : {
+        memberId: null,
+        username: "-",
+        gameName: "소환사",
+        tagLine: "KR1",
+        mainPosition: "TOP",
+        subPosition: "JUNGLE",
+        stats: null,
+        mostChampions: [],
+        bio: "", // introduction -> bio
+      };
 
   return (
     <div className="bg-background-dark min-h-screen p-4 text-white md:p-10">
