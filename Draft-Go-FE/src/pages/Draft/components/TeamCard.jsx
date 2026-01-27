@@ -1,6 +1,5 @@
-import { POSITION_LIST } from "../../../constants/positions.js";
 import PositionSlot from "./PositionSlot";
-
+import { POSITIONS } from "../../../constants/riot.js";
 /**
  * 팀 카드 컴포넌트
  * - 팀 이름, 포인트, 5개 포지션 슬롯 표시
@@ -9,7 +8,7 @@ import PositionSlot from "./PositionSlot";
  * @param {string} team.name - 팀 이름
  * @param {string} team.captain - 캡틴 이름
  * @param {number} team.points - 보유 포인트
- * @param {Object} team.roster - 로스터 { top, jungle, mid, adc, support }
+ * @param {Object} team.roster - 로스터 { TOP, JUNGLE, MID, BOT, SUP }
  * @param {boolean} isActive - 현재 입찰 중인 팀 여부
  * @param {boolean} isMine - 내 팀 여부
  */
@@ -41,11 +40,11 @@ export default function TeamCard({ team, isActive = false, isMine = false }) {
 
       {/* 포지션 슬롯 */}
       <div className="flex justify-between gap-2">
-        {POSITION_LIST.map((position) => (
+        {POSITIONS.map((position) => (
           <PositionSlot
-            key={position.key}
+            key={position.id}
             position={position}
-            player={roster[position.key] || null}
+            player={roster[position.id] || null}
           />
         ))}
       </div>

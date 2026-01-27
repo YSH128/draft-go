@@ -1,4 +1,4 @@
-﻿import { Icon } from "../../../components/ui";
+﻿import { POSITIONS } from "../../../constants/riot";
 import TimerCircle from "./TimerCircle";
 
 /**
@@ -9,6 +9,9 @@ export default function AuctionStage({ player, currentBid, timeLeft }) {
   if (!player) return null;
 
   const { name, imageUrl, tier, positions = [], mostChampions = [] } = player;
+  const positionIcons = positions
+    .map((pos) => POSITIONS.find((item) => item.id === String(pos || "").toUpperCase())?.icon)
+    .filter(Boolean);
 
   return (
     <div className="reactive-border-gold relative w-full max-w-5xl rounded-xl bg-gradient-to-br from-card-dark to-background-dark p-8 shadow-2xl">
@@ -36,7 +39,16 @@ export default function AuctionStage({ player, currentBid, timeLeft }) {
               <TierBadge tier={tier} />
               <span className="text-primary/30">/</span>
               <div className="flex items-center gap-2">
-                <Icon name="swords" className="text-base text-primary" />
+                <div className="flex items-center gap-1">
+                  {positionIcons.map((icon, index) => (
+                    <img
+                      key={`${icon}-${index}`}
+                      src={icon}
+                      alt={positions[index]}
+                      className="h-4 w-4 opacity-90"
+                    />
+                  ))}
+                </div>
                 <span className="text-sm font-bold uppercase tracking-wide text-primary-bright">
                   {positions.join(" / ")}
                 </span>

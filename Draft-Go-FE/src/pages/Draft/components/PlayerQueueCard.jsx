@@ -1,4 +1,4 @@
-import { Icon, Badge } from "../../../components/ui";
+import { POSITIONS } from "../../../constants/riot";
 
 /**
  * 대기열 플레이어 카드
@@ -13,16 +13,8 @@ export default function PlayerQueueCard({ player }) {
   const { name, imageUrl, tier, position } = player;
   const tierLower = tier?.toLowerCase() || "gold";
 
-  // 포지션별 아이콘 매핑
-  const positionIcons = {
-    top: "swords",
-    jungle: "forest",
-    mid: "target",
-    adc: "counter_2",
-    support: "health_and_safety",
-  };
-
-  const posIcon = positionIcons[position?.toLowerCase()] || "person";
+  const positionIcon =
+    POSITIONS.find((pos) => pos.id === String(position || "").toUpperCase())?.icon || null;
 
   return (
     <div className="group relative cursor-pointer overflow-hidden rounded p-2.5 transition-colors hover:bg-white/5">
@@ -37,7 +29,13 @@ export default function PlayerQueueCard({ player }) {
         <div className="w-full text-center">
           {/* 포지션 + 이름 */}
           <div className="mb-1 flex items-center justify-center gap-1">
-            <Icon name={posIcon} className="text-xs text-primary" />
+            {positionIcon && (
+              <img
+                src={positionIcon}
+                alt={position}
+                className="h-3 w-3 opacity-80"
+              />
+            )}
             <p className="truncate text-xs font-bold text-white transition-colors group-hover:text-primary">
               {name}
             </p>

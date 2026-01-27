@@ -1,208 +1,31 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import DraftLayout from "./components/DraftLayout";
 import { TeamSidebarSection, AuctionSection, ChatSection } from "./sections";
+import { getAuctionState, getDraftQueue, getTeamInfos, placeBid, startAuction } from "../../api/draft";
+import { getMyProfile } from "../../api/auth";
+import { buildWsUrl, createStompClient } from "../../libs/stomp";
 
-// 목업 데이터
-const MOCK_TEAMS = [
-  {
-    id: "team-alpha",
-    name: "Team Alpha",
-    captain: "캡틴",
-    points: 420,
-    roster: {
-      jungle: {
-        name: "Canyon",
-        imageUrl:
-          "https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ",
-      },
-    },
-  },
-  {
-    id: "team-delta",
-    name: "Team Delta",
-    captain: "캡틴",
-    points: 800,
-    roster: {},
-  },
-  {
-    id: "team-omega",
-    name: "Team Omega",
-    captain: "캡틴",
-    points: 150,
-    roster: {
-      top: {
-        name: "Zeus",
-        imageUrl:
-          "https://lh3.googleusercontent.com/aida-public/AB6AXuAAHaa0vUGiD04xPspuOZgKAzWb-WD_llpDK3uRHlEjEZPdm6YMjtjHDWrrAVkpfhNgo5h6zbS_WowLOC3QVjhG9fevkYQoMtWShFwM-eNmsfSMC2mO84tB3J8JnBjFoNcuwMhtrY0KqW0jLqKa6FMdhHJjZQQVC6humhSlcIlpB1RFQbGXQ-VNFeLnT-hmP6SE6K1f4OPsuI8LySfpHhRsO00x-ijfp1-Ed8jPuqRFAQoTyPBPgIoga0e6C64p0BECfSVSaeAnils",
-      },
-      jungle: {
-        name: "Oner",
-        imageUrl:
-          "https://lh3.googleusercontent.com/aida-public/AB6AXuCy3gQVbu0BbQnkC_pIpwEJCJBr-xZFeTr2dLh3mwMLqg7xbQ9hRcoU4Da3GY5ZGu96cGakhgCjtKFebZkxvsjDjIVWuQB_QWlOevXCvChfKxE96fa5V4MpwLR3Pfgfq2Q5wQ3R4m1s3WnXYw0UxyltGHL6I0JNHmuq8Z412yjMuE9ZmOEFUnX3ANYjCf8aoTWCPPevCBrD3iM70_B_ql8I-oIhGVcJUheS14h665-qDkNBIT5CHgei_d7nl4gtTKMwbin_8qlE7H4",
-      },
-    },
-  },
-];
+const DEFAULT_TIER = "UNRANKED";
+const BID_INCREMENT = 20;
+const ROUND_SECONDS = 30;
 
-const MOCK_CURRENT_PLAYER = {
-  id: "player-current",
-  name: "Challenger Player",
-  imageUrl:
-    "https://lh3.googleusercontent.com/aida-public/AB6AXuBXaW-3NUg7lTWLPOMLpeFh4fFkst_ea6g7lSPyVCJ-QmfelJo2Q_-F62cu0OJGGAghUcfvLOZ02R6PFGZEYhaos_cIYg7QzM_J4vlfxlD9rRTEx7Mg3_mYSeeYUF7yCI1pFNkSNDWobHsm_QSMyh5qOROnwhz894z0EuoKBE4lBZORX3kzyFgk2KxRI1kLc5aJi2XFi4uHaoLd56m9JyQrMel3-lyAt7hb-jgc72T4M18gKs0laYfMlq3lJpVKJpNa9mrrLkuYBcc",
-  tier: "Challenger",
-  positions: ["Top", "Jungle"],
-  mostChampions: [
-    {
-      name: "Aatrox",
-      imageUrl:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuDlet6lImZKuX18MIRBIUM-THKtrrtA9azVi31BN-6CFdMI3JKoO5K2ZT2E6X_LdqG_I7qsOTrJ5LtTY3YwMFOrgu5C0Z7dhIT-43jiFtJvbcjb7cARx7KBTTz_yS4IqFvYKpCw9-vII-O5o7vGmfFgfmLsXHeIwLUom8axkIg3q6nynDy4DlAMuCDaD4PTY6uEVcj0w4pyQvhTD2pMr9OFCeSZMMNLAkK9gcVqy2u3M3iwNXq7QSSEkZf4Kso-zdH9Ed24ntve83E",
-    },
-    {
-      name: "Renekton",
-      imageUrl:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuDJezZcoAQxJhe7Ct7UjN87v5bSMaF4pfnDYT_Ah_zkR2vvlQG4FAnOR9L6dmapD2mpJSYM0zZsEZGmYYx1U2Ew0eDf564wccFbvZBXLAd4y4qGmsx3BkdUNaDsxtAkAX_cJ_FohRqFJDsiRdxIwKDx3xArU3jr8Cqjr5J5_W5emEejf4BSwX3mBqaSbXrg9omOpBGX5OzCBRGDMoXxcgdYCeAwed3M4x5Cvf0mJtuFnTgwnaJ9BMVGUt4bwlNaITXY3gCbzhqDLnc",
-    },
-    {
-      name: "Jayce",
-      imageUrl:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuC6WVGTLkuZWXkBYSQYZhsLsFzIcrQTq7dC1d1Jhut8zpX6KJ828FOcdUxyaRQVP5GmMT7ege7PDB1Mg4LjvWcxQYPlsOjZ1o3EeU-zwY8Zpg1xQxr76eZ87MG-RzM1ls5aPElvSgH34ykuXwaBte4_wtK9FwswYCI7bVajAvY6BrE_zeeA-oZnNpewlXoCXRg7N03L6ELfdaMyEbnDKBQjoN94PzU4EVOcFrdapwcm3OkjqtURe8rzE25LQW_85rdgsx7wattEd7w",
-    },
-  ],
+/**
+ * 서버의 startedAt으로부터 남은 시간(초)을 계산
+ * @param {string} startedAt - ISO 8601 형식의 시작 시간
+ * @returns {number} 남은 초 (0 이상)
+ */
+const calculateRemainingSeconds = (startedAt) => {
+  if (!startedAt) return ROUND_SECONDS;
+  try {
+    const startTime = new Date(startedAt).getTime();
+    const now = Date.now();
+    const elapsed = Math.floor((now - startTime) / 1000);
+    return Math.max(0, ROUND_SECONDS - elapsed);
+  } catch {
+    return ROUND_SECONDS;
+  }
 };
-
-const MOCK_QUEUE = [
-  {
-    id: "p1",
-    name: "Player_01",
-    tier: "Diamond",
-    position: "Mid",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ",
-  },
-  {
-    id: "p2",
-    name: "Player_02",
-    tier: "Master",
-    position: "Support",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAAHaa0vUGiD04xPspuOZgKAzWb-WD_llpDK3uRHlEjEZPdm6YMjtjHDWrrAVkpfhNgo5h6zbS_WowLOC3QVjhG9fevkYQoMtWShFwM-eNmsfSMC2mO84tB3J8JnBjFoNcuwMhtrY0KqW0jLqKa6FMdhHJjZQQVC6humhSlcIlpB1RFQbGXQ-VNFeLnT-hmP6SE6K1f4OPsuI8LySfpHhRsO00x-ijfp1-Ed8jPuqRFAQoTyPBPgIoga0e6C64p0BECfSVSaeAnils",
-  },
-  {
-    id: "p3",
-    name: "Player_03",
-    tier: "Emerald",
-    position: "Jungle",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuCy3gQVbu0BbQnkC_pIpwEJCJBr-xZFeTr2dLh3mwMLqg7xbQ9hRcoU4Da3GY5ZGu96cGakhgCjtKFebZkxvsjDjIVWuQB_QWlOevXCvChfKxE96fa5V4MpwLR3Pfgfq2Q5wQ3R4m1s3WnXYw0UxyltGHL6I0JNHmuq8Z412yjMuE9ZmOEFUnX3ANYjCf8aoTWCPPevCBrD3iM70_B_ql8I-oIhGVcJUheS14h665-qDkNBIT5CHgei_d7nl4gtTKMwbin_8qlE7H4",
-  },
-  {
-    id: "p4",
-    name: "Player_04",
-    tier: "Diamond",
-    position: "Adc",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAjSZaJUwAExse-oH8JC2mLgU1Q07fHcCK8eJFl_vHMCA8307eI8iGk15PCx5kv0SijbmasZBBxELAVcaqHFediwmwoQkLEIXIwS4Lz9_fDyopxZyvYllcGu9ypc3-nM6Oo1karnOEb4i2bNLmq7ZzXwwgwmIJSnYz0CKSlxQObn7h8q2qjF-ON0IgaPNKhkv_g-JT3hYhlADqRb-HgAkBJbhin0SaJ7qDrKfjdpGwPLkfHZgJNf1R4J1N_yV__qkNKTAgtfEfmbPg",
-  },
-  {
-    id: "p5",
-    name: "Player_05",
-    tier: "Diamond",
-    position: "Top",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDlet6lImZKuX18MIRBIUM-THKtrrtA9azVi31BN-6CFdMI3JKoO5K2ZT2E6X_LdqG_I7qsOTrJ5LtTY3YwMFOrgu5C0Z7dhIT-43jiFtJvbcjb7cARx7KBTTz_yS4IqFvYKpCw9-vII-O5o7vGmfFgfmLsXHeIwLUom8axkIg3q6nynDy4DlAMuCDaD4PTY6uEVcj0w4pyQvhTD2pMr9OFCeSZMMNLAkK9gcVqy2u3M3iwNXq7QSSEkZf4Kso-zdH9Ed24ntve83E",
-  },
-  {
-    id: "p6",
-    name: "Player_06",
-    tier: "Emerald",
-    position: "Mid",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDJezZcoAQxJhe7Ct7UjN87v5bSMaF4pfnDYT_Ah_zkR2vvlQG4FAnOR9L6dmapD2mpJSYM0zZsEZGmYYx1U2Ew0eDf564wccFbvZBXLAd4y4qGmsx3BkdUNaDsxtAkAX_cJ_FohRqFJDsiRdxIwKDx3xArU3jr8Cqjr5J5_W5emEejf4BSwX3mBqaSbXrg9omOpBGX5OzCBRGDMoXxcgdYCeAwed3M4x5Cvf0mJtuFnTgwnaJ9BMVGUt4bwlNaITXY3gCbzhqDLnc",
-  },
-  {
-    id: "p7",
-    name: "Player_07",
-    tier: "Platinum",
-    position: "Support",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ",
-  },
-  {
-    id: "p8",
-    name: "Player_08",
-    tier: "Master",
-    position: "Top",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ",
-  },
-  {
-    id: "p9",
-    name: "Player_09",
-    tier: "Diamond",
-    position: "Jungle",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAAHaa0vUGiD04xPspuOZgKAzWb-WD_llpDK3uRHlEjEZPdm6YMjtjHDWrrAVkpfhNgo5h6zbS_WowLOC3QVjhG9fevkYQoMtWShFwM-eNmsfSMC2mO84tB3J8JnBjFoNcuwMhtrY0KqW0jLqKa6FMdhHJjZQQVC6humhSlcIlpB1RFQbGXQ-VNFeLnT-hmP6SE6K1f4OPsuI8LySfpHhRsO00x-ijfp1-Ed8jPuqRFAQoTyPBPgIoga0e6C64p0BECfSVSaeAnils",
-  },
-  {
-    id: "p10",
-    name: "Player_10",
-    tier: "Diamond",
-    position: "Support",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ",
-  },
-  {
-    id: "p11",
-    name: "Player_11",
-    tier: "Grandmaster",
-    position: "Top",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAAHaa0vUGiD04xPspuOZgKAzWb-WD_llpDK3uRHlEjEZPdm6YMjtjHDWrrAVkpfhNgo5h6zbS_WowLOC3QVjhG9fevkYQoMtWShFwM-eNmsfSMC2mO84tB3J8JnBjFoNcuwMhtrY0KqW0jLqKa6FMdhHJjZQQVC6humhSlcIlpB1RFQbGXQ-VNFeLnT-hmP6SE6K1f4OPsuI8LySfpHhRsO00x-ijfp1-Ed8jPuqRFAQoTyPBPgIoga0e6C64p0BECfSVSaeAnils",
-  },
-  {
-    id: "p12",
-    name: "Player_12",
-    tier: "Challenger",
-    position: "Mid",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuCy3gQVbu0BbQnkC_pIpwEJCJBr-xZFeTr2dLh3mwMLqg7xbQ9hRcoU4Da3GY5ZGu96cGakhgCjtKFebZkxvsjDjIVWuQB_QWlOevXCvChfKxE96fa5V4MpwLR3Pfgfq2Q5wQ3R4m1s3WnXYw0UxyltGHL6I0JNHmuq8Z412yjMuE9ZmOEFUnX3ANYjCf8aoTWCPPevCBrD3iM70_B_ql8I-oIhGVcJUheS14h665-qDkNBIT5CHgei_d7nl4gtTKMwbin_8qlE7H4",
-  },
-];
-
-const MOCK_PASSED_QUEUE = [
-  {
-    id: "passed1",
-    name: "Zed Master",
-    tier: "Emerald",
-    position: "Mid",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ",
-  },
-  {
-    id: "passed2",
-    name: "Forest Guard",
-    tier: "Platinum",
-    position: "Support",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAAHaa0vUGiD04xPspuOZgKAzWb-WD_llpDK3uRHlEjEZPdm6YMjtjHDWrrAVkpfhNgo5h6zbS_WowLOC3QVjhG9fevkYQoMtWShFwM-eNmsfSMC2mO84tB3J8JnBjFoNcuwMhtrY0KqW0jLqKa6FMdhHJjZQQVC6humhSlcIlpB1RFQbGXQ-VNFeLnT-hmP6SE6K1f4OPsuI8LySfpHhRsO00x-ijfp1-Ed8jPuqRFAQoTyPBPgIoga0e6C64p0BECfSVSaeAnils",
-  },
-  {
-    id: "passed3",
-    name: "River King",
-    tier: "Diamond",
-    position: "Top",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBDtUYhnw_RMBpfNit8ep1sCZNFdDa7irbBukb5_r6TJj9gBdx6UvkPXzKQsJYyxf_OMiaKqK3t16uxh6X4NofgzIeFvHOGm0RrcxPvppQI7wW4zeLycgs-HRy4jfAniS7NEHwi3hclPYijznF4jOQ6AYhMsrwPuK4mC-D3xMgvHPTEC_yuhbYjjmQUiqYAuDFXpalk12xUb283az8wb3uVQSOfRU0t9rNDgYai5d139AoRhOyUZ9_t4VBjhwRPSfz7ficyRv_moXQ",
-  },
-  {
-    id: "passed4",
-    name: "Shadow Step",
-    tier: "Emerald",
-    position: "Jungle",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDJezZcoAQxJhe7Ct7UjN87v5bSMaF4pfnDYT_Ah_zkR2vvlQG4FAnOR9L6dmapD2mpJSYM0zZsEZGmYYx1U2Ew0eDf564wccFbvZBXLAd4y4qGmsx3BkdUNaDsxtAkAX_cJ_FohRqFJDsiRdxIwKDx3xArU3jr8Cqjr5J5_W5emEejf4BSwX3mBqaSbXrg9omOpBGX5OzCBRGDMoXxcgdYCeAwed3M4x5Cvf0mJtuFnTgwnaJ9BMVGUt4bwlNaITXY3gCbzhqDLnc",
-  },
-];
 
 const MOCK_MESSAGES = [
   {
@@ -229,38 +52,359 @@ const MOCK_MESSAGES = [
   },
 ];
 
+const getTierFromRank = (rank) => {
+  if (!rank) return DEFAULT_TIER;
+  const raw = typeof rank === "string" ? rank : String(rank);
+  const base = raw.split("_")[0];
+  return base || DEFAULT_TIER;
+};
+
+const normalizeQueue = (queue) =>
+  (queue || []).map((member) => ({
+    id: String(member.id),
+    memberId: member.memberId,
+    name: member.name,
+    position: member.position,
+    status: member.status,
+    turnOrder: member.turnOrder ?? 0,
+    tier: getTierFromRank(member.rank),
+    rank: member.rank ?? null,
+    imageUrl: null,
+  }));
+
+const buildRoster = (members = []) => {
+  const roster = {};
+  members.forEach((member) => {
+    if (!member.position) return;
+    roster[member.position] = {
+      name: member.name,
+      imageUrl: null,
+    };
+  });
+  return roster;
+};
+
+const isLeaderMember = (member) => {
+  if (!member) return false;
+  if (member.isLeader === true || member.leader === true) return true;
+  const role = typeof member.role === "string" ? member.role.toUpperCase() : "";
+  return role === "LEADER" || role === "CAPTAIN";
+};
+
+const normalizeMemberId = (member) => {
+  const raw = member?.memberId ?? member?.id ?? member?.userId ?? null;
+  return raw === null || raw === undefined ? null : String(raw);
+};
+
+const normalizeId = (value) => {
+  if (value === null || value === undefined) return null;
+  return String(value);
+};
+
+const getNextActiveQueueId = (queueList = []) => {
+  const nextPlayer = queueList
+    .filter((player) => {
+      const status = String(player?.status || "").toUpperCase();
+      return status !== "SKIPPED" && status !== "COMPLETED";
+    })
+    .sort((a, b) => (a.turnOrder ?? 0) - (b.turnOrder ?? 0))[0];
+
+  return normalizeId(nextPlayer?.id ?? nextPlayer?.memberId ?? nextPlayer?.draftMemberId);
+};
+
+const mapTeams = (teams) =>
+  (teams || []).map((team) => {
+    const leader = team.members?.find((member) => isLeaderMember(member));
+    return {
+      id: String(team.teamId),
+      name: team.teamName,
+      captain: leader?.name || "??",
+      points: team.currentPoint ?? 0,
+      roster: buildRoster(team.members || []),
+    };
+  });
+
 export default function DraftPage() {
-  const [teams] = useState(MOCK_TEAMS);
-  const [currentPlayer] = useState(MOCK_CURRENT_PLAYER);
-  const [currentBid, setCurrentBid] = useState(240);
-  const [timeLeft, setTimeLeft] = useState(10);
-  const [queue] = useState(MOCK_QUEUE);
-  const [passedQueue] = useState(MOCK_PASSED_QUEUE);
+  const [searchParams] = useSearchParams();
+  const draftIdParam = searchParams.get("draftId");
+  const draftId = draftIdParam ? Number(draftIdParam) : null;
+  const isValidDraftId = Number.isFinite(draftId) && draftId > 0;
+
+  const [queue, setQueue] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [currentState, setCurrentState] = useState(null);
+  const [currentBid, setCurrentBid] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
   const [messages, setMessages] = useState(MOCK_MESSAGES);
-  const [activeTeamId] = useState("team-delta");
+  const [activeTeamId, setActiveTeamId] = useState(null);
+  const [myMemberId, setMyMemberId] = useState(null);
+  const [myProfile, setMyProfile] = useState(null);
+  const [isDraftEnded, setIsDraftEnded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
-  const BID_INCREMENT = 20;
-  const ROUND_MS = 30_000;
+  const didStartAuction = useRef(false);
+  const wsClientRef = useRef(null);
+  const currentStateRef = useRef(null);
+  const isDraftEndedRef = useRef(false);
+  const timerStartRef = useRef(null);
 
-  // 입찰 핸들러
-  const handleBid = useCallback(() => {
-    setTimeLeft(30);
-    setCurrentBid((prevBid) => {
-      const nextBid = prevBid + BID_INCREMENT;
-      setMessages((prevMsgs) => [
-        ...prevMsgs,
-        {
-          type: "user",
-          sender: "나",
-          color: "gold",
-          content: `${nextBid}P 입찰!`,
-        },
-      ]);
-      return nextBid;
+  const wsUrl = useMemo(() => buildWsUrl(import.meta.env.VITE_API_BASE_URL), []);
+
+  const queuePlayers = useMemo(() => normalizeQueue(queue), [queue]);
+
+  const activeQueue = useMemo(
+    () =>
+      queuePlayers
+        .filter((player) => player.status !== "SKIPPED" && player.status !== "COMPLETED")
+        .sort((a, b) => (a.turnOrder ?? 0) - (b.turnOrder ?? 0)),
+    [queuePlayers]
+  );
+
+  const passedQueue = useMemo(
+    () =>
+      queuePlayers
+        .filter((player) => player.status === "SKIPPED")
+        .sort((a, b) => (a.turnOrder ?? 0) - (b.turnOrder ?? 0)),
+    [queuePlayers]
+  );
+
+  const uiTeams = useMemo(() => mapTeams(teams), [teams]);
+
+  const profileTeamId = useMemo(
+    () => normalizeId(myProfile?.teamId ?? myProfile?.team?.teamId ?? myProfile?.team?.id),
+    [myProfile]
+  );
+
+  const profileIsLeader = useMemo(() => isLeaderMember(myProfile), [myProfile]);
+
+  // 내 팀 찾기 (flatMap으로 팀-멤버 조합 생성 후 find)
+  const myTeamInfo = useMemo(() => {
+    if (!myMemberId && !profileTeamId) return null;
+
+    if (teams.length === 0) {
+      return profileTeamId ? { teamId: profileTeamId, isLeader: profileIsLeader } : null;
+    }
+
+    const teamMemberPairs = teams.flatMap((team) =>
+      (team.members || []).map((member) => ({ team, member }))
+    );
+
+    const normalizedMyMemberId = myMemberId ? String(myMemberId) : null;
+    if (normalizedMyMemberId) {
+      const match = teamMemberPairs.find(
+        (pair) => normalizeMemberId(pair.member) === normalizedMyMemberId
+      );
+      if (match) {
+        return {
+          teamId: String(match.team.teamId),
+          isLeader: isLeaderMember(match.member) || profileIsLeader,
+        };
+      }
+    }
+
+    return profileTeamId ? { teamId: profileTeamId, isLeader: profileIsLeader } : null;
+  }, [myMemberId, profileIsLeader, profileTeamId, teams]);
+
+  const myTeamId = myTeamInfo?.teamId ?? null;
+  const isLeader = myTeamInfo?.isLeader ?? false;
+  const myTeam = useMemo(
+    () => uiTeams.find((team) => String(team.id) === String(myTeamId)),
+    [myTeamId, uiTeams]
+  );
+  const myTeamRoster = myTeam?.roster || {};
+
+  const currentPlayer = useMemo(() => {
+    if (!currentState) return null;
+    const member = queuePlayers.find(
+      (player) => player.id === String(currentState.draftMemberId)
+    );
+    const position = member?.position;
+    return {
+      id: currentState.draftMemberId ? String(currentState.draftMemberId) : "current",
+      name: member?.name || currentState.playerName || "Unknown",
+      imageUrl: null,
+      tier: member?.tier || DEFAULT_TIER,
+      positions: position ? [position] : [],
+      mostChampions: [],
+    };
+  }, [currentState, queuePlayers]);
+
+  const isPositionTaken = useMemo(() => {
+    if (!currentPlayer?.positions || currentPlayer.positions.length === 0) return false;
+    return currentPlayer.positions.some((pos) => {
+      const key = String(pos || "").toUpperCase();
+      return Boolean(myTeamRoster[key]?.name);
     });
+  }, [currentPlayer?.positions, myTeamRoster]);
+
+  const applyAuctionState = useCallback((stateData) => {
+    const state = stateData?.state || null;
+    setCurrentState(state);
+    setCurrentBid(stateData?.currentBid || null);
+
+    if (typeof stateData?.remainingSeconds === "number") {
+      setTimeLeft(Math.max(0, stateData.remainingSeconds));
+    } else if (state?.startedAt) {
+      setTimeLeft(calculateRemainingSeconds(state.startedAt));
+    } else {
+      setTimeLeft(ROUND_SECONDS);
+    }
+
+    setActiveTeamId(stateData?.currentBid?.teamId ? String(stateData.currentBid.teamId) : null);
   }, []);
 
-  // 채팅 메시지 전송 핸들러
+  const refreshAuctionState = useCallback(async () => {
+    if (!isValidDraftId) return;
+    try {
+      const stateData = await getAuctionState(draftId);
+      applyAuctionState(stateData);
+    } catch (error) {
+      console.error(error);
+    }
+  }, [applyAuctionState, draftId, isValidDraftId]);
+
+  const handleQueueUpdate = useCallback((body) => {
+    try {
+      const parsed = JSON.parse(body);
+      setQueue(parsed || []);
+
+      if (isDraftEndedRef.current) return;
+      const nextActiveId = getNextActiveQueueId(parsed || []);
+      const currentActiveId = currentStateRef.current?.draftMemberId
+        ? String(currentStateRef.current.draftMemberId)
+        : null;
+      if (nextActiveId && nextActiveId !== currentActiveId) {
+        refreshAuctionState();
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [refreshAuctionState]);
+
+  const handleTeamsUpdate = useCallback((body) => {
+    try {
+      const parsed = JSON.parse(body);
+      setTeams(parsed || []);
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
+  const handleAuctionEvent = useCallback((body) => {
+    try {
+      const event = JSON.parse(body);
+      const eventType = String(event.type || "").toUpperCase();
+      if (eventType === "NEW_BIDDING") {
+        const state = event.data || event.state || null;
+        setCurrentState(state);
+        setCurrentBid(null);
+        setActiveTeamId(null);
+        // 서버의 startedAt 기반으로 남은 시간 계산
+        const remaining = calculateRemainingSeconds(state?.startedAt);
+        setTimeLeft(remaining);
+        if (state?.startedAt) {
+          timerStartRef.current = state.startedAt;
+        }
+      } else if (eventType === "BID") {
+        setCurrentBid(event.data || null);
+        setActiveTeamId(event.data?.teamId ? String(event.data.teamId) : null);
+        if (typeof event.data?.remainingSeconds === "number") {
+          const nextRemaining = Math.max(0, event.data.remainingSeconds);
+          setTimeLeft(nextRemaining);
+          const elapsed = Math.max(0, ROUND_SECONDS - nextRemaining);
+          timerStartRef.current = new Date(Date.now() - elapsed * 1000).toISOString();
+        } else {
+          refreshAuctionState();
+        }
+      } else if (eventType === "TIME_OVER") {
+        // 해당 선수 경매 종료 (유찰 또는 낙찰 완료)
+        setCurrentState(null);
+        setCurrentBid(null);
+        setActiveTeamId(null);
+        setTimeLeft(0);
+        timerStartRef.current = null;
+        refreshAuctionState();
+      }
+
+    } catch (error) {
+      console.error(error);
+    }
+  }, [refreshAuctionState]);
+
+  // 현재 내 팀의 보유 포인트
+  const myTeamPoints = useMemo(() => {
+    if (!myTeamId) return 0;
+    const team = teams.find((t) => String(t.teamId) === myTeamId);
+    return team?.currentPoint ?? 0;
+  }, [myTeamId, teams]);
+
+  // 다음 입찰가
+  const nextBidPrice = useMemo(() => {
+    return (currentBid?.price ?? 0) + BID_INCREMENT;
+  }, [currentBid]);
+
+  // 입찰 가능 여부 검증
+  const canBid = useMemo(() => {
+    if (!isLeader) return false;
+    if (!myTeamId) return false;
+    if (isPositionTaken) return false;
+    if (timeLeft <= 0) return false;
+    if (nextBidPrice > myTeamPoints) return false;
+    if (isDraftEnded) return false;
+    if (!currentState) return false;
+    return true;
+  }, [
+    isLeader,
+    isPositionTaken,
+    myTeamId,
+    timeLeft,
+    nextBidPrice,
+    myTeamPoints,
+    isDraftEnded,
+    currentState,
+  ]);
+
+  // 입찰 불가 사유
+  const bidDisabledReason = useMemo(() => {
+    if (isDraftEnded) return "드래프트가 종료되었습니다";
+    if (!currentState) return "경매 대기 중입니다";
+    if (!myTeamId) return "팀에 소속되어 있지 않습니다";
+    if (!isLeader) return "팀장만 입찰할 수 있습니다";
+    if (isPositionTaken) return "이미 해당 포지션 선수가 있습니다";
+    if (timeLeft <= 0) return "입찰 시간이 종료되었습니다";
+    if (nextBidPrice > myTeamPoints) return "포인트가 부족합니다";
+    return null;
+  }, [
+    isDraftEnded,
+    currentState,
+    myTeamId,
+    isLeader,
+    isPositionTaken,
+    timeLeft,
+    nextBidPrice,
+    myTeamPoints,
+  ]);
+
+  const handleBid = useCallback(async () => {
+    if (!isValidDraftId) return;
+
+    if (!canBid) {
+      if (bidDisabledReason) {
+        alert(bidDisabledReason);
+      }
+      return;
+    }
+
+    try {
+      await placeBid(draftId, Number(myTeamId), nextBidPrice);
+    } catch (error) {
+      const serverMessage =
+        error.response?.data?.message || "입찰에 실패했습니다. 다시 시도해주세요.";
+      alert(serverMessage);
+    }
+  }, [bidDisabledReason, canBid, draftId, isValidDraftId, myTeamId, nextBidPrice]);
+
   const handleSendMessage = useCallback((content) => {
     setMessages((prev) => [
       ...prev,
@@ -273,11 +417,120 @@ export default function DraftPage() {
     ]);
   }, []);
 
-  // 단축키 처리(B키 입찰)
+  useEffect(() => {
+    if (!isValidDraftId) return;
+
+    const loadInitialData = async () => {
+      try {
+        const [stateData, queueData, teamData, myProfileData] = await Promise.all([
+          getAuctionState(draftId),
+          getDraftQueue(draftId),
+          getTeamInfos(draftId),
+          getMyProfile().catch(() => null),
+        ]);
+
+        const state = stateData?.state || null;
+        applyAuctionState(stateData);
+        setQueue(queueData || []);
+        setTeams(teamData || []);
+        setMyMemberId(myProfileData?.memberId ?? null);
+        setMyProfile(myProfileData ?? null);
+
+        if (!state && !didStartAuction.current) {
+          didStartAuction.current = true;
+          await startAuction(draftId);
+        }
+
+        setIsLoading(false);
+      } catch (error) {
+        console.error(error);
+        setLoadError("데이터를 불러오는 중 오류가 발생했습니다.");
+        setIsLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, [applyAuctionState, draftId, isValidDraftId]);
+
+  useEffect(() => {
+    if (!isValidDraftId || !wsUrl) return;
+
+    const client = createStompClient({
+      url: wsUrl,
+      onConnect: () => {
+        client.subscribe(`/ws/auction/${draftId}`, handleAuctionEvent);
+        client.subscribe(`/topic/auction/${draftId}/queue`, handleQueueUpdate);
+        client.subscribe(`/topic/auction/${draftId}/teams`, handleTeamsUpdate);
+        refreshAuctionState();
+      },
+      onError: (event) => {
+        console.error(event);
+      },
+    });
+
+    wsClientRef.current = client;
+
+    return () => {
+      wsClientRef.current?.disconnect();
+      wsClientRef.current = null;
+    };
+  }, [draftId, handleAuctionEvent, handleQueueUpdate, handleTeamsUpdate, isValidDraftId, wsUrl]);
+
+  useEffect(() => {
+    currentStateRef.current = currentState;
+  }, [currentState]);
+
+  useEffect(() => {
+    isDraftEndedRef.current = isDraftEnded;
+  }, [isDraftEnded]);
+
+  useEffect(() => {
+    if (!isValidDraftId) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshAuctionState();
+      }
+    };
+
+    const handleFocus = () => {
+      refreshAuctionState();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [isValidDraftId, refreshAuctionState]);
+
+  // currentState 변경 시 타이머 시작 시점 기록
+  useEffect(() => {
+    if (currentState?.startedAt) {
+      timerStartRef.current = currentState.startedAt;
+    }
+  }, [currentState]);
+
+  // 타이머 카운트다운 - 1초마다 서버 시간 기준으로 계산
+  useEffect(() => {
+    if (!currentState || isDraftEnded) return undefined;
+
+    const timer = setInterval(() => {
+      const remaining = calculateRemainingSeconds(timerStartRef.current);
+      setTimeLeft(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [currentState, isDraftEnded]);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "b" || e.key === "B") {
-        // 입력 중일 때는 무시
         if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
           return;
         }
@@ -289,38 +542,63 @@ export default function DraftPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleBid]);
 
-  useEffect(() => {
-    let endAt = Date.now() + ROUND_MS;
+  if (!isValidDraftId) {
+    return (
+      <DraftLayout>
+        <div className="flex w-full items-center justify-center text-sm text-primary/80">
+          draftId가 필요합니다. /draft?draftId=1 형식으로 접속해주세요.
+        </div>
+      </DraftLayout>
+    );
+  }
 
-    const timer = setInterval(() => {
-      const leftMs = endAt - Date.now();
-      const leftSec = Math.max(0, Math.ceil(leftMs / 1000));
-      setTimeLeft(leftSec);
+  if (isDraftEnded) {
+    return (
+      <DraftLayout>
+        <div className="flex w-full flex-col items-center justify-center gap-4">
+          <h2 className="text-3xl font-bold text-primary">드래프트 종료</h2>
+          <p className="text-primary-bright/70">모든 선수의 경매가 완료되었습니다.</p>
+        </div>
+      </DraftLayout>
+    );
+  }
 
-      if (leftMs <= 0) {
-        endAt = Date.now() + ROUND_MS; // 다음 라운드
-        // TODO: 다음 선수 로직
-      }
-    }, 250);
+  if (loadError) {
+    return (
+      <DraftLayout>
+        <div className="flex w-full items-center justify-center text-sm text-red-400">
+          {loadError}
+        </div>
+      </DraftLayout>
+    );
+  }
 
-    return () => clearInterval(timer);
-  }, []);
+  if (isLoading) {
+    return (
+      <DraftLayout>
+        <div className="flex w-full items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="size-12 animate-spin rounded-full border-4 border-primary/30 border-t-primary" />
+            <p className="text-sm text-primary/70">드래프트 정보를 불러오는 중...</p>
+          </div>
+        </div>
+      </DraftLayout>
+    );
+  }
 
   return (
     <DraftLayout>
-      <TeamSidebarSection
-        teams={teams}
-        activeTeamId={activeTeamId}
-        myTeamId="team-delta"
-      />
+      <TeamSidebarSection teams={uiTeams} activeTeamId={activeTeamId} myTeamId={myTeamId} />
 
       <AuctionSection
         player={currentPlayer}
-        currentBid={currentBid}
+        currentBid={currentBid?.price ?? 0}
         timeLeft={timeLeft}
         bidIncrement={BID_INCREMENT}
         onBid={handleBid}
-        queue={queue}
+        canBid={canBid}
+        bidDisabledReason={bidDisabledReason}
+        queue={activeQueue}
         passedQueue={passedQueue}
       />
 

@@ -8,6 +8,8 @@ export default function AuctionSection({
   timeLeft,
   bidIncrement,
   onBid,
+  canBid = true,
+  bidDisabledReason = null,
   queue,
   passedQueue,
 }) {
@@ -19,7 +21,13 @@ export default function AuctionSection({
 
       <div className="z-10 mb-8 flex min-h-0 flex-1 flex-col items-center justify-center">
         <AuctionStage player={player} currentBid={currentBid} timeLeft={timeLeft} />
-        <BidButton increment={bidIncrement} nextBid={nextBid} onBid={onBid} />
+        <BidButton
+          increment={bidIncrement}
+          nextBid={nextBid}
+          onBid={onBid}
+          disabled={!canBid}
+          disabledReason={bidDisabledReason}
+        />
       </div>
 
       <PlayerQueue queue={queue} passedQueue={passedQueue} />

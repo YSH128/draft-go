@@ -12,7 +12,7 @@ import { Header } from "../../../components/layout/index.js";
 export default function DraftLayout({ children }) {
   return (
     <div className="flex h-screen min-w-[1024px] flex-col bg-background-dark font-display text-white">
-      <DraftHeader/>
+      <Header/>
       <main className="flex min-h-0 flex-1 overflow-hidden">{children}</main>
       <DraftFooter />
     </div>

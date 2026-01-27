@@ -1,5 +1,3 @@
-import { Icon } from "../../../components/ui";
-
 /**
  * 포지션 슬롯 컴포넌트
  * - 빈 슬롯 또는 배정된 선수 표시
@@ -24,9 +22,10 @@ export default function PositionSlot({ position, player = null }) {
 
       {/* 포지션 / 이름 라벨 */}
       <div className="flex w-14 items-center justify-center gap-1">
-        <Icon
-          name={position.icon}
-          className={`text-[10px] font-medium ${hasPlayer ? "text-primary" : "text-primary/50"}`}
+        <img
+          src={position.icon}
+          alt={position.label}
+          className={`h-3 w-3 ${hasPlayer ? "opacity-100" : "opacity-60"}`}
         />
         <span
           className={`truncate text-[10px] font-medium ${
