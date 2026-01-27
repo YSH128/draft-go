@@ -87,8 +87,9 @@ public class LobbyService {
                             .name(p.getGameName())
                             .position(p.getPosition())
                             .isReady(p.isReady())
-                            .tier(stat != null ? stat.getRank() : null)
-                            .leaguePoints(stat != null ? stat.getLeaguePoint() : null)
+                            .tier(stat.getTier())
+                            .division(stat.getDivision())
+                            .leaguePoints(stat.getLeaguePoint())
                             .leaderPoint(p.getLeaderPoint())
                             .build();
                 })
@@ -103,8 +104,9 @@ public class LobbyService {
                             .id(p.getMemberId())
                             .name(p.getGameName())
                             .position(p.getPosition())
-                            .tier(stat != null ? stat.getRank() : null)
-                            .leaguePoints(stat != null ? stat.getLeaguePoint() : null)
+                            .tier(stat.getTier())
+                            .division(stat.getDivision())
+                            .leaguePoints(stat.getLeaguePoint())
                             .build();
                 })
                 .collect(Collectors.toList());

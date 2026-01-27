@@ -24,8 +24,13 @@ public class MemberStat {
     @Column(nullable = false)
     private Long memberId;
 
-    @Column(name = "`rank`", length = 15)
-    private String rank;
+    @Column(name = "tier", length = 15)
+    @Enumerated(EnumType.STRING)
+    private Tier tier;
+
+    @Column(name = "division", length = 5)
+    @Enumerated(EnumType.STRING)
+    private Division division;
 
     @Column(name = "league_point")
     private Integer leaguePoint;
@@ -66,11 +71,14 @@ public class MemberStat {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void updateProfile(String rank, Integer leaguePoint, BigDecimal rankWinRate,
+    public void updateProfile(Tier tier, Division division, Integer leaguePoint, BigDecimal rankWinRate,
                              Integer rankWins, Integer rankLoseRate, BigDecimal lastedWinRate,
                              Integer lastedWins, Integer lastedLosses) {
-        if (rank != null) {
-            this.rank = rank;
+        if (tier != null) {
+            this.tier = tier;
+        }
+        if (division != null) {
+            this.division = division;
         }
         if (leaguePoint != null) {
             this.leaguePoint = leaguePoint;

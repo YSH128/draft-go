@@ -1,6 +1,8 @@
 package kr.draftgo.Draft_Go_BE.member.dto;
 
 import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
+import kr.draftgo.Draft_Go_BE.member.domain.Tier;
+import kr.draftgo.Draft_Go_BE.member.domain.Division;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,7 +15,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MemberStatRes {
-    private String rank; // Combined Tier + Rank
+    private Tier tier;
+    private Division division;
     private Integer leaguePoints;
     private BigDecimal winRate;
     private Integer wins;
@@ -25,7 +28,8 @@ public class MemberStatRes {
             return null;
 
         return MemberStatRes.builder()
-                .rank(stat.getRank())
+                .tier(stat.getTier())
+                .division(stat.getDivision())
                 .leaguePoints(stat.getLeaguePoint())
                 .winRate(stat.getRankWinRate())
                 .wins(stat.getRankWins())

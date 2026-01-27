@@ -4,6 +4,8 @@ import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMemberStatus;
 import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
+import kr.draftgo.Draft_Go_BE.member.domain.Tier;
+import kr.draftgo.Draft_Go_BE.member.domain.Division;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -16,7 +18,8 @@ public class DraftMemberResponse {
     private Position position;
     private DraftMemberStatus status;
     private Integer turnOrder;
-    private String rank;
+    private Tier tier;
+    private Division division;
     private Integer leaguePoints;
 
     public static DraftMemberResponse from(DraftMember entity, MemberStat stat) {
@@ -27,7 +30,8 @@ public class DraftMemberResponse {
                 .position(entity.getPosition())
                 .status(entity.getStatus())
                 .turnOrder(entity.getTurnOrder())
-                .rank(stat != null ? stat.getRank() : null)
+                .tier(stat != null ? stat.getTier() : null)
+                .division(stat != null ? stat.getDivision() : null)
                 .leaguePoints(stat != null ? stat.getLeaguePoint() : null)
                 .build();
     }
