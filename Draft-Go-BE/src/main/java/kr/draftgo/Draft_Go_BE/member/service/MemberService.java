@@ -108,22 +108,16 @@ public class MemberService {
      * @param tagLine  태그
      * @return 실존 여부 응답
      */
-    public DuplicateCheckRes checkRiotId(String gameName, String tagLine) {
+    public kr.draftgo.Draft_Go_BE.member.dto.RiotIdCheckRes checkRiotId(String gameName, String tagLine) {
         try {
             String puuid = riotApiService.getPuuid(gameName, tagLine);
             if (puuid == null) {
-                return DuplicateCheckRes.builder()
-                        .isDuplicate(true) // Treat as not available
-                        .message("존재하지 않는 Riot ID입니다.")
-                        .build();
+                return kr.draftgo.Draft_Go_BE.member.dto.RiotIdCheckRes.unavailable("존재하지 않는 Riot ID입니다.");
             }
-            return DuplicateCheckRes.available("Riot ID");
+            return kr.draftgo.Draft_Go_BE.member.dto.RiotIdCheckRes.available();
         } catch (Exception e) {
             log.warn("Failed to check Riot ID: {}#{} - {}", gameName, tagLine, e.getMessage());
-            return DuplicateCheckRes.builder()
-                    .isDuplicate(true) // Treat as not available
-                    .message("존재하지 않는 계정이거나 라이엇 API 오류입니다.")
-                    .build();
+            return kr.draftgo.Draft_Go_BE.member.dto.RiotIdCheckRes.unavailable("존재하지 않는 계정이거나 라이엇 API 오류입니다.");
         }
     }
 

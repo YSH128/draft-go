@@ -65,10 +65,10 @@ public class MemberController {
 
     @Operation(summary = "Riot ID 실존 확인", description = "Riot API를 통해 해당 계정이 실존하는지 확인합니다.")
     @GetMapping("/check/riot-id")
-    public ResponseEntity<DuplicateCheckRes> checkRiotId(
+    public ResponseEntity<kr.draftgo.Draft_Go_BE.member.dto.RiotIdCheckRes> checkRiotId(
             @RequestParam String gameName,
             @RequestParam String tagLine) {
-        DuplicateCheckRes response = memberService.checkRiotId(gameName, tagLine);
+        kr.draftgo.Draft_Go_BE.member.dto.RiotIdCheckRes response = memberService.checkRiotId(gameName, tagLine);
         return ResponseEntity.ok(response);
     }
 }
