@@ -10,7 +10,8 @@ const sizes = {
 
 export default function Avatar({ src, alt, size = "md", tier = "default", className = '' }) {
   const baseStyle = "rounded-full bg-cover bg-center shrink-0 bg-card-bg relative";
-  const tierLower = tier.toLowerCase();
+  const effectiveTier = tier || "default";
+  const tierLower = effectiveTier.split(' ')[0].toLowerCase();
   
   // 기본 스타일 (테두리 없음/기본)
   let borderStyle = {};
@@ -20,9 +21,12 @@ export default function Avatar({ src, alt, size = "md", tier = "default", classN
       // 챌린저/그마/마스터 등 상위 티어는 글로우 효과 추가
       const isHighTier = ['challenger', 'grandmaster', 'master'].includes(tierLower);
       
+      // 챌린저는 아바타 테두리를 일렉트릭 블루로 (노란 배경과 대비)
+      const borderColor = tierLower === 'challenger' ? '#1597E5' : colorVar;
+      
       borderStyle = {
-          border: `2px solid ${colorVar}`,
-          boxShadow: isHighTier ? `0 0 10px ${colorVar}` : 'none'
+          border: `2px solid ${borderColor}`,
+          boxShadow: isHighTier ? `0 0 10px ${borderColor}` : 'none'
       };
   } else {
       borderStyle = { border: '1px solid rgba(255,255,255,0.1)' };

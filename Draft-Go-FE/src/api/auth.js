@@ -32,7 +32,7 @@ export const checkSummonerDuplicate = async (gameName, tagLine) => {
   return response.data;
 };
 
-// 5. 내 프로필 조회 API
+// 5. 내 정보 조회 API
 export const getMyProfile = async () => {
   const response = await instance.get("/members/me");
   return response.data;
