@@ -42,13 +42,13 @@ public class DevDataInitializer {
             if (memberRepository.findByUsername("admin").isEmpty()) {
                 Member admin = Member.builder()
                         .username("admin")
-                        .password(passwordEncoder.encode("admin123"))
+                        .password(passwordEncoder.encode("admin1234"))
                         .gameName("AdminUser")
                         .tagLine("ADMIN")
                         .role(Role.ADMIN)
                         .build();
                 memberRepository.save(admin);
-                log.info("✓ 관리자 계정 생성: admin / admin123 (ADMIN)");
+                log.info("✓ 관리자 계정 생성: admin / admin1234 (ADMIN)");
             } else {
                 log.info("⊙ 관리자 계정 이미 존재 - 스킵");
             }
@@ -57,7 +57,7 @@ public class DevDataInitializer {
             if (memberRepository.findByUsername("user1").isEmpty()) {
                 Member user1 = Member.builder()
                         .username("user1")
-                        .password(passwordEncoder.encode("user123"))
+                        .password(passwordEncoder.encode("user1234"))
                         .gameName("Player1")
                         .tagLine("KR1")
                         .mainPosition(Position.MID)
@@ -78,7 +78,7 @@ public class DevDataInitializer {
                         .lastedLosses(48)
                         .build();
                 memberStatRepository.save(stat1);
-                log.info("✓ 샘플 사용자1 생성: user1 / user123 (MID/BOT, 다이아2)");
+                log.info("✓ 샘플 사용자1 생성: user1 / user1234 (MID/BOT, 다이아2)");
             } else {
                 log.info("⊙ user1 이미 존재 - 스킵");
             }
@@ -87,7 +87,7 @@ public class DevDataInitializer {
             if (memberRepository.findByUsername("user2").isEmpty()) {
                 Member user2 = Member.builder()
                         .username("user2")
-                        .password(passwordEncoder.encode("user456"))
+                        .password(passwordEncoder.encode("user1234"))
                         .gameName("Player2")
                         .tagLine("KR2")
                         .mainPosition(Position.TOP)
@@ -108,7 +108,7 @@ public class DevDataInitializer {
                         .lastedLosses(34)
                         .build();
                 memberStatRepository.save(stat2);
-                log.info("✓ 샘플 사용자2 생성: user2 / user456 (TOP/정글, 플래1)");
+                log.info("✓ 샘플 사용자2 생성: user2 / user1234 (TOP/정글, 플래1)");
             } else {
                 log.info("⊙ user2 이미 존재 - 스킵");
             }
@@ -117,7 +117,7 @@ public class DevDataInitializer {
             if (memberRepository.findByUsername("user3").isEmpty()) {
                 Member user3 = Member.builder()
                         .username("user3")
-                        .password(passwordEncoder.encode("user789"))
+                        .password(passwordEncoder.encode("user1234"))
                         .gameName("Player3")
                         .tagLine("KR3")
                         .mainPosition(Position.BOT)
@@ -137,7 +137,7 @@ public class DevDataInitializer {
                         .lastedLosses(27)
                         .build();
                 memberStatRepository.save(stat3);
-                log.info("✓ 샘플 사용자3 생성: user3 / user789 (ADC, 골드2)");
+                log.info("✓ 샘플 사용자3 생성: user3 / user1234 (ADC, 골드2)");
             } else {
                 log.info("⊙ user3 이미 존재 - 스킵");
             }
@@ -171,7 +171,7 @@ public class DevDataInitializer {
 
                     Member testUser = Member.builder()
                             .username(username)
-                            .password(passwordEncoder.encode("test" + i + "123"))
+                            .password(passwordEncoder.encode("user1234"))
                             .gameName("TestPlayer" + i)
                             .tagLine("KR1")
                             .mainPosition(mainPos)
@@ -193,8 +193,8 @@ public class DevDataInitializer {
                             .build();
                     memberStatRepository.save(testStat);
 
-                    log.info("✓ 테스트 사용자{} 생성: {} / test{}123 ({}/{}, {} {})",
-                            i, username, i, mainPos, subPos, randomTier.getDisplayName(), randomDivision.getDisplayName());
+                    log.info("✓ 테스트 사용자{} 생성: {} / user1234 ({}/{}, {} {})",
+                            i, username, mainPos, subPos, randomTier.getDisplayName(), randomDivision.getDisplayName());
                 } else {
                     log.info("⊙ {} 이미 존재 - 스킵", username);
                 }
