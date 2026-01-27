@@ -10,19 +10,40 @@ export const instance = axios.create({
   withCredentials: true,
 });
 
-// 요청 인터셉터 추가: 토큰이 있으면 헤더에 자동 포함
+// 1. 요청 인터셉터 (토큰 주입)
 instance.interceptors.request.use(
   (config) => {
-    // localStorage에서 accessToken 가져오기 (Zustand persist middleware 사용 시)
-    const storage = localStorage.getItem("auth-storage");
-    const parsedStorage = storage ? JSON.parse(storage) : null;
-    const token = parsedStorage?.state?.accessToken;
-    
-    // 만약 만료된 토큰이거나 없다면 생략
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Zustand persist 형식에서 토큰 가져오기
+    const authStorage = localStorage.getItem("auth-storage");
+    if (authStorage) {
+      try {
+        const parsed = JSON.parse(authStorage);
+        const token = parsed?.state?.accessToken;
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (e) {
+        console.error("토큰 파싱 실패:", e);
+      }
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// 2. 응답 인터셉터 (세션 만료 처리)
+instance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      if (window.location.pathname !== "/login") {
+        alert("로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
+        localStorage.removeItem("auth-storage");
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  }
 );
