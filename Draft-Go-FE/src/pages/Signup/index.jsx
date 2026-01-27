@@ -7,7 +7,7 @@ import SectionDivider from "../../components/ui/SectionDivider";
 import TextLink, { FooterLinks } from "../../components/ui/TextLink";
 
 import useSignupForm from "../../hooks/useSignupForm";
-import { POSITIONS, TIERS, STANDARD_TIERS } from "../../constants/riot";
+import { POSITIONS, TIERS } from "../../constants/riot";
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -17,7 +17,6 @@ const SignupPage = () => {
   const [mainPosition, setMainPosition] = useState(null);
   const [subPosition, setSubPosition] = useState(null);
   const [tier, setTier] = useState("");
-  const [division, setDivision] = useState("4"); // Default division
 
   const {
     formData,
@@ -46,13 +45,6 @@ const SignupPage = () => {
     setIsLoading(true);
 
     try {
-      // API Schema Mapping
-      // Rank Transformation: Tier + Division (e.g., GOLD_4)
-      let rankValue = tier;
-      if (STANDARD_TIERS.includes(tier)) {
-        rankValue = `${tier}_${division}`;
-      }
-
       await signup({
         username: formData.username,
         password: formData.password,
@@ -60,7 +52,7 @@ const SignupPage = () => {
         tagLine: formData.tagLine.replace(/^#/, ""),
         mainPosition,
         subPosition,
-        rank: rankValue,
+        rank: tier,
         leaguePoint: 0,
       });
 
@@ -296,78 +288,30 @@ const SignupPage = () => {
             <label className="mb-1 block text-sm font-medium text-gray-400">
               티어
             </label>
-            <div className="flex gap-3">
-              <div
-                className={
-                  [
-                    "IRON",
-                    "BRONZE",
-                    "SILVER",
-                    "GOLD",
-                    "PLATINUM",
-                    "EMERALD",
-                    "DIAMOND",
-                  ].includes(tier)
-                    ? "flex-[2] relative"
-                    : "w-full relative"
-                }
+            <div className="relative">
+              <select
+                value={tier}
+                onChange={(e) => setTier(e.target.value)}
+                className="w-full appearance-none rounded border border-[#c8aa6e]/30 bg-gray-900/50 px-4 py-3 text-[#f0e6d2] placeholder-gray-500 focus:border-[#c8aa6e] focus:outline-none focus:ring-1 focus:ring-[#c8aa6e]"
               >
-                <select
-                  value={tier}
-                  onChange={(e) => setTier(e.target.value)}
-                  className="w-full appearance-none rounded border border-[#c8aa6e]/30 bg-gray-900/50 px-4 py-3 text-[#f0e6d2] placeholder-gray-500 focus:border-[#c8aa6e] focus:outline-none focus:ring-1 focus:ring-[#c8aa6e]"
-                >
-                  <option value="" disabled>
-                    티어 선택
+                <option value="" disabled>
+                  티어 선택
+                </option>
+                {TIERS.map((t) => (
+                  <option key={t.value} value={t.value} className="bg-gray-900">
+                    {t.label}
                   </option>
-                  {TIERS.map((t) => (
-                    <option key={t.value} value={t.value} className="bg-gray-900">
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-                  <svg
-                    className="h-4 w-4 fill-current"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                  </svg>
-                </div>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                <svg
+                  className="h-4 w-4 fill-current"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                </svg>
               </div>
-
-              {STANDARD_TIERS.includes(tier) && (
-                <div className="flex-1 relative">
-                  <select
-                    value={division}
-                    onChange={(e) => setDivision(e.target.value)}
-                    className="w-full appearance-none rounded border border-[#c8aa6e]/30 bg-gray-900/50 px-4 py-3 text-[#f0e6d2] placeholder-gray-500 focus:border-[#c8aa6e] focus:outline-none focus:ring-1 focus:ring-[#c8aa6e]"
-                  >
-                    <option value="1" className="bg-gray-900">
-                      1
-                    </option>
-                    <option value="2" className="bg-gray-900">
-                      2
-                    </option>
-                    <option value="3" className="bg-gray-900">
-                      3
-                    </option>
-                    <option value="4" className="bg-gray-900">
-                      4
-                    </option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-                    <svg
-                      className="h-4 w-4 fill-current"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                    </svg>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 

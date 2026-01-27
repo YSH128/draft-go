@@ -1,9 +1,9 @@
-// src/constants/routes.js
 export const ROUTES = {
   HOME: "/",
   LOGIN: "/login",
   SIGNUP: "/signup",
-  MY: "/my",
+  PROFILE: "/profile",
   DESIGN_PREVIEW: "/preview",
+  RESULT: "/result",
   DRAFT_LOBBY: "/draft-lobby/:draftId"
 };
