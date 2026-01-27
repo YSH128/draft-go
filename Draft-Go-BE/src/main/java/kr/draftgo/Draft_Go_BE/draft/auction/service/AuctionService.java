@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -72,41 +73,58 @@ public class AuctionService {
      */
     @Transactional
     public void processNextRound(Long draftId) {
-        draftMemberRepo.findNextWaiting(draftId).ifPresentOrElse(next -> {
-            // [추가] DB 상태 업데이트: WAITING -> BIDDING
-            next.bidding(); // Entity method to change status
-            draftMemberRepo.save(next);
+        // 1. WAITING 멤버 먼저 확인
+        Optional<DraftMember> nextWaiting = draftMemberRepo.findNextWaiting(draftId);
 
-            RoundStatus state = RoundStatus.start(draftId, next.getId(), next.getName());
-            redisRepo.setCurrent(draftId, state);
-            redisRepo.startTimer(draftId, 30);
-            publisher.newBidding(draftId, state);
+        if (nextWaiting.isPresent()) {
+            startAuctionForMember(draftId, nextWaiting.get());
+        } else {
+            // 2. WAITING이 없으면 SKIPPED 멤버 확인
+            Optional<DraftMember> nextSkipped = draftMemberRepo.findNextSkipped(draftId);
 
-            // 채팅 시스템 메시지 - 경매 시작
-            chatWebSocketController.sendSystemMessage(draftId,
-                "🎯 현재 선수: " + next.getName());
-        }, () -> {
-            log.info("No more members to draft. Auction finished for draftId: {}", draftId);
-
-            // [최적화] 경매 종료 시 Redis에 있는 최종 팀 포인트를 DB에 일괄 반영
-            List<Team> teams = teamRepo.findAllByDraftId(draftId);
-            for (Team team : teams) {
-                Integer finalPoint = redisRepo.getTeamPoint(draftId, team.getId());
-                if (finalPoint != null) {
-                    // Team 엔티티에 point 필드에 대한 setter나 update 메서드가 필요함.
-                    // 현재는 빌더 패턴만 보이므로, setter가 없다면 엔티티 수정 필요 가능성 있음.
-                    // 우선 간단히 setter가 있다고 가정하거나, 리플렉션 없이 처리하려면 도메인 메서드 추가 권장.
-                    // 여기서는 도메인 주도 설계를 위해 updatePoint 메서드를 가정하고 호출.
-                    // 만약 없다면 Team 엔티티에 추가해야 함.
-                    team.updatePoint(finalPoint);
-                }
+            if (nextSkipped.isPresent()) {
+                log.info("All WAITING members processed. Starting SKIPPED queue for draftId: {}", draftId);
+                chatWebSocketController.sendSystemMessage(draftId,
+                    "⚠️ 유찰된 선수들을 다시 경매합니다!");
+                startAuctionForMember(draftId, nextSkipped.get());
+            } else {
+                // 3. WAITING도 SKIPPED도 없으면 경매 종료
+                finishAuction(draftId);
             }
-            teamRepo.saveAll(teams);
-            log.info("Final team points synchronized to DB for draftId: {}", draftId);
+        }
+    }
 
-            // 채팅 시스템 메시지 - 경매 종료
-            chatWebSocketController.sendSystemMessage(draftId, "🎉 모든 경매가 종료되었습니다!");
-        });
+    private void startAuctionForMember(Long draftId, DraftMember next) {
+        // DB 상태 업데이트: WAITING/SKIPPED -> BIDDING
+        next.bidding();
+        draftMemberRepo.save(next);
+
+        RoundStatus state = RoundStatus.start(draftId, next.getId(), next.getName());
+        redisRepo.setCurrent(draftId, state);
+        redisRepo.startTimer(draftId, 30);
+        publisher.newBidding(draftId, state);
+
+        // 채팅 시스템 메시지 - 경매 시작
+        chatWebSocketController.sendSystemMessage(draftId,
+            "🎯 현재 선수: " + next.getName());
+    }
+
+    private void finishAuction(Long draftId) {
+        log.info("No more members to draft. Auction finished for draftId: {}", draftId);
+
+        // [최적화] 경매 종료 시 Redis에 있는 최종 팀 포인트를 DB에 일괄 반영
+        List<Team> teams = teamRepo.findAllByDraftId(draftId);
+        for (Team team : teams) {
+            Integer finalPoint = redisRepo.getTeamPoint(draftId, team.getId());
+            if (finalPoint != null) {
+                team.updatePoint(finalPoint);
+            }
+        }
+        teamRepo.saveAll(teams);
+        log.info("Final team points synchronized to DB for draftId: {}", draftId);
+
+        // 채팅 시스템 메시지 - 경매 종료
+        chatWebSocketController.sendSystemMessage(draftId, "🎉 모든 경매가 종료되었습니다!");
     }
 
     public AuctionStatusResponse getCurrentState(Long draftId) {

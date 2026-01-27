@@ -54,7 +54,9 @@ public class RoundTerminateService {
 
             draftMemberRepo.complete(state.getDraftMemberId());
         } else {
+            // 유찰 시 SKIPPED 상태로 변경하고 turnOrder를 맨 뒤로 이동
             draftMemberRepo.skip(state.getDraftMemberId());
+            draftMemberRepo.moveToBack(state.getDraftMemberId());
         }
 
         redisRepo.clear(draftId);
