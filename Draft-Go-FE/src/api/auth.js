@@ -2,7 +2,7 @@ import { instance } from "../libs/axios";
 
 // 1. 회원가입 API
 export const signup = async (userData) => {
-  // username, password, gameName, tagLine 필요
+  // username, password, gameName, tagLine, mainPosition, subPosition 필요
   const response = await instance.post("/members/signup", userData);
   return response.data;
 };
@@ -24,9 +24,10 @@ export const checkUsernameDuplicate = async (username) => {
   return response.data;
 };
 
-// 4. 소환사 중복 확인 API
-export const checkSummonerDuplicate = async (gameName, tagLine) => {
-  const response = await instance.get(`/members/check/summoner`, {
+// 4. 소환사 실존 여부 검증 (Riot API)
+export const verifySummoner = async (gameName, tagLine) => {
+  // GET /api/v1/members/check/riot-id?gameName=...&tagLine=...
+  const response = await instance.get(`/members/check/riot-id`, {
     params: { gameName, tagLine },
   });
   return response.data;

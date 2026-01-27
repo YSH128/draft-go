@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { checkUsernameDuplicate, checkSummonerDuplicate } from "../api/auth";
+import { checkUsernameDuplicate, verifySummoner } from "../api/auth";
 
 // 정규식을 상수로 분리하여 매 렌더링마다 재생성되는 것을 방지
 const REGEX = {
@@ -50,7 +50,8 @@ const useSignupForm = () => {
 
   const [duplicateCheck, setDuplicateCheck] = useState({
     username: { checking: false, isDuplicate: null },
-    gameNameTagLine: { checking: false, isDuplicate: null },
+    // gameNameTagLine repurposed for verification status
+    summoner: { checking: false, isVerified: false, error: "" },
   });
 
   // 비밀번호 검증 (통합)
@@ -60,36 +61,56 @@ const useSignupForm = () => {
     [formData.password]
   );
 
-  // ===== API: 중복 체크 =====
-  const checkDuplicate = useCallback(async (field, value, extraValue = null) => {
-    const checkKey = field === "gameNameTagLine" ? "gameNameTagLine" : field;
-
+  // ===== API: 중복 체크 & 검증 =====
+  const checkUsername = useCallback(async (username) => {
     setDuplicateCheck((prev) => ({
       ...prev,
-      [checkKey]: { checking: true, isDuplicate: null },
+      username: { checking: true, isDuplicate: null },
     }));
 
     let isDuplicate = false;
-
     try {
-      if (field === "username") {
-        const response = await checkUsernameDuplicate(value);
-        isDuplicate = response.duplicate;
-      } else if (field === "gameNameTagLine") {
-         const response = await checkSummonerDuplicate(value, extraValue);
-         isDuplicate = response.duplicate;
-      }
+      const response = await checkUsernameDuplicate(username);
+      isDuplicate = response.duplicate;
     } catch (error) {
       console.error(error);
-      // 에러 발생 시 처리 (여기선 일단 넘어감)
     }
 
     setDuplicateCheck((prev) => ({
       ...prev,
-      [checkKey]: { checking: false, isDuplicate },
+      username: { checking: false, isDuplicate },
+    }));
+  }, []);
+
+  const checkSummoner = useCallback(async (gameName, tagLine) => {
+    setDuplicateCheck((prev) => ({
+      ...prev,
+      summoner: { checking: true, isVerified: false, error: "" },
     }));
 
-    return isDuplicate;
+    let isVerified = false;
+    let errorMsg = "";
+
+    try {
+       const data = await verifySummoner(gameName, tagLine);
+       console.log("Response:", data); 
+
+       if (data && data.exists === true) {
+         isVerified = true;
+       } else {
+         isVerified = false;
+         errorMsg = "존재하지 않는 소환사입니다.";
+       }
+    } catch (error) {
+      console.error(error);
+      isVerified = false;
+      errorMsg = "소환사를 찾을 수 없습니다.";
+    }
+
+    setDuplicateCheck((prev) => ({
+      ...prev,
+      summoner: { checking: false, isVerified, error: errorMsg },
+    }));
   }, []);
 
   // ===== Validation: 아이디 =====
@@ -151,17 +172,23 @@ const useSignupForm = () => {
     if (!REGEX.TAG_LINE.test(tagValue)) {
       return { isValid: false, error: "한글/영문/숫자만", shouldCheck: false };
     }
+    
+    // 만약 소환사명 형식이 틀렸으면 태그도 유효X (체크 안함)
     if (!gameNameValidation.isValid) {
       return { isValid: false, error: "", shouldCheck: false };
     }
-    if (duplicateCheck.gameNameTagLine.isDuplicate) {
-      return { isValid: false, error: "", shouldCheck: false };
+    
+    // 검증 결과 확인
+    if (duplicateCheck.summoner.error) {
+       return { isValid: false, error: duplicateCheck.summoner.error, shouldCheck: false };
     }
-    if (duplicateCheck.gameNameTagLine.checking) {
-      return { isValid: false, error: "", shouldCheck: false };
+    if (!duplicateCheck.summoner.isVerified && !duplicateCheck.summoner.checking) {
+       // 입력은 완료됐으나 아직 검증 안 됨 (or 검증 전)
+       return { isValid: false, error: "", shouldCheck: false };
     }
+     
     return { isValid: true, error: "", shouldCheck: false };
-  }, [formData.tagLine, duplicateCheck.gameNameTagLine, gameNameValidation.isValid]);
+  }, [formData.tagLine, duplicateCheck.summoner, gameNameValidation.isValid]);
 
   // ===== 통합 에러/유효성 상태 =====
   const errors = {
@@ -176,23 +203,24 @@ const useSignupForm = () => {
     username: usernameValidation.isValid,
     password: passwordResult.isValid,
     passwordConfirm: passwordConfirmValidation.isValid,
-    gameName: gameNameValidation.isValid,
-    tagLine: tagLineValidation.isValid,
+    gameName: gameNameValidation.isValid && duplicateCheck.summoner.isVerified,
+    tagLine: tagLineValidation.isValid && duplicateCheck.summoner.isVerified,
   };
 
   const loadingFields = {
     username: duplicateCheck.username.checking,
-    tagLine: duplicateCheck.gameNameTagLine.checking,
-    gameName: duplicateCheck.gameNameTagLine.checking,
+    tagLine: duplicateCheck.summoner.checking,
+    gameName: duplicateCheck.summoner.checking,
   };
 
   const duplicateErrors = {
     username: duplicateCheck.username.isDuplicate === true,
-    tagLine: duplicateCheck.gameNameTagLine.isDuplicate === true,
+    // TagLine error acts as the general summoner error
+    tagLine: !!duplicateCheck.summoner.error,
   };
 
   const isUsernameChecked = duplicateCheck.username.isDuplicate !== null;
-  const isSummonerChecked = duplicateCheck.gameNameTagLine.isDuplicate !== null;
+  const isSummonerVerified = duplicateCheck.summoner.isVerified;
 
   // ===== Handlers =====
   const handleUsernameChange = (e) => {
@@ -219,9 +247,10 @@ const useSignupForm = () => {
   const handleGameNameChange = (e) => {
     const value = e.target.value.replace(REGEX.GAME_NAME_FILTER, "");
     setFormData((prev) => ({ ...prev, gameName: value }));
+    // 입력 변경 시 검증 초기화
     setDuplicateCheck((prev) => ({
       ...prev,
-      gameNameTagLine: { checking: false, isDuplicate: null },
+      summoner: { checking: false, isVerified: false, error: "" },
     }));
   };
 
@@ -231,18 +260,18 @@ const useSignupForm = () => {
     const value = tagContent.length > 0 ? "#" + tagContent : "";
 
     setFormData((prev) => ({ ...prev, tagLine: value }));
+    // 입력 변경 시 검증 초기화
     setDuplicateCheck((prev) => ({
       ...prev,
-      gameNameTagLine: { checking: false, isDuplicate: null },
+      summoner: { checking: false, isVerified: false, error: "" },
     }));
   };
 
-  const handleCheckDuplicate = async () => {
-    if (!formData.username || !REGEX.USERNAME.test(formData.username)) {
-      alert("아이디를 올바르게 입력해주세요.");
-      return;
+  const handleUsernameBlur = async () => {
+    // 유효한 형식일 때만 중복 체크 수행 (Alert 제거)
+    if (formData.username && REGEX.USERNAME.test(formData.username)) {
+      await checkUsername(formData.username);
     }
-    await checkDuplicate("username", formData.username);
   };
 
   const handleSummonerBlur = async () => {
@@ -250,10 +279,13 @@ const useSignupForm = () => {
     const tagValue = tagLine.replace(/^#/, "");
 
     // 두 필드 값이 모두 있고, 포맷 검사를 통과했을 때만 호출
-    if (gameName && tagValue && gameNameValidation.isValid && tagLineValidation.isValid) {
-      // 이미 체크 중이거나 이미 체크했는데 값이 안 변했다면 패스? (값 변화는 handleChange에서 초기화됨)
-      // 그냥 호출
-      await checkDuplicate("gameNameTagLine", gameName, tagValue);
+    // Note: use local validation checks because state might not update fast enough if relying on validFields
+    const isGameNameValid = gameName.length >= 2 && gameName.length <= 16 && REGEX.GAME_NAME.test(gameName);
+    const isTagValid = tagValue.length >= 3 && tagValue.length <= 5 && REGEX.TAG_LINE.test(tagValue);
+
+    if (gameName && tagValue && isGameNameValid && isTagValid) {
+       // Call verify
+       await checkSummoner(gameName, tagValue);
     }
   };
 
@@ -264,13 +296,13 @@ const useSignupForm = () => {
     loadingFields,
     duplicateErrors,
     isUsernameChecked,
-    isSummonerChecked,
+    isSummonerVerified,
     handleUsernameChange,
     handlePasswordChange,
     handlePasswordConfirmChange,
     handleGameNameChange,
     handleTagLineChange,
-    handleCheckDuplicate,
+    handleUsernameBlur,
     handleSummonerBlur,
   };
 };
