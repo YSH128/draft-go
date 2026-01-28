@@ -5,10 +5,11 @@ import PositionIcon from "../ui/PositionIcon";
 export default function TeamLeaderCard({
   captainName = "Hide on bush",
   tier = "challenger",
+  division = null,
   points = 1000,
-  // mainRole = "MID", // 린트 에러 방지를 위해 주석 처리
+
   teamNumber = 1,
-  // 추가된 Props
+
   isAdmin = false,
   isCurrentUser = false,
   isReady = false,
@@ -21,8 +22,8 @@ export default function TeamLeaderCard({
   onKick = null, // 퇴장 버튼 클릭 (ADMIN only)
 }) {
   const resolvedTier = tier || "challenger";
-  const tierLower = resolvedTier.split(" ")[0].toLowerCase();
-  // CSS 변수 사용
+  const tierLower = resolvedTier.toLowerCase();
+
   const tierColor = `var(--color-tier-${tierLower}-bg)`;
   const tierBadgeText = `var(--color-tier-${tierLower}-badge-text)`;
 
@@ -85,7 +86,7 @@ export default function TeamLeaderCard({
             color: tierBadgeText,
           }}
         >
-          {resolvedTier}
+          {resolvedTier} {division}
         </span>
       </div>
 

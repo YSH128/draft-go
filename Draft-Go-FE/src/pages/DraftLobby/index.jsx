@@ -15,7 +15,7 @@ import TeamLeaderSettingsModal from "../../components/ui/TeamLeaderSettingsModal
 import ParticipantProfileModal from "../../components/ui/ParticipantProfileModal";
 import KickConfirmModal from "../../components/ui/KickConfirmModal";
 import Badge from "../../components/ui/Badge";
-import useAuthStore from "../../stores/useAuthStore"; // Auth Store Import
+import useAuthStore from "../../stores/useAuthStore";
 
 // 포지션 매핑 함수 (API ↔ UI 변환)
 const mapPositionToAPI = (position) => {
@@ -31,17 +31,16 @@ const mapPositionToUI = (position) => {
 
 
 
-// DUMMY DATA REMOVED
 
 export default function DraftLobby() {
-  const { user } = useAuthStore(); // Current User
+  const { user } = useAuthStore(); // 현재 유저
   const { draftId } = useParams(); 
   const navigate = useNavigate();
   
-  // States
-  const [userRole, setUserRole] = useState("MEMBER"); // Default to MEMBER, updated by API
+
+  const [userRole, setUserRole] = useState("MEMBER");
   const [isHost, setIsHost] = useState(false); 
-  const [data, setData] = useState(null); // Keep full data for edit modal
+  const [data, setData] = useState(null);
 
   const [lobbyTitle, setLobbyTitle] = useState("Lobby Loading...");
   const [isEditDraftModalOpen, setIsEditDraftModalOpen] = useState(false);
@@ -58,10 +57,10 @@ export default function DraftLobby() {
       TOP: [], JNG: [], MID: [], ADC: [], SUP: [], SPECTATOR: []
   });
   
-  // TODO: 채팅 API 연동 전까지 빈 배열
+
   const [messages, setMessages] = useState([]);
 
-  // Auto-scroll for chat
+
   const chatContainerRef = useRef(null);
   const refreshedProfilesRef = useRef(JSON.parse(sessionStorage.getItem('refreshedProfiles') || '{}')); // Cache from Session Storage
 
@@ -77,7 +76,7 @@ export default function DraftLobby() {
     scrollToBottom();
   }, [messages]);
 
-  // --- API Integration ---
+
   
 
 
@@ -87,16 +86,16 @@ export default function DraftLobby() {
 
           const [data, draftList] = await Promise.all([
               DraftApi.getDraftLobby(targetId),
-              DraftApi.getDraftList() // Fetch list to get config details if missing in lobby
+              DraftApi.getDraftList()
           ]);
           
           console.log("Lobby Data:", data);
           console.log("Draft List:", draftList);
           
-          // Merge config from draftList if available
+ 
           let mergedData = { ...data };
           
-          // Handle various list response structures
+
           let validList = [];
           if (Array.isArray(draftList)) validList = draftList;
           else if (Array.isArray(draftList?.data)) validList = draftList.data;
@@ -119,12 +118,12 @@ export default function DraftLobby() {
               }
           }
           
-          // [Fallback] If startPoint is still missing, try to infere from existing captains
+
           if (mergedData.startPoint === undefined && mergedData.leaders && mergedData.leaders.length > 0) {
                mergedData.startPoint = mergedData.leaders[0].leaderPoint || 1000;
           }
 
-          setData(mergedData); // Save full data for edit modal
+          setData(mergedData);
           console.log("[DraftLobby] MERGED DATA:", JSON.stringify(mergedData, null, 2));
 
           if (!mergedData) return;
@@ -135,48 +134,44 @@ export default function DraftLobby() {
               setCodes(mergedData.codes);
           }
 
-          // Transform Leaders -> Captains UI Model
+
           const leaders = Array.isArray(data.leaders) ? data.leaders : [];
           
-          // Check My Role - ID 타입 일관성 확보
-          const myId = user?.id; // ID는 number로 통일
+
+          const myId = user?.id;
           if (!myId) {
               console.warn('[DraftLobby] User ID not found in AuthStore');
           }
           
           
-          // API Response Check: ownerId might be hostId or similar
-          // [Refactor] "codes" 정보가 존재하면 관리자 권한이 있는 것으로 간주 (Backend Logic: 코드는 관리자에게만 반환됨)
+
           const hasAdminCodes = data.codes && (data.codes.teamLeaderCode || data.codes.teamMemberCode);
           
-          // ownerId가 명시적으로 있으면 그것도 체크, 없으면 codes 존재 여부로 판단
+
           const ownerIdValue = data.ownerId || data.hostId || data.masterId; 
           const isExplicitOwner = ownerIdValue && Number(ownerIdValue) === Number(myId);
           
           const isOwner = isExplicitOwner || !!hasAdminCodes;
           setIsHost(isOwner);
 
-          // Update User Role based on list presence (Participation Role)
+
           let myRole = "MEMBER";
           
-          // Check if I am a captain
+
           if (leaders.some(l => Number(l.id) === Number(myId))) {
               myRole = "CAPTAIN";
           }
-          // Check if I am a member (crew)
+
           const membersList = Array.isArray(data.members) ? data.members : [];
           if (membersList.some(m => Number(m.id) === Number(myId))) {
               myRole = "CREW";
           }
-          // Check if I am a spectator
+
           if (data.observers && data.observers.some(o => Number(o.id) === Number(myId))) {
               myRole = "SPECTATOR";
           }
 
-          // [Refactor] Admin 권한은 'isHost' 상태로 관리하되, userRole은 참가 상태를 유지함.
-          // 단, 현재 UI에서 'ADMIN' 뱃지가 필요하다면 별도 처리가 필요할 수 있으나,
-          // 사용자 요구사항("관리자이면서 팀장 가능")에 따라 userRole은 포지션을 우선함.
-          // 만약 아무 역할도 없다면(MEMBER), 그리고 관리자라면 -> 그때 ADMIN 표시?
+
           if (myRole === "MEMBER" && isOwner) {
               myRole = "ADMIN";
           }
@@ -191,6 +186,7 @@ export default function DraftLobby() {
                   id: leader.id,
                   name: leader.name,
                   tier: leader.tier,
+                  division: leader.division, 
                   teamNumber: index + 1,
                   image: leader.profileIcon || "", 
                   ready: leader.isReady,
@@ -198,8 +194,8 @@ export default function DraftLobby() {
                   isSelf: Number(leader.id) === Number(myId),
                   points: leader.leaderPoint || mergedData.startPoint || 1000,
                   loading: false,
-                  role: 'MID', // Default
-                  // Pass full profile data
+                  role: 'MID',
+
                   mainPosition: leader.mainPosition,
                   subPosition: leader.subPosition,
                   mostChampions: leader.mostChampions,
@@ -213,7 +209,7 @@ export default function DraftLobby() {
                   lastUpdated: leader.updatedAt || leader.lastUpdated // 전적 갱신 쿨타임 계산용
               };
 
-              // Merge with cached refreshed data if available
+
               const cached = refreshedProfilesRef.current[leader.memberId] || refreshedProfilesRef.current[leader.id];
               if (cached) {
                   return { ...baseData, ...cached };
@@ -222,7 +218,7 @@ export default function DraftLobby() {
           });
           setCaptains(mappedCaptains);
 
-          // Transform Members -> DraftPool UI Model
+
           const newPool = { TOP: [], JNG: [], MID: [], ADC: [], SUP: [], SPECTATOR: [] };
           
           const members = Array.isArray(data.members) ? data.members : [];
@@ -233,6 +229,7 @@ export default function DraftLobby() {
                       id: member.id,
                       name: member.name,
                       tier: member.tier,
+                      division: member.division, 
                       color: getTierTextClass(member.tier),
                       lp: member.leaguePoints,
                       isSelf: Number(member.id) === Number(myId),
@@ -250,7 +247,7 @@ export default function DraftLobby() {
                       lastUpdated: member.updatedAt || member.lastUpdated
                   };
 
-                  // Merge with cache
+
                   const cached = refreshedProfilesRef.current[member.memberId] || refreshedProfilesRef.current[member.id];
                   if (cached) {
                       memberData = { ...memberData, ...cached };
@@ -260,7 +257,7 @@ export default function DraftLobby() {
               }
           });
           
-          // Observers
+
           if (data.observers) {
               newPool.SPECTATOR = data.observers.map(obs => {
                   let obsData = {
@@ -269,7 +266,7 @@ export default function DraftLobby() {
                       tier: "Obs",
                       color: "text-gray-500",
                       isSelf: Number(obs.id) === Number(myId),
-                      // Profile Data
+ 
                       mainPosition: obs.mainPosition,
                       subPosition: obs.subPosition,
                       mostChampions: obs.mostChampions,
@@ -282,7 +279,7 @@ export default function DraftLobby() {
                       lastUpdated: obs.updatedAt || obs.lastUpdated
                   };
 
-                   // Merge with cache
+
                   const cached = refreshedProfilesRef.current[obs.memberId] || refreshedProfilesRef.current[obs.id];
                   if (cached) {
                       obsData = { ...obsData, ...cached };
@@ -305,7 +302,7 @@ export default function DraftLobby() {
      // Polling (5초마다 갱신) - 소켓 연동 전까지 임시
      const interval = setInterval(fetchLobbyData, 5000);
      return () => clearInterval(interval);
-     // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [draftId, user?.id]);
 
   // Handle Refresh Code
@@ -328,16 +325,14 @@ export default function DraftLobby() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [selectedSettingsCaptain, setSelectedSettingsCaptain] = useState(null);
   
-  // Kick Feature
+
   const [isKickModalOpen, setIsKickModalOpen] = useState(false);
-  const [kickTarget, setKickTarget] = useState(null); // { type: 'CAPTAIN' | 'POOL', id: number | string, name: string, dropId: string (optional) }
+  const [kickTarget, setKickTarget] = useState(null);
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState(null);
 
-  // Initial Load (handled by fetchLobbyData)
 
-  // Handlers
   const handleKickClick = (target, isSelf = false) => {
     setKickTarget({ ...target, isSelf });
     setIsKickModalOpen(true);
@@ -373,14 +368,13 @@ export default function DraftLobby() {
     }
   };
 
-  // Derived State: Captains + Pool (Excluding Spectators)
+
   const totalParticipants = captains.filter(c => c.name).length + 
     Object.entries(draftPool).reduce((acc, [role, players]) => role === 'SPECTATOR' ? acc : acc + players.length, 0);
 
-  // Captain Interaction Handlers
-  // Captain Interaction Handlers
+
   const handleRoleSelect = async (captainId, role) => {
-    // Optimistic UI Update
+
     setCaptains(prev => prev.map(c => 
       c.id === captainId ? { ...c, selectedRole: role } : c
     ));
@@ -391,11 +385,11 @@ export default function DraftLobby() {
             targetUserId: captainId,
             position: mapPositionToAPI(role) // 포지션 매핑 적용
         });
-        await fetchLobbyData(); // Sync with server
+        await fetchLobbyData();
     } catch (e) {
         console.error("Failed to change position:", e);
         alert("포지션 변경에 실패했습니다.");
-        fetchLobbyData(); // Revert on failure
+        fetchLobbyData();
     }
   };
 
@@ -403,7 +397,7 @@ export default function DraftLobby() {
     try {
         const targetId = draftId || 1;
         const captain = captains.find(c => c.id === captainId);
-        // Toggle Logic
+
         await DraftApi.toggleReady(targetId, !captain.ready);
         fetchLobbyData();
     } catch (e) {
@@ -419,10 +413,9 @@ export default function DraftLobby() {
 
   const handleOpenProfile = (participant) => {
     console.log('handleOpenProfile called:', participant, 'userRole:', userRole);
-    // Confirm profile view (Anyone can view?) - Usually anyone can view anyone.
-    // Simplifying restriction: all can view.
+
       const profileData = {
-        summonerName: participant.name, // or gameName
+        summonerName: participant.name,
         gameName: participant.gameName || participant.name,
         tagLine: participant.tagLine,
         profileIconUrl: participant.image || "",
@@ -451,11 +444,55 @@ export default function DraftLobby() {
 
     try {
         await DraftApi.refreshMemberData(targetId);
-        alert('전적 갱신이 완료되었습니다.');
         
         // 1. 특정 멤버의 최신 상세 정보 가져오기 (Direct Fetch)
         const memberProfile = await DraftApi.getMemberProfile(targetId);
         
+        // 2. 최근 20게임 히스토리 가져오기 (전적 갱신 후 호출해야 정확함)
+        const historyResponse = await DraftApi.getMatchHistory(targetId, 0, 20);
+        const history = Array.isArray(historyResponse) ? historyResponse : (historyResponse.content || []); // Pageable 대응
+
+        // 최근 20게임 승/패 계산
+        let recentWins = 0;
+        let recentLosses = 0;
+        
+        // 타겟 유저 식별 정보
+        const targetGameName = memberProfile.gameName;
+        const targetTagLine = memberProfile.tagLine;
+        
+        console.log(`[Debug] Looking for stats: ${targetGameName} #${targetTagLine}`);
+
+        // Helper for strings
+        const normalize = (str) => str ? str.toLowerCase().replace(/\s/g, '') : '';
+        const targetNameNorm = normalize(targetGameName);
+        const targetTagNorm = normalize(targetTagLine);
+
+        // API가 20개를 주겠지만 확실하게 slice
+        history.slice(0, 20).forEach((match, idx) => {
+            if (!match.participants) return;
+
+            // 내 정보 찾기 (gameName 혹은 summonerName)
+            const myParticipant = match.participants.find(p => {
+                const pName = p.gameName || p.summonerName; // API 필드명 대응
+                const pTag = p.tagLine;
+                
+                // 태그라인이 없으면 닉네임만 비교 (API 상황에 따라 유연하게)
+                const nameMatch = normalize(pName) === targetNameNorm;
+                const tagMatch = pTag ? normalize(pTag) === targetTagNorm : true; 
+                
+                return nameMatch && tagMatch;
+            });
+
+            if (myParticipant) {
+                 const isWin = myParticipant.win === true || myParticipant.win === 'true';
+                 if (isWin) recentWins++;
+                 else recentLosses++;
+            } else if (idx === 0) {
+                 console.log('[Debug] First Match Participants:', match.participants);
+                 console.log('[Debug] Failed to match with:', targetNameNorm, targetTagNorm);
+            }
+        });
+
         if (memberProfile) {
              const stats = memberProfile.stats || {};
              
@@ -466,15 +503,16 @@ export default function DraftLobby() {
                 profileIconUrl: memberProfile.profileIconUrl || "",
                 
                 // Stats는 stats 객체 안에 있음
-                tier: stats.rank || "Unranked",
+                tier: stats.tier || "Unranked",
+                division: stats.division,
                 lp: stats.leaguePoints || 0,
-                level: memberProfile.summonerLevel || 0, // Top level or inside stats? JSON shows only stats.rank... wait, provided JSON didn't show level in stats, check top level. 'updatedAt' is top. 'puuid' is top.
-                // User JSON doesn't show summonerLevel in top level or stats. Assuming it might be top level or missing. defaulting to 0.
+                level: memberProfile.summonerLevel || 0,
                 
                 winRate: stats.winRate || 0,
+                // [Fix] recent20은 히스토리에서 직접 계산한 값 사용
                 recent20: { 
-                    wins: stats.wins || 0, 
-                    losses: stats.losses || 0 
+                    wins: recentWins, 
+                    losses: recentLosses 
                 },
                 
                 mostChampions: (memberProfile.mostChampions || []).map(c => ({
@@ -494,36 +532,29 @@ export default function DraftLobby() {
                 id: memberProfile.memberId || memberProfile.id // Prefer memberId as ID
              };
              setSelectedParticipant(newProfileData);
-        }
 
-        // 3. 로비 데이터도 백그라운드에서 갱신 (전체 UI 동기화)
-        // Note: 로비 API가 updatedAt을 반환하지 않을 수 있으므로, 방금 받은 상세 정보로 로컬 state를 강제 갱신하여 쿨타임 유지
-        await fetchLobbyData(); // await to ensure we overwrite *after* fetch if needed, or update *after* fetch.
-        
-        if (memberProfile) {
-            const stats = memberProfile.stats || {};
+             alert('전적 갱신이 완료되었습니다.');
+
+            // 3. 로비 데이터도 백그라운드에서 갱신 (전체 UI 동기화)
+            // fetchLobbyData(); // 전체 로비 갱신은 무거울 수 있으니 필요한 경우에만 혹은 그대로 유지.
+            // 로컬 캐시 업데이트로 쿨타임/데이터 반영
             const freshTime = memberProfile.updatedAt || memberProfile.lastUpdated || new Date().toISOString();
             
             // Map memberProfile back to Lobby Data Structure for persistence
             const freshData = {
                 lastUpdated: freshTime,
-                tier: stats.rank || "Unranked",
+                tier: stats.tier || "Unranked",
+                division: stats.division,
                 leaguePoints: stats.leaguePoints || 0,
-                lp: stats.leaguePoints || 0, // UI might use lp
+                lp: stats.leaguePoints || 0, 
                 winRate: stats.winRate || 0,
-                recentStats: { wins: stats.wins || 0, losses: stats.losses || 0 }, // Lobby uses recentStats
-                recent20: { wins: stats.wins || 0, losses: stats.losses || 0 }, // UI might use recent20
-                mostChampions: (memberProfile.mostChampions || []).map(c => ({
-                    name: c.championName,
-                    games: c.totalGames,
-                    winRate: c.winRate,
-                    kda: c.kda,
-                    imageUrl: c.imageUrl || `https://ddragon.leagueoflegends.com/cdn/14.16.1/img/champion/${c.championName}.png`
-                })),
+                recentStats: { wins: recentWins, losses: recentLosses }, // [Fix] Update with calculated stats
+                recent20: { wins: recentWins, losses: recentLosses },
+                mostChampions: newProfileData.mostChampions,
                 gameName: memberProfile.gameName,
                 tagLine: memberProfile.tagLine,
                 profileIcon: memberProfile.profileIconUrl || "",
-                image: memberProfile.profileIconUrl || "", // UI might use image
+                image: memberProfile.profileIconUrl || "",
                 mainPosition: memberProfile.mainPosition,
                 subPosition: memberProfile.subPosition
             };
@@ -581,17 +612,16 @@ export default function DraftLobby() {
 
   // --- 티어 및 단계별 점수 계산 로직 ---
   const TIER_ORDER = ["iron", "bronze", "silver", "gold", "platinum", "emerald", "diamond", "master", "grandmaster", "challenger"];
-  const DIV_MAP = { "i": 3, "ii": 2, "iii": 1, "iv": 0 };
-  const DIV_REVERSE = ["IV", "III", "II", "I"];
+  const DIV_MAP = { "I": 3, "II": 2, "III": 1, "IV": 0, "i": 3, "ii": 2, "iii": 1, "iv": 0 }; // Case insensitive map
+  const DIV_REVERSE = ["IV", "III", "II", "I"]; // 0->IV, 3->I
 
   // 티어 점수 계산 (각 티어당 4점 + 단계별 점수)
-  const getTierScore = (tierStr) => {
+  const getTierScore = (tierStr, divisionStr) => {
       if (!tierStr) return 0;
-      const parts = tierStr.toLowerCase().split(" ");
-      const tier = parts[0];
-      // 마스터 이상은 단계가 없는 경우 기본값 처리, 그 외에는 IV(0) 처리
-      // 보통 "Gold II" 형식으로 들어옴
-      const div = parts[1] || (TIER_ORDER.indexOf(tier) >= 7 ? "i" : "iv");
+      
+      const tier = tierStr.toLowerCase();
+      // division이 없으면 기본값 처리 (마스터 이상은 i, 그 외는 iv)
+      const div = divisionStr || (TIER_ORDER.indexOf(tier) >= 7 ? "I" : "IV");
       
       const tierIdx = TIER_ORDER.indexOf(tier);
       if (tierIdx === -1) return 0;
@@ -599,9 +629,8 @@ export default function DraftLobby() {
       let score = tierIdx * 4;
       
       // 마스터 티어 이상은 단계 구분 없이 처리
-      // 단순히 평균 티어를 보여주기 위함이므로 다이아몬드 상위로 취급
       if (tierIdx >= 7) {
-           return score; // Master=28, GM=32...
+           return score; 
       }
 
       score += (DIV_MAP[div] !== undefined ? DIV_MAP[div] : 0);
@@ -627,11 +656,11 @@ export default function DraftLobby() {
       
       // 마스터 미만은 티어와 단계(I~IV) 표시
       const divStr = DIV_REVERSE[divScore] || "IV";
-      const formatName = `${baseTierName} ${divStr}`;
       
       return { 
-          name: formatName,
-          baseTier: baseTierName, // For badge variations
+          name: baseTierName, // Just name
+          division: divStr,   // Division separate
+          baseTier: baseTierName, 
           color: getTierTextClass(tierName)
       };
   };
@@ -644,7 +673,7 @@ export default function DraftLobby() {
       
       participants.forEach(p => {
           if (p.tier && p.tier !== "Unranked") {
-             sum += getTierScore(p.tier);
+             sum += getTierScore(p.tier, p.division);
              count++;
           }
       });
@@ -657,7 +686,8 @@ export default function DraftLobby() {
 
   const getTierTextClass = (tier) => {
         if (!tier) return "text-[#bab29c]";
-        const tierLower = tier.split(" ")[0].toLowerCase();
+        // tier is just "DIAMOND", "GOLD" etc now
+        const tierLower = tier.toLowerCase();
         return TIER_TEXT_COLORS[tierLower] || `text-[var(--color-tier-${tierLower}-text)]`;
   };
 
@@ -1084,13 +1114,23 @@ export default function DraftLobby() {
 
                  {/* Right: Role Breakdown */}
                  <div className="flex-1 flex justify-around w-full">
-                    {['TOP', 'JNG', 'MID', 'ADC', 'SUP'].map(role => (
+                    {['TOP', 'JNG', 'MID', 'ADC', 'SUP'].map(role => {
+                        // Calculate Captain Count for this role
+                        const captainCount = captains.filter(c => c.selectedRole === role).length;
+                        
+                        return (
                         <div key={role} className="flex flex-col items-center text-center gap-1 group cursor-default">
                              <div className="text-[#bab29c] group-hover:text-primary transition-colors">
                                 <PositionIcon position={role} className="w-8 h-8" />
                              </div>
                              <p className="text-[#bab29c] text-[10px] font-bold uppercase tracking-widest group-hover:text-white transition-colors">{role}</p>
+                             
+                             {/* Count Display: Pool (+Captain) */}
+                             <p className="text-white font-bold leading-none">
                                 {draftPool[role]?.length || 0}
+                                {captainCount > 0 && <span className="text-primary text-xs ml-1">(+{captainCount})</span>}
+                             </p>
+
                              <p className="text-[#666] text-[10px] font-bold">
                                 {(() => {
                                     const avg = calculateAverageTier(draftPool[role] || []);
@@ -1098,7 +1138,7 @@ export default function DraftLobby() {
                                 })()}
                              </p>
                         </div>
-                    ))}
+                    )})}
                  </div>
               </section>
 

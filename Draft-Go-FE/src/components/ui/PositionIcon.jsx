@@ -16,9 +16,11 @@ export default function PositionIcon({ position, className = "", style = {} }) {
   const getIconSrc = () => {
     switch(position) {
       case 'TOP': return topIcon;
-      case 'JNG': return jngIcon;
+      case 'JNG': 
+      case 'JUNGLE': return jngIcon;
       case 'MID': return midIcon;
-      case 'ADC': return adcIcon;
+      case 'ADC': 
+      case 'BOT': return adcIcon;
       case 'SUP': return supIcon;
       default: return null;
     }

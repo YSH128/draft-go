@@ -151,6 +151,19 @@ export const getMemberProfile = async (memberId) => {
     return response.data;
 };
 
+/**
+ * 전적 히스토리 조회 (최근 20게임 등)
+ * @param {number|string} memberId 
+ * @param {number} page 
+ * @param {number} size 
+ */
+export const getMatchHistory = async (memberId, page = 0, size = 20) => {
+    const response = await api.get(`/matches/history/${memberId}`, {
+        params: { page, size }
+    });
+    return response.data;
+};
+
 // --------------- draft management ----------------------------------------------
 
 export const getAuctionState = async (draftId) => {
