@@ -4,6 +4,7 @@ export default function DraftMemberCard({
   playerName = "Top King",
   role = "TOP",
   tier = "DIAMOND",
+  division = null, 
   imageSrc = "https://ddragon.leagueoflegends.com/cdn/14.1.1/img/champion/Jayce.png", // 플레이스홀더 또는 props
 }) {
   return (
@@ -27,7 +28,7 @@ export default function DraftMemberCard({
 
         {/* 보조 정보 (포지션 / 티어) */}
         <p className="mt-0.5 text-xs font-bold text-[#c89b3c]/80">
-          {role} <span className="mx-1 opacity-50">/</span> {tier}
+          {role} <span className="mx-1 opacity-50">/</span> {tier} {division}
         </p>
       </div>
     </div>

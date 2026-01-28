@@ -11,7 +11,7 @@ const sizes = {
 export default function Avatar({ src, alt, size = "md", tier = "default", className = '' }) {
   const baseStyle = "rounded-full bg-cover bg-center shrink-0 bg-card-bg relative";
   const effectiveTier = tier || "default";
-  const tierLower = effectiveTier.split(' ')[0].toLowerCase();
+  const tierLower = effectiveTier.toLowerCase();
   
   // 기본 스타일 (테두리 없음/기본)
   let borderStyle = {};

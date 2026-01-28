@@ -2,6 +2,22 @@ import React, { useState, useEffect } from 'react';
 import Avatar from '../ui/Avatar';
 import PositionIcon from '../ui/PositionIcon';
 
+import bronze from '../../assets/tier/bronze.webp';
+import challenger from '../../assets/tier/challenger.webp';
+import diamond from '../../assets/tier/diamond.webp';
+import emerald from '../../assets/tier/emerald.webp';
+import gold from '../../assets/tier/gold.webp';
+import grandmaster from '../../assets/tier/grandmaster.webp';
+import iron from '../../assets/tier/iron.webp';
+import master from '../../assets/tier/master.webp';
+import platinum from '../../assets/tier/platinum.webp';
+import silver from '../../assets/tier/silver.webp';
+import unranked from '../../assets/tier/unranked.webp';
+
+const TIER_IMAGES = {
+  bronze, challenger, diamond, emerald, gold, grandmaster, iron, master, platinum, silver, unranked
+};
+
 export default function ParticipantProfileModal({ 
   isOpen, 
   onClose, 
@@ -11,38 +27,25 @@ export default function ParticipantProfileModal({
   const [refreshCooldown, setRefreshCooldown] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Dummy data for development (will be replaced by API data)
-  const defaultData = {
-    summonerName: "나",
-    profileIconUrl: "https://ddragon.leagueoflegends.com/cdn/14.16.1/img/profileicon/1.png",
-    tier: "Gold I",
-    lp: 0, 
-    level: 1, // 소환사 라이엇 레벨
-    winRate: 50, // 전체 승률
-    recent20: { wins: 10, losses: 10 }, // 최근 20게임
-    mostChampions: [], // 모스트 챔피언
-    mainPosition: null, // 주포지션
-    subPosition: null, // 부포지션
-    lastUpdated: null 
-  };
-
-  const data = participantData || defaultData;
+  
+  const data = participantData;
+ 
   
   // 소환사 라이엇 레벨
   // 소환사 라이엇 레벨
-  const tierStr = data.tier || "Unranked";
-  const tierName = tierStr.split(' ')[0];
-  const tierLower = tierName.toLowerCase();
+  const tierStr = data?.tier || "Unranked";
+  const tierLower = tierStr.toLowerCase();
 
-  // Cooldown Calculation Logic
-  const calculateRemainingTime = () => {
-    if (!data.lastUpdated) return 0;
+  // 전적 갱신 시간
+
+  const calculateRemainingTime = React.useCallback(() => {
+    if (!data?.lastUpdated) return 0;
     const lastUpdate = new Date(data.lastUpdated).getTime();
     const now = Date.now();
     const elapsed = (now - lastUpdate) / 1000;
     // 쿨타임 120초 (2분)
     return Math.max(0, 120 - Math.floor(elapsed));
-  };
+  }, [data?.lastUpdated]);
 
 
 
@@ -56,14 +59,12 @@ export default function ParticipantProfileModal({
         setRefreshCooldown(remaining);
         
         if (remaining <= 0) {
-            // clearInterval(timer); // Keeps running to catch updates if needed, but could stop if 0. 
-            // Better to keep running if we expect external updates (Global Sync via Polling), 
-            // but for now standard polling updates `data` prop which triggers this effect again.
+            clearInterval(timer);
         }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [data.lastUpdated, data.summonerName]); // Depend on data
+  }, [data?.lastUpdated, data?.summonerName, calculateRemainingTime]); // Depend on data
 
   const handleRefresh = async () => {
     if (refreshCooldown > 0 || isRefreshing) return;
@@ -71,9 +72,7 @@ export default function ParticipantProfileModal({
     setIsRefreshing(true);
     try {
       await onRefresh?.();
-      // Optimistic Update handled by parent re-fetch, 
-      // but we can set a temp cooldown or wait for prop update.
-      // If we wait for prop, spinner runs until data comes back with new time.
+   
     } catch (error) {
       console.error('소환사 정보 갱신 실패:', error);
     } finally {
@@ -87,7 +86,7 @@ export default function ParticipantProfileModal({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !data) return null;
 
   return (
     <div 
@@ -129,10 +128,7 @@ export default function ParticipantProfileModal({
                   src={data.profileIconUrl}
                   className="w-24 h-24"
                 />
-                {/* 레벨 배경 */}
-                <div className="absolute bottom-0 inset-x-0 bg-black/60 backdrop-blur-sm text-white text-[10px] text-center py-0.5 font-bold rounded-b-full">
-                  LVL {data.level}
-                </div>
+                {/* 레벨 배경 제거됨 */}
               </div>
             </div>
             {/* 라인 상태 */}
@@ -144,9 +140,17 @@ export default function ParticipantProfileModal({
           
           {/* 라인 */}
           <div className="flex items-center gap-2 mt-1">
-            <span className="material-symbols-outlined text-primary text-xl">military_tech</span>
+            <img 
+              src={TIER_IMAGES[tierLower] || unranked} 
+              alt={data.tier} 
+              className="w-6 h-6 object-contain"
+            />
             <span className="text-gray-300 font-medium tracking-wide">
-              {data.tier} <span className="text-gray-500 mx-1">{data.division}</span> {data.lp} LP
+              {data.tier} 
+              {!['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(data.tier?.toUpperCase()) && (
+                <span className="text-gray-500 ml-1">{data.division}</span>
+              )}
+              <span className="ml-2">{data.lp} LP</span>
             </span>
           </div>
         </div>
@@ -190,7 +194,9 @@ export default function ParticipantProfileModal({
                   <PositionIcon position={data.mainPosition} className="w-8 h-8 relative z-10" />
                   <div className="relative z-10 text-left">
                     <p className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-0.5">주포지션</p>
-                    <p className="text-white font-bold text-sm leading-none">{data.mainPosition}</p>
+                    <p className="text-white font-bold text-sm leading-none">
+                      {['BOT', 'BOTTOM'].includes(data.mainPosition) ? 'ADC' : data.mainPosition}
+                    </p>
                   </div>
                 </div>
               )}
@@ -202,7 +208,9 @@ export default function ParticipantProfileModal({
                   <PositionIcon position={data.subPosition} className="w-8 h-8 relative z-10" />
                   <div className="relative z-10 text-left">
                     <p className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-0.5">부포지션</p>
-                    <p className="text-white font-bold text-sm leading-none">{data.subPosition}</p>
+                    <p className="text-white font-bold text-sm leading-none">
+                      {['BOT', 'BOTTOM'].includes(data.subPosition) ? 'ADC' : data.subPosition}
+                    </p>
                   </div>
                 </div>
               )}
