@@ -1,5 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.service;
 
+import kr.draftgo.Draft_Go_BE.draft.auction.domain.AuctionPhase;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.AuctionStatusResponse;
@@ -11,6 +12,7 @@ import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
 import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Team;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Teammate;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
@@ -70,9 +72,17 @@ public class AuctionService {
      * - 관리자 권한 체크 없이 내부 로직에서 호출됩니다.
      * - LobbyService.startDraft()에서 자동으로 호출됩니다.
      * - AuctionTimeOverService.completeAuction()에서 다음 경매를 시작할 때도 호출됩니다.
+     * - 멱등성 보장: 이미 진행 중인 경매가 있으면 무시됩니다.
      */
     @Transactional
     public void processNextRound(Long draftId) {
+        // 멱등성 보장: 이미 진행 중인 경매가 있는지 확인
+        RoundStatus currentRound = redisRepo.getCurrent(draftId);
+        if (currentRound != null) {
+            log.warn("Auction already in progress for draftId: {}. Skipping processNextRound.", draftId);
+            return;
+        }
+
         // 1. WAITING 멤버 먼저 확인
         Optional<DraftMember> nextWaiting = draftMemberRepo.findNextWaiting(draftId);
 
@@ -84,8 +94,6 @@ public class AuctionService {
 
             if (nextSkipped.isPresent()) {
                 log.info("All WAITING members processed. Starting SKIPPED queue for draftId: {}", draftId);
-                chatWebSocketController.sendSystemMessage(draftId,
-                    "⚠️ 유찰된 선수들을 다시 경매합니다!");
                 startAuctionForMember(draftId, nextSkipped.get());
             } else {
                 // 3. WAITING도 SKIPPED도 없으면 경매 종료
@@ -95,10 +103,7 @@ public class AuctionService {
     }
 
     private void startAuctionForMember(Long draftId, DraftMember next) {
-        // DB 상태 업데이트: WAITING/SKIPPED -> BIDDING
-        next.bidding();
-        draftMemberRepo.save(next);
-
+        // Redis에 경매 상태 설정 (DB 상태는 WAITING 유지)
         RoundStatus state = RoundStatus.start(draftId, next.getId(), next.getName());
         redisRepo.setCurrent(draftId, state);
         redisRepo.startTimer(draftId, 30);
@@ -128,16 +133,54 @@ public class AuctionService {
     }
 
     public AuctionStatusResponse getCurrentState(Long draftId) {
+        // Draft 상태 조회
+        Draft draft = draftRepository.findById(draftId)
+                .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
+
+        DraftStatus draftStatus = draft.getStatus();
         RoundStatus state = redisRepo.getCurrent(draftId);
         BidInfo bid = redisRepo.getBid(draftId);
         String nextPlayerName = draftMemberRepo.findNextUpcoming(draftId)
                 .map(DraftMember::getName)
                 .orElse(null);
-        return AuctionStatusResponse.of(state, bid, nextPlayerName);
+
+        // 경매 전체 상태 판단
+        AuctionPhase auctionPhase = determineAuctionPhase(draftStatus, state);
+
+        // 타이머 남은 시간 (진행 중일 때만 의미 있음)
+        Integer remainingTime = null;
+        if (auctionPhase == AuctionPhase.IN_PROGRESS) {
+            remainingTime = redisRepo.getRemainingTime(draftId);
+        }
+
+        return AuctionStatusResponse.of(auctionPhase, remainingTime, state, bid, nextPlayerName);
+    }
+
+    /**
+     * Draft 상태와 Redis 상태를 기반으로 경매 전체 진행 상태를 판단
+     */
+    private AuctionPhase determineAuctionPhase(DraftStatus draftStatus, RoundStatus roundStatus) {
+        return switch (draftStatus) {
+            case COMPLETED -> AuctionPhase.COMPLETED;
+            case IN_DRAFT -> {
+                // IN_DRAFT 상태에서 Redis에 라운드 상태가 있고 타이머도 있으면 진행 중
+                if (roundStatus != null && redisRepo.hasTimer(roundStatus.getDraftId())) {
+                    yield AuctionPhase.IN_PROGRESS;
+                }
+                // IN_DRAFT 상태인데 타이머가 없으면 중단됨
+                yield AuctionPhase.INTERRUPTED;
+                // IN_DRAFT 상태인데 타이머가 없으면 중단됨
+            }
+            default -> AuctionPhase.NOT_STARTED;
+        };
     }
 
     public List<DraftMemberResponse> getDraftQueue(Long draftId) {
-        List<DraftMember> draftMembers = draftMemberRepo.findAllByDraftIdOrderByTurnOrderAsc(draftId);
+        // WAITING과 SKIPPED 상태인 멤버만 조회 (COMPLETED는 제외)
+        List<DraftMember> draftMembers = draftMemberRepo.findAllByDraftIdOrderByTurnOrderAsc(draftId).stream()
+                .filter(dm -> dm.getStatus() == kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMemberStatus.WAITING
+                           || dm.getStatus() == kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMemberStatus.SKIPPED)
+                .toList();
 
         // N+1 문제 방지: 모든 memberId 수집하여 한 번에 MemberStat 조회
         List<Long> memberIds = draftMembers.stream()

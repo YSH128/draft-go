@@ -3,6 +3,7 @@ package kr.draftgo.Draft_Go_BE.draft.auction.websocket;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.AuctionEventType;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
+import kr.draftgo.Draft_Go_BE.draft.auction.dto.BidEventDto;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -26,7 +27,7 @@ public class AuctionEvent {
     public static AuctionEvent bid(Long teamId, int price, Integer remainingSeconds) {
         return AuctionEvent.builder()
                 .type(AuctionEventType.BID)
-                .data(BidInfo.builder()
+                .data(BidEventDto.builder()
                         .teamId(teamId)
                         .price(price)
                         .remainingSeconds(remainingSeconds)

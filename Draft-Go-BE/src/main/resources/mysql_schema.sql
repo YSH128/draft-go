@@ -54,7 +54,7 @@ CREATE TABLE `draft_member` (
 	`member_id` BIGINT NOT NULL,
 	`position` VARCHAR(15) NOT NULL COMMENT '드래프트에 참가하기 전에 포지션 확정 필요',
 	`turn_order` INT NULL COMMENT '경매 시작시 순서 결정',
-	`status` VARCHAR(20) NOT NULL COMMENT 'WAITING, BIDDING, COMPLETED, SKIPPED',
+	`status` VARCHAR(20) NOT NULL COMMENT 'WAITING, COMPLETED, SKIPPED',
     PRIMARY KEY (`id`),
     CONSTRAINT `fk_dm_draft` FOREIGN KEY (`draft_id`) REFERENCES `draft` (`id`),
     CONSTRAINT `fk_dm_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)

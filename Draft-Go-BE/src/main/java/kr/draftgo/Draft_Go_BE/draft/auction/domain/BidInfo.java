@@ -17,7 +17,6 @@ import java.io.Serializable;
 public class BidInfo implements Serializable {
     private Long teamId;
     private int price;
-    private Integer remainingSeconds; // 남은 시간 (초)
 
     public boolean exists() {
         return teamId != null;

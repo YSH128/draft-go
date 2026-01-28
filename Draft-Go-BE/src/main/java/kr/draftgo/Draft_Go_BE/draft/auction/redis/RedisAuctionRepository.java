@@ -119,9 +119,31 @@ public class RedisAuctionRepository {
         redis.expire(AuctionKey.timer(draftId), seconds, TimeUnit.SECONDS);
     }
 
+    /**
+     * 타이머 남은 시간 조회
+     * @return 남은 시간 (초). 타이머가 없거나 만료된 경우 0 반환
+     */
     public Integer getRemainingTime(Long draftId) {
         Long ttl = redis.getExpire(AuctionKey.timer(draftId), TimeUnit.SECONDS);
-        return ttl != null && ttl > 0 ? ttl.intValue() : 0;
+
+        // ttl == null: 키가 존재하지 않음 (타이머 없음)
+        // ttl == -2: 키가 존재하지 않음 (타이머 만료됨)
+        // ttl == -1: 키가 존재하지만 TTL이 설정되지 않음 (이론적으로 불가능)
+        // ttl > 0: 남은 시간
+        if (ttl == null || ttl < 0) {
+            return 0;
+        }
+
+        return ttl.intValue();
+    }
+
+    /**
+     * 타이머가 존재하는지 확인
+     * @return true: 타이머가 존재함, false: 타이머가 없거나 만료됨
+     */
+    public boolean hasTimer(Long draftId) {
+        Boolean exists = redis.hasKey(AuctionKey.timer(draftId));
+        return exists != null && exists;
     }
 
     public void setTeamPoint(Long draftId, Long teamId, int point) {
