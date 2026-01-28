@@ -1,5 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.redis;
 
+import kr.draftgo.Draft_Go_BE.draft.auction.domain.CurrentMemberStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -22,7 +26,62 @@ public class RedisAuctionRepository {
     }
 
     public RoundStatus getCurrent(Long draftId) {
-        return (RoundStatus) redis.opsForValue().get(AuctionKey.current(draftId));
+        Object result = redis.opsForValue().get(AuctionKey.current(draftId));
+
+        if (result == null) {
+            return null;
+        }
+
+        // Redis deserializes as LinkedHashMap, manually parse it
+        if (result instanceof LinkedHashMap) {
+            LinkedHashMap<String, Object> map = (LinkedHashMap<String, Object>) result;
+
+            try {
+                Long draftIdValue = map.get("draftId") instanceof Number
+                    ? ((Number) map.get("draftId")).longValue()
+                    : null;
+
+                String playerName = (String) map.get("playerName");
+
+                Long draftMemberId = map.get("draftMemberId") instanceof Number
+                    ? ((Number) map.get("draftMemberId")).longValue()
+                    : null;
+
+                int turnOrder = map.get("turnOrder") instanceof Number
+                    ? ((Number) map.get("turnOrder")).intValue()
+                    : 0;
+
+                String statusStr = (String) map.get("currentMemberStatus");
+                CurrentMemberStatus currentMemberStatus = statusStr != null
+                    ? CurrentMemberStatus.valueOf(statusStr)
+                    : null;
+
+                // Parse LocalDateTime
+                LocalDateTime startedAt = null;
+                Object startedAtObj = map.get("startedAt");
+                if (startedAtObj instanceof String) {
+                    startedAt = LocalDateTime.parse((String) startedAtObj,
+                        DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+                } else if (startedAtObj instanceof LocalDateTime) {
+                    startedAt = (LocalDateTime) startedAtObj;
+                }
+
+                return RoundStatus.builder()
+                    .draftId(draftIdValue)
+                    .playerName(playerName)
+                    .draftMemberId(draftMemberId)
+                    .turnOrder(turnOrder)
+                    .currentMemberStatus(currentMemberStatus)
+                    .startedAt(startedAt)
+                    .build();
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to parse RoundStatus from Redis: " + e.getMessage(), e);
+            }
+        }
+
+        // If it's already RoundStatus (shouldn't happen, but just in case)
+        return (RoundStatus) result;
     }
 
     public BidInfo getBid(Long draftId) {
