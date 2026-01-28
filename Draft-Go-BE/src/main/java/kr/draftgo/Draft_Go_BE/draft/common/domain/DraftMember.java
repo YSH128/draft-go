@@ -45,9 +45,6 @@ public class DraftMember {
         this.status = DraftMemberStatus.WAITING;
     }
 
-    public void bidding() {
-        this.status = DraftMemberStatus.BIDDING;
-    }
 
     public void complete() {
         this.status = DraftMemberStatus.COMPLETED;

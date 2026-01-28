@@ -11,12 +11,14 @@ import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeammateRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class RoundTerminateService {
 
     private final RedisAuctionRepository redisRepo;
@@ -26,10 +28,19 @@ public class RoundTerminateService {
     private final AuctionService auctionService;
     private final AuctionEventPublisher publisher;
 
+    /**
+     * 경매 라운드 종료 처리
+     * 멱등성 보장: 이미 종료된 경매는 다시 처리하지 않음
+     */
     public void terminateRound(Long draftId) {
+        // 멱등성 보장: 진행 중인 경매가 없으면 무시
+        RoundStatus state = redisRepo.getCurrent(draftId);
+        if (state == null) {
+            log.warn("No active round found for draftId: {}. Skipping termination.", draftId);
+            return;
+        }
 
         BidInfo bid = redisRepo.getBid(draftId);
-        RoundStatus state = redisRepo.getCurrent(draftId);
 
         if (bid.exists()) {
             // Redis에서 포인트 차감 (실시간 경매용)
@@ -53,10 +64,12 @@ public class RoundTerminateService {
             teammateRepo.save(newTeammate);
 
             draftMemberRepo.complete(state.getDraftMemberId());
+            log.info("Member {} completed for draftId: {} at price {}", draftMember.getName(), draftId, bid.getPrice());
         } else {
             // 유찰 시 SKIPPED 상태로 변경하고 turnOrder를 맨 뒤로 이동
             draftMemberRepo.skip(state.getDraftMemberId());
             draftMemberRepo.moveToBack(state.getDraftMemberId());
+            log.info("Member {} skipped for draftId: {}", state.getPlayerName(), draftId);
         }
 
         redisRepo.clear(draftId);
