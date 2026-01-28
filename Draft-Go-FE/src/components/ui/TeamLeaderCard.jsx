@@ -7,6 +7,7 @@ export default function TeamLeaderCard({
   tier = "challenger",
   division = null,
   points = 1000,
+  profileIcon = "",
 
   teamNumber = 1,
 
@@ -115,7 +116,7 @@ export default function TeamLeaderCard({
              <Avatar
                 size="xl"
                 tier={resolvedTier}
-                src="https://ddragon.leagueoflegends.com/cdn/14.1.1/img/champion/Faker.png"
+                src={profileIcon}
                 className="w-24 h-24"
               />
           </div>

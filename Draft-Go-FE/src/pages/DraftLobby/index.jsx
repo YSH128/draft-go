@@ -290,6 +290,29 @@ export default function DraftLobby() {
 
           setDraftPool(newPool);
 
+          // [Sync] Update selectedParticipant if it's currently open
+          if (selectedParticipant) {
+              const targetId = selectedParticipant.memberId || selectedParticipant.id;
+              
+              // 1. Try finding in mappedCaptains
+              let freshProfile = mappedCaptains.find(c => (c.memberId || c.id) === targetId);
+              
+              // 2. If not found, try finding in newPool
+              if (!freshProfile) {
+                  const allMembers = Object.values(newPool).flat();
+                  freshProfile = allMembers.find(m => (m.memberId || m.id) === targetId);
+              }
+
+              // 3. If found and timestamp is newer, update it
+              if (freshProfile) {
+                  // Keep the modal open and just update data
+                  setSelectedParticipant(prev => ({
+                      ...prev,
+                      ...freshProfile
+                  }));
+              }
+          }
+
           return data;
       } catch (error) {
           console.error("Failed to fetch lobby:", error);
@@ -304,6 +327,25 @@ export default function DraftLobby() {
      return () => clearInterval(interval);
 
   }, [draftId, user?.id]);
+
+  // Auto-refresh user stats on entry
+  const hasAutoRefreshed = useRef(false);
+
+  useEffect(() => {
+    if (user?.id && !hasAutoRefreshed.current) {
+        hasAutoRefreshed.current = true;
+        
+        // 내 전적 갱신 요 (with full calc)
+        updateMemberStats(user.id, false)
+            .then(() => {
+                console.log("[AutoRefresh] User stats refreshed & calculated on entry.");
+                // fetchLobbyData(); // Already local cached, but good for sync
+            })
+            .catch(err => {
+                console.error("[AutoRefresh] Failed:", err);
+            });
+    }
+  }, [user?.id]);
 
   // Handle Refresh Code
   const handleRefreshCode = async (type) => {
@@ -420,6 +462,7 @@ export default function DraftLobby() {
         tagLine: participant.tagLine,
         profileIconUrl: participant.image || "",
         tier: participant.tier,
+        division: participant.division,
         lp: participant.lp || 0,
         level: participant.level || 0,
         winRate: participant.winRate || 0,
@@ -434,161 +477,117 @@ export default function DraftLobby() {
       setIsProfileModalOpen(true);
   };
 
+  // Helper: Fetch & Calculate Stats (Logic reuse)
+  const updateMemberStats = async (targetId, showNotification = false) => {
+      try {
+         await DraftApi.refreshMemberData(targetId);
+         const memberProfile = await DraftApi.getMemberProfile(targetId);
+         
+         // Get History & Calculate
+         const historyResponse = await DraftApi.getMatchHistory(targetId, 0, 20);
+         const history = Array.isArray(historyResponse) ? historyResponse : (historyResponse.content || []);
+
+         let recentWins = 0;
+         let recentLosses = 0;
+
+         const targetGameName = memberProfile.gameName;
+         const targetTagLine = memberProfile.tagLine;
+         const normalize = (str) => str ? str.toLowerCase().replace(/\s/g, '') : '';
+         const targetNameNorm = normalize(targetGameName);
+         const targetTagNorm = normalize(targetTagLine);
+
+         history.slice(0, 20).forEach((match) => {
+            if (!match.participants) return;
+            const myParticipant = match.participants.find(p => {
+                const pName = p.gameName || p.summonerName;
+                const pTag = p.tagLine;
+                const nameMatch = normalize(pName) === targetNameNorm;
+                const tagMatch = pTag ? normalize(pTag) === targetTagNorm : true; 
+                return nameMatch && tagMatch;
+            });
+            if (myParticipant) {
+                 const isWin = myParticipant.win === true || myParticipant.win === 'true';
+                 if (isWin) recentWins++;
+                 else recentLosses++;
+            }
+         });
+
+         const stats = memberProfile.stats || {};
+         const freshTime = memberProfile.updatedAt || memberProfile.lastUpdated || new Date().toISOString();
+
+         const newData = {
+            lastUpdated: freshTime,
+            tier: stats.tier || "Unranked",
+            division: stats.division,
+            leaguePoints: stats.leaguePoints || 0,
+            lp: stats.leaguePoints || 0, 
+            winRate: stats.winRate || 0,
+            recentStats: { wins: recentWins, losses: recentLosses },
+            recent20: { wins: recentWins, losses: recentLosses },
+            mostChampions: (memberProfile.mostChampions || []).map(c => ({
+                name: c.championName,
+                games: c.totalGames,
+                winRate: c.winRate,
+                kda: c.kda,
+                imageUrl: c.imageUrl || `https://ddragon.leagueoflegends.com/cdn/14.16.1/img/champion/${c.championName}.png` 
+            })),
+            gameName: memberProfile.gameName,
+            tagLine: memberProfile.tagLine,
+            profileIcon: memberProfile.profileIconUrl || "",
+            image: memberProfile.profileIconUrl || "",
+            
+            // Extra fields for UI mapping
+            summonerName: memberProfile.gameName || memberProfile.username,
+            profileIconUrl: memberProfile.profileIconUrl || "",
+            level: memberProfile.summonerLevel || 0,
+            mainPosition: memberProfile.mainPosition,
+            subPosition: memberProfile.subPosition,
+            memberId: memberProfile.memberId || memberProfile.id,
+            id: memberProfile.memberId || memberProfile.id
+         };
+
+         // Cache Update
+         refreshedProfilesRef.current[targetId] = newData;
+         sessionStorage.setItem('refreshedProfiles', JSON.stringify(refreshedProfilesRef.current));
+
+         // Update State (Captains & Pool)
+         setCaptains(prev => prev.map(c => 
+             (c.memberId || c.id) === targetId ? { ...c, ...newData } : c
+         ));
+
+         setDraftPool(prev => {
+            const newPool = { ...prev };
+            Object.keys(newPool).forEach(role => {
+                newPool[role] = newPool[role].map(m => 
+                    (m.memberId || m.id) === targetId ? { ...m, ...newData } : m
+                );
+            });
+            return newPool;
+         });
+
+         if (showNotification) {
+             alert('전적 갱신이 완료되었습니다.');
+         }
+
+         return newData;
+      } catch (error) {
+         console.error(`[UpdateStats] Failed for ${targetId}:`, error);
+         throw error;
+      }
+  };
+
   const handleRefreshProfile = async () => {
     if (!selectedParticipant || (!selectedParticipant.memberId && !selectedParticipant.id)) {
         alert('전적 갱신에 필요한 정보가 없습니다.');
         return;
     }
-    // memberId 우선 사용, 없으면 id (fallback)
     const targetId = selectedParticipant.memberId || selectedParticipant.id;
 
     try {
-        await DraftApi.refreshMemberData(targetId);
-        
-        // 1. 특정 멤버의 최신 상세 정보 가져오기 (Direct Fetch)
-        const memberProfile = await DraftApi.getMemberProfile(targetId);
-        
-        // 2. 최근 20게임 히스토리 가져오기 (전적 갱신 후 호출해야 정확함)
-        const historyResponse = await DraftApi.getMatchHistory(targetId, 0, 20);
-        const history = Array.isArray(historyResponse) ? historyResponse : (historyResponse.content || []); // Pageable 대응
-
-        // 최근 20게임 승/패 계산
-        let recentWins = 0;
-        let recentLosses = 0;
-        
-        // 타겟 유저 식별 정보
-        const targetGameName = memberProfile.gameName;
-        const targetTagLine = memberProfile.tagLine;
-        
-        console.log(`[Debug] Looking for stats: ${targetGameName} #${targetTagLine}`);
-
-        // Helper for strings
-        const normalize = (str) => str ? str.toLowerCase().replace(/\s/g, '') : '';
-        const targetNameNorm = normalize(targetGameName);
-        const targetTagNorm = normalize(targetTagLine);
-
-        // API가 20개를 주겠지만 확실하게 slice
-        history.slice(0, 20).forEach((match, idx) => {
-            if (!match.participants) return;
-
-            // 내 정보 찾기 (gameName 혹은 summonerName)
-            const myParticipant = match.participants.find(p => {
-                const pName = p.gameName || p.summonerName; // API 필드명 대응
-                const pTag = p.tagLine;
-                
-                // 태그라인이 없으면 닉네임만 비교 (API 상황에 따라 유연하게)
-                const nameMatch = normalize(pName) === targetNameNorm;
-                const tagMatch = pTag ? normalize(pTag) === targetTagNorm : true; 
-                
-                return nameMatch && tagMatch;
-            });
-
-            if (myParticipant) {
-                 const isWin = myParticipant.win === true || myParticipant.win === 'true';
-                 if (isWin) recentWins++;
-                 else recentLosses++;
-            } else if (idx === 0) {
-                 console.log('[Debug] First Match Participants:', match.participants);
-                 console.log('[Debug] Failed to match with:', targetNameNorm, targetTagNorm);
-            }
-        });
-
-        if (memberProfile) {
-             const stats = memberProfile.stats || {};
-             
-             const newProfileData = {
-                summonerName: memberProfile.gameName || memberProfile.username, // gameName 우선
-                gameName: memberProfile.gameName,
-                tagLine: memberProfile.tagLine,
-                profileIconUrl: memberProfile.profileIconUrl || "",
-                
-                // Stats는 stats 객체 안에 있음
-                tier: stats.tier || "Unranked",
-                division: stats.division,
-                lp: stats.leaguePoints || 0,
-                level: memberProfile.summonerLevel || 0,
-                
-                winRate: stats.winRate || 0,
-                // [Fix] recent20은 히스토리에서 직접 계산한 값 사용
-                recent20: { 
-                    wins: recentWins, 
-                    losses: recentLosses 
-                },
-                
-                mostChampions: (memberProfile.mostChampions || []).map(c => ({
-                    name: c.championName,
-                    games: c.totalGames,
-                    winRate: c.winRate,
-                    kda: c.kda,
-                    // Image URL construction if missing
-                    imageUrl: c.imageUrl || `https://ddragon.leagueoflegends.com/cdn/14.16.1/img/champion/${c.championName}.png` 
-                })),
-                
-                mainPosition: memberProfile.mainPosition,
-                subPosition: memberProfile.subPosition,
-                
-                lastUpdated: memberProfile.updatedAt || new Date().toISOString(), 
-                memberId: memberProfile.memberId || memberProfile.id,
-                id: memberProfile.memberId || memberProfile.id // Prefer memberId as ID
-             };
-             setSelectedParticipant(newProfileData);
-
-             alert('전적 갱신이 완료되었습니다.');
-
-            // 3. 로비 데이터도 백그라운드에서 갱신 (전체 UI 동기화)
-            // fetchLobbyData(); // 전체 로비 갱신은 무거울 수 있으니 필요한 경우에만 혹은 그대로 유지.
-            // 로컬 캐시 업데이트로 쿨타임/데이터 반영
-            const freshTime = memberProfile.updatedAt || memberProfile.lastUpdated || new Date().toISOString();
-            
-            // Map memberProfile back to Lobby Data Structure for persistence
-            const freshData = {
-                lastUpdated: freshTime,
-                tier: stats.tier || "Unranked",
-                division: stats.division,
-                leaguePoints: stats.leaguePoints || 0,
-                lp: stats.leaguePoints || 0, 
-                winRate: stats.winRate || 0,
-                recentStats: { wins: recentWins, losses: recentLosses }, // [Fix] Update with calculated stats
-                recent20: { wins: recentWins, losses: recentLosses },
-                mostChampions: newProfileData.mostChampions,
-                gameName: memberProfile.gameName,
-                tagLine: memberProfile.tagLine,
-                profileIcon: memberProfile.profileIconUrl || "",
-                image: memberProfile.profileIconUrl || "",
-                mainPosition: memberProfile.mainPosition,
-                subPosition: memberProfile.subPosition
-            };
-            
-            // Save to Cache Ref & Session Storage
-            refreshedProfilesRef.current[targetId] = freshData;
-            sessionStorage.setItem('refreshedProfiles', JSON.stringify(refreshedProfilesRef.current));
-
-            // Update Captains
-            setCaptains(prev => prev.map(c => {
-                if ((c.memberId && Number(c.memberId) === Number(targetId)) || Number(c.id) === Number(targetId)) {
-                    return { ...c, ...freshData };
-                }
-                return c;
-            }));
-
-            // Update Draft Pool
-            setDraftPool(prev => {
-                const newPool = { ...prev };
-                Object.keys(newPool).forEach(key => {
-                    newPool[key] = newPool[key].map(m => {
-                         if ((m.memberId && Number(m.memberId) === Number(targetId)) || Number(m.id) === Number(targetId)) {
-                            return { ...m, ...freshData };
-                        }
-                        return m;
-                    });
-                });
-                return newPool;
-            });
-        }
-
-    } catch (error) {
-        console.error('전적 갱신 실패:', error);
-        alert('전적 갱신에 실패했습니다: ' + (error.response?.data?.message || error.message));
+        const newData = await updateMemberStats(targetId, true);
+        setSelectedParticipant(newData);
+    } catch (e) {
+        // Error logged in helper
     }
   };
 
@@ -1015,6 +1014,7 @@ export default function DraftLobby() {
                                                     tier={captain.tier}
                                                     points={captain.points}
                                                     teamNumber={captain.teamNumber}
+                                                    profileIcon={captain.image} // Pass profile icon
                                                     isAdmin={isHost}
                                                     isReady={captain.ready}
                                                     selectedRole={captain.selectedRole}

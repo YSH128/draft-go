@@ -2,6 +2,22 @@ import React, { useState, useEffect } from 'react';
 import Avatar from '../ui/Avatar';
 import PositionIcon from '../ui/PositionIcon';
 
+import bronze from '../../assets/tier/bronze.webp';
+import challenger from '../../assets/tier/challenger.webp';
+import diamond from '../../assets/tier/diamond.webp';
+import emerald from '../../assets/tier/emerald.webp';
+import gold from '../../assets/tier/gold.webp';
+import grandmaster from '../../assets/tier/grandmaster.webp';
+import iron from '../../assets/tier/iron.webp';
+import master from '../../assets/tier/master.webp';
+import platinum from '../../assets/tier/platinum.webp';
+import silver from '../../assets/tier/silver.webp';
+import unranked from '../../assets/tier/unranked.webp';
+
+const TIER_IMAGES = {
+  bronze, challenger, diamond, emerald, gold, grandmaster, iron, master, platinum, silver, unranked
+};
+
 export default function ParticipantProfileModal({ 
   isOpen, 
   onClose, 
@@ -112,10 +128,7 @@ export default function ParticipantProfileModal({
                   src={data.profileIconUrl}
                   className="w-24 h-24"
                 />
-                {/* 레벨 배경 */}
-                <div className="absolute bottom-0 inset-x-0 bg-black/60 backdrop-blur-sm text-white text-[10px] text-center py-0.5 font-bold rounded-b-full">
-                  LVL {data.level}
-                </div>
+                {/* 레벨 배경 제거됨 */}
               </div>
             </div>
             {/* 라인 상태 */}
@@ -127,9 +140,17 @@ export default function ParticipantProfileModal({
           
           {/* 라인 */}
           <div className="flex items-center gap-2 mt-1">
-            <span className="material-symbols-outlined text-primary text-xl">military_tech</span>
+            <img 
+              src={TIER_IMAGES[tierLower] || unranked} 
+              alt={data.tier} 
+              className="w-6 h-6 object-contain"
+            />
             <span className="text-gray-300 font-medium tracking-wide">
-              {data.tier} <span className="text-gray-500 mx-1">{data.division}</span> {data.lp} LP
+              {data.tier} 
+              {!['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(data.tier?.toUpperCase()) && (
+                <span className="text-gray-500 ml-1">{data.division}</span>
+              )}
+              <span className="ml-2">{data.lp} LP</span>
             </span>
           </div>
         </div>
