@@ -449,4 +449,36 @@ public class LobbyService {
         // 경매 자동 시작
         auctionService.processNextRound(draftId);
     }
+
+    /**
+     * 방 폭파 (관리자 전용)
+     * 로비 상태의 드래프트를 강제로 삭제하고 모든 참가자를 퇴장시킵니다.
+     */
+    @Transactional
+    public void destroyDraft(Long draftId, Long adminId) {
+        Draft draft = draftRepository.findById(draftId)
+                .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
+
+        // 관리자 권한 확인
+        if (!draft.getOwner().getId().equals(adminId)) {
+            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 방을 폭파할 수 있습니다.");
+        }
+
+        // 로비 상태가 아니면 폭파 불가
+        if (draft.getStatus() != DraftStatus.LOBBY) {
+            throw new CustomException(ErrorType.DRAFT_NOT_IN_LOBBY, "로비 상태에서만 방을 폭파할 수 있습니다.");
+        }
+
+        // WebSocket으로 방 폭파 알림 (먼저 전송)
+        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.DRAFT_DESTROYED);
+
+        // 채팅으로 방 폭파 알림
+        chatWebSocketController.sendSystemMessage(draftId, "관리자가 방을 폭파했습니다. 모든 참가자가 퇴장되었습니다.");
+
+        // Redis 로비 데이터 삭제
+        lobbyRedisRepository.clear(draftId);
+
+        // DB에서 드래프트 완전 삭제
+        draftRepository.delete(draft);
+    }
 }

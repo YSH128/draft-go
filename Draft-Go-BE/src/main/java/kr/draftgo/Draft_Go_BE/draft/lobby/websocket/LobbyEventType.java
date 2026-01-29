@@ -45,6 +45,11 @@ public enum LobbyEventType {
     DRAFT_STARTED,
 
     /**
+     * 방 폭파 (관리자가 강제로 방을 종료함)
+     */
+    DRAFT_DESTROYED,
+
+    /**
      * 전체 로비 새로고침 필요 (버전 불일치 시)
      */
     REFRESH_REQUIRED

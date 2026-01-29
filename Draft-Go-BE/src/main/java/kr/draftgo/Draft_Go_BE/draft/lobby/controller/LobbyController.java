@@ -191,4 +191,23 @@ public class LobbyController {
             @CurrentMember Member member) {
         lobbyService.startDraft(draftId, member.getId());
     }
+
+    @Operation(summary = "방 폭파 (관리자 전용)", description = "로비 상태의 드래프트 방을 강제로 삭제하고 모든 참가자를 퇴장시킵니다. DB에서도 완전히 삭제됩니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "방 폭파 성공", content = @Content()),
+            @ApiResponse(responseCode = "400", description = "DRAFT_NOT_IN_LOBBY - 로비 상태에서만 방을 폭파할 수 있습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "UNAUTHORIZED_ADMIN_ONLY - 관리자만 방을 폭파할 수 있습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "DRAFT_NOT_FOUND - 존재하지 않는 드래프트입니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @DeleteMapping("/destroy")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("isAuthenticated()")
+    public void destroyDraft(
+            @Parameter(description = "드래프트 ID") @PathVariable Long draftId,
+            @CurrentMember Member member) {
+        lobbyService.destroyDraft(draftId, member.getId());
+    }
 }

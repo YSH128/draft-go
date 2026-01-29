@@ -72,6 +72,13 @@ public class Draft {
         this.status = DraftStatus.IN_DRAFT;
     }
 
+    /**
+     * 드래프트 상태 업데이트
+     */
+    public void updateStatus(DraftStatus status) {
+        this.status = status;
+    }
+
     public void refreshMemberCode() {
         this.memberCode = UUID.randomUUID().toString().substring(0, 6);
     }
