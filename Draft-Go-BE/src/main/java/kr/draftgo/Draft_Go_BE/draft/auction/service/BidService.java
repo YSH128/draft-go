@@ -7,6 +7,7 @@ import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
 // Correct package based on search result
 
+import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,8 +19,15 @@ public class BidService {
     private final RedisAuctionRepository redisRepo;
     private final AuctionEventPublisher publisher;
 
-    public void placeBid(Long draftId, Long leaderId, BidRequest req) {
+    public void placeBid(Long draftId, Member member, BidRequest req) {
 
+        if (req.teamId() == null) {
+            throw new IllegalArgumentException("Team ID must be provided");
+        }
+
+        // TODO: 나중에 팀장 ID 검증 로직 추가
+
+        Long leaderId = member.getId();
         // 가격 검증 (0 이하 불가)
         if (req.price() <= 0) {
             throw new IllegalArgumentException("Bid price must be positive");
