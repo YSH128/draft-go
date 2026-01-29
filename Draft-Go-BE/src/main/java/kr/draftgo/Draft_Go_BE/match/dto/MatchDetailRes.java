@@ -13,6 +13,6 @@ public class MatchDetailRes {
     private Long gameDuration;
     private String gameMode;
 
-    // List of all 10 participants
+    // 10명의 참가자 정보
     private List<ParticipantRes> participants;
 }

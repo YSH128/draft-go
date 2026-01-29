@@ -3,6 +3,7 @@ package kr.draftgo.Draft_Go_BE.global.config;
 import kr.draftgo.Draft_Go_BE.member.domain.*;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
+import kr.draftgo.Draft_Go_BE.member.repository.SeasonRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationRunner;
@@ -27,6 +28,7 @@ public class DevDataInitializer {
 
     private final MemberRepository memberRepository;
     private final MemberStatRepository memberStatRepository;
+    private final SeasonRepository seasonRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Bean
@@ -38,7 +40,7 @@ public class DevDataInitializer {
 
             Random random = new Random();
 
-            // 관리자 계정
+            // 관리자 계정 creation
             if (memberRepository.findByUsername("admin").isEmpty()) {
                 Member admin = Member.builder()
                         .username("admin")
@@ -67,6 +69,7 @@ public class DevDataInitializer {
 
                 MemberStat stat1 = MemberStat.builder()
                         .memberId(savedUser1.getId())
+                        .seasonId("1401")
                         .tier(Tier.DIAMOND)
                         .division(Division.II)
                         .leaguePoint(75)
@@ -97,6 +100,7 @@ public class DevDataInitializer {
 
                 MemberStat stat2 = MemberStat.builder()
                         .memberId(savedUser2.getId())
+                        .seasonId("1401")
                         .tier(Tier.PLATINUM)
                         .division(Division.I)
                         .leaguePoint(90)
@@ -126,6 +130,7 @@ public class DevDataInitializer {
 
                 MemberStat stat3 = MemberStat.builder()
                         .memberId(savedUser3.getId())
+                        .seasonId("1401")
                         .tier(Tier.GOLD)
                         .division(Division.II)
                         .leaguePoint(45)
@@ -143,10 +148,10 @@ public class DevDataInitializer {
             }
 
             // test1 ~ test10 사용자 생성
-            Tier[] tiers = {Tier.IRON, Tier.BRONZE, Tier.SILVER, Tier.GOLD,
-                            Tier.PLATINUM, Tier.EMERALD, Tier.DIAMOND};
-            Division[] divisions = {Division.I, Division.II, Division.III, Division.IV};
-            Position[] positions = {Position.TOP, Position.JUNGLE, Position.MID, Position.BOT, Position.SUP};
+            Tier[] tiers = { Tier.IRON, Tier.BRONZE, Tier.SILVER, Tier.GOLD,
+                    Tier.PLATINUM, Tier.EMERALD, Tier.DIAMOND };
+            Division[] divisions = { Division.I, Division.II, Division.III, Division.IV };
+            Position[] positions = { Position.TOP, Position.JUNGLE, Position.MID, Position.BOT, Position.SUP };
 
             for (int i = 1; i <= 10; i++) {
                 String username = "test" + i;
@@ -181,6 +186,7 @@ public class DevDataInitializer {
 
                     MemberStat testStat = MemberStat.builder()
                             .memberId(savedTestUser.getId())
+                            .seasonId("1401")
                             .tier(randomTier)
                             .division(randomDivision)
                             .leaguePoint(leaguePoint)

@@ -3,11 +3,11 @@ package kr.draftgo.Draft_Go_BE.match.service;
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import kr.draftgo.Draft_Go_BE.match.dto.MostChampionDTO;
 import kr.draftgo.Draft_Go_BE.match.repository.MatchRepository;
-import kr.draftgo.Draft_Go_BE.member.repository.SeasonRepository;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
+import kr.draftgo.Draft_Go_BE.member.domain.SeasonDocument;
+import kr.draftgo.Draft_Go_BE.member.service.SeasonService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -21,20 +21,20 @@ import java.util.*;
 
 @Slf4j
 @Service
-@ConditionalOnProperty(name = "riot.api.mode", havingValue = "REAL")
 public class RealRiotApiService implements RiotApiService {
 
         private final String apiKey;
         private final RestClient restClient;
         private final MatchRepository matchRepository;
-        private final SeasonRepository seasonRepository;
+        private final SeasonService seasonService;
         private final StringRedisTemplate redisTemplate;
 
         public RealRiotApiService(@Value("${riot.api.key}") String apiKey, MatchRepository matchRepository,
-                        SeasonRepository seasonRepository, StringRedisTemplate redisTemplate) {
+                        SeasonService seasonService,
+                        StringRedisTemplate redisTemplate) {
                 this.apiKey = apiKey;
                 this.matchRepository = matchRepository;
-                this.seasonRepository = seasonRepository;
+                this.seasonService = seasonService;
                 this.redisTemplate = redisTemplate;
                 this.restClient = RestClient.create();
         }
@@ -101,6 +101,10 @@ public class RealRiotApiService implements RiotApiService {
                         Map<String, Object> info = (Map<String, Object>) data.get("info");
                         long creation = ((Number) info.get("gameCreation")).longValue();
                         String mode = (String) info.get("gameMode");
+                        // String gameVersion = (String) info.get("gameVersion");
+
+                        // [변경] 시즌 자동 생성 로직 제거 (Pending 전략)
+                        // seasonService.getOrCreateSeasonByVersion(gameVersion);
 
                         MatchDocument doc = MatchDocument.builder()
                                         .matchId(matchId)
@@ -139,16 +143,22 @@ public class RealRiotApiService implements RiotApiService {
         public List<MostChampionDTO> getMostChampions(String puuid, String seasonId, int limit) {
                 long startTime;
                 if (seasonId == null || seasonId.isEmpty()) {
-                        startTime = seasonRepository.findByIsActiveTrue()
-                                        .map(season -> season.getStartTime())
-                                        .orElse(1767807600L); // Default: Jan 8 2026
+                        SeasonDocument activeSeason = seasonService
+                                        .getActiveSeason();
+                        if (activeSeason != null && activeSeason.getStartTime() != null) {
+                                startTime = activeSeason.getStartTime().atZone(java.time.ZoneId.systemDefault())
+                                                .toEpochSecond();
+                        } else {
+                                startTime = 1767807600L; // Default fallback
+                        }
                 } else {
-                        startTime = seasonRepository.findById(seasonId)
-                                        .map(season -> season.getStartTime())
+                        startTime = seasonService.getSeasonById(seasonId)
+                                        .map(season -> season.getStartTime().atZone(java.time.ZoneId.systemDefault())
+                                                        .toEpochSecond())
                                         .orElse(1767807600L);
                 }
 
-                long endTime = Instant.now().toEpochMilli() + 100000000L;
+                long endTime = Instant.now().toEpochMilli();
                 long startMillis = startTime * 1000L;
 
                 return matchRepository.findMostChampions(puuid, startMillis, endTime, limit);
@@ -172,9 +182,13 @@ public class RealRiotApiService implements RiotApiService {
                 redisTemplate.opsForValue().set(lockKey, "LOCKED", Duration.ofSeconds(30));
 
                 try {
-                        Long seasonStart = seasonRepository.findByIsActiveTrue()
-                                        .map(season -> season.getStartTime())
-                                        .orElse(1767807600L);
+                        Long seasonStart = 1767807600L; // Default
+                        SeasonDocument activeSeason = seasonService
+                                        .getActiveSeason();
+                        if (activeSeason != null && activeSeason.getStartTime() != null) {
+                                seasonStart = activeSeason.getStartTime().atZone(java.time.ZoneId.systemDefault())
+                                                .toEpochSecond();
+                        }
 
                         log.info("Refreshing matches for {} since epoch {}. apiKey={}", member.getGameName(),
                                         seasonStart, apiKey != null ? "Present" : "Missing");
@@ -253,6 +267,22 @@ public class RealRiotApiService implements RiotApiService {
                                         });
                 } catch (Exception e) {
                         log.error("Failed to get summoner info for puuid: {}", puuid, e);
+                        return Collections.emptyMap();
+                }
+        }
+
+        @Override
+        public Map<String, Object> getChallengerLeague(String queue) {
+                try {
+                        return restClient.get()
+                                        .uri("https://kr.api.riotgames.com/lol/league/v4/challengerleagues/by-queue/{queue}",
+                                                        queue)
+                                        .header("X-Riot-Token", apiKey)
+                                        .retrieve()
+                                        .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                                        });
+                } catch (Exception e) {
+                        log.error("Failed to get Challenger league for queue: {}", queue, e);
                         return Collections.emptyMap();
                 }
         }

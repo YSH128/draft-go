@@ -3,12 +3,14 @@ package kr.draftgo.Draft_Go_BE.match.service;
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import kr.draftgo.Draft_Go_BE.match.domain.MostChampionStat;
 import kr.draftgo.Draft_Go_BE.match.domain.MostChampionStat.MostChampion;
-
+import kr.draftgo.Draft_Go_BE.match.dto.MatchDetailRes;
+import kr.draftgo.Draft_Go_BE.match.dto.ParticipantRes;
 import kr.draftgo.Draft_Go_BE.match.repository.MatchRepository;
 import kr.draftgo.Draft_Go_BE.match.repository.MostChampionStatRepository;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
+import kr.draftgo.Draft_Go_BE.member.domain.SeasonDocument;
 import kr.draftgo.Draft_Go_BE.member.domain.Tier;
 import kr.draftgo.Draft_Go_BE.member.domain.Division;
 import kr.draftgo.Draft_Go_BE.member.dto.MemberRefreshStatusRes;
@@ -43,9 +45,10 @@ public class MatchService {
     private final RiotApiService riotApiService;
     private final StringRedisTemplate redisTemplate;
     private final DataDragonService dataDragonService;
+    private final kr.draftgo.Draft_Go_BE.member.service.SeasonService seasonService;
 
     @Transactional(readOnly = true)
-    public List<kr.draftgo.Draft_Go_BE.match.dto.MatchDetailRes> getMatchHistory(Long memberId, Pageable pageable) {
+    public List<MatchDetailRes> getMatchHistory(Long memberId, Pageable pageable) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
@@ -54,7 +57,7 @@ public class MatchService {
             throw new IllegalArgumentException("회원의 PUUID 정보가 없습니다. (Riot 계정 미연동)");
         }
 
-        // Optimization: If member match history has never been updated, return empty
+        // member의 match history가 업데이트된 적이 없으면 빈 리스트 반환
         if (member.getUpdatedAt() == null) {
             return java.util.Collections.emptyList();
         }
@@ -248,78 +251,186 @@ public class MatchService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("Member not found"));
 
-        MemberStat stat = memberStatRepository.findByMemberId(memberId)
-                .orElse(MemberStat.builder().memberId(memberId).build());
-
         List<MatchDocument> matches = matchRepository.findAllByPuuid(member.getPuuid());
-        matches.sort((a, b) -> Long.compare(b.getGameCreation(), a.getGameCreation()));
 
-        int totalWins = 0;
-        int totalLosses = 0;
-        int recentWins = 0;
-        int recentLosses = 0;
-        int recentCount = 0;
+        // [Automation On-Demand] 1. Bootstrap Check
+        // If no active season exists at all, try to bootstrap from the latest match
+        // version
+        SeasonDocument activeSeasonCheck = seasonService.getActiveSeason();
+        log.info("[MatchService] Checking Bootstrap. 활성화된 시즌: {}, Matches: {}",
+                activeSeasonCheck != null ? activeSeasonCheck.getSeasonId() : "NULL",
+                matches.size());
+
+        if (activeSeasonCheck == null && !matches.isEmpty()) {
+            log.info("[MatchService] Active Season is NULL. Attempting to bootstrap from latest match...");
+            // Pick the latest match version
+            matches.stream()
+                    .max((m1, m2) -> Long.compare(m1.getGameCreation(), m2.getGameCreation()))
+                    .ifPresent(latestMatch -> {
+                        Map<String, Object> d = latestMatch.getData();
+                        if (d != null) {
+                            Map<String, Object> i = (Map<String, Object>) d.get("info");
+                            if (i != null) {
+                                String v = (String) i.get("gameVersion");
+                                log.info("[MatchService] Found Latest Match Version: {}", v);
+                                if (v != null) {
+                                    seasonService.createBootstrapSeason(v);
+                                }
+                            }
+                        }
+                    });
+        }
+
+        // 1. 매치들을 시즌별로 그룹화 (SeasonService 활용)
+        Map<SeasonDocument, List<MatchDocument>> matchesBySeason = new HashMap<>();
 
         for (MatchDocument match : matches) {
-            boolean isWin = checkWin(match, member.getPuuid());
-            if (isWin)
-                totalWins++;
-            else
-                totalLosses++;
+            Map<String, Object> data = match.getData();
+            if (data == null)
+                continue;
+            Map<String, Object> info = (Map<String, Object>) data.get("info");
+            if (info == null)
+                continue;
 
-            if (recentCount < 20) {
+            String gameVersion = (String) info.get("gameVersion");
+
+            // [Automation On-Demand] 2. Auto-Reset / Next Season Check
+            // If getSeasonForStats returns null, it might be a new season that hasn't been
+            // created yet.
+            SeasonDocument season = seasonService.getSeasonForStats(gameVersion);
+
+            if (season == null) {
+                // Check if this game version warrants a new season creation
+                SeasonDocument active = seasonService.getActiveSeason();
+                if (active != null) {
+                    String activeVersion = active.getStartVersion(); // e.g., 16.1
+                    // Logic: If gameVersion (16.2) > activeVersion (16.1)
+                    // Check Challenger League. If empty -> Create 16.2
+                    // Note: We need to parse major/minor correctly
+                    if (isNewerVersion(gameVersion, activeVersion)) {
+                        // Check Challenger
+                        Map<String, Object> challenger = riotApiService.getChallengerLeague("RANKED_SOLO_5x5");
+                        List<?> entries = (List<?>) challenger.get("entries");
+                        if (entries == null || entries.isEmpty()) {
+                            log.info(
+                                    "[On-Demand] Detected potential new season from Match (v{}). Challenger empty. Creating Next Season.",
+                                    gameVersion);
+                            seasonService.createNextSeason(gameVersion);
+                            // Retry getting season
+                            season = seasonService.getSeasonForStats(gameVersion);
+                        }
+                    }
+                }
+            }
+
+            // 시즌이 식별되지 않은 게임은 통계에서 제외 (나중에 시즌 등록 시 일괄 처리)
+            if (season == null) {
+                continue;
+            }
+
+            matchesBySeason.computeIfAbsent(season, k -> new ArrayList<>()).add(match);
+        }
+
+        // 시즌별 스탯 업데이트 (각 시즌별로 MemberStat 저장)
+        for (Map.Entry<SeasonDocument, List<MatchDocument>> entry : matchesBySeason
+                .entrySet()) {
+
+            SeasonDocument season = entry.getKey();
+            List<MatchDocument> seasonMatches = entry.getValue();
+
+            // 2. 해당 시즌(Season ID)에 맞는 MemberStat 조회 또는 생성
+            MemberStat stat = memberStatRepository.findByMemberIdAndSeasonId(memberId, season.getSeasonId())
+                    .orElse(MemberStat.builder()
+                            .memberId(memberId)
+                            .seasonId(season.getSeasonId())
+                            .build());
+
+            // 3. 해당 시즌 매치들을 최신순 정렬 후 통계 계산
+            seasonMatches.sort((a, b) -> Long.compare(b.getGameCreation(), a.getGameCreation()));
+
+            int totalWins = 0;
+            int totalLosses = 0;
+            int recentWins = 0;
+            int recentLosses = 0;
+            int recentCount = 0;
+
+            for (MatchDocument match : seasonMatches) {
+                boolean isWin = checkWin(match, member.getPuuid());
                 if (isWin)
-                    recentWins++;
+                    totalWins++;
                 else
-                    recentLosses++;
-                recentCount++;
+                    totalLosses++;
+
+                // 최근 20게임 (해당 시즌 내에서)
+                if (recentCount < 20) {
+                    if (isWin)
+                        recentWins++;
+                    else
+                        recentLosses++;
+                    recentCount++;
+                }
             }
-        }
 
-        BigDecimal rankWinRate = calculateWinRate(totalWins, totalLosses);
-        BigDecimal recentWinRate = calculateWinRate(recentWins, recentLosses);
+            BigDecimal rankWinRate = calculateWinRate(totalWins, totalLosses);
+            BigDecimal recentWinRate = calculateWinRate(recentWins, recentLosses);
 
-        Map<String, Object> leagueInfo = riotApiService.getLeagueInfoByPuuid(member.getPuuid());
-        String tierStr = (String) leagueInfo.get("tier");
-        String divisionStr = (String) leagueInfo.get("rank");
+            // 4. 라이엇 API 티어 정보 반영 (중요: 현재 시즌일 때만 API 정보를 신뢰)
+            Tier tier = null;
+            Division division = null;
+            Integer leaguePoints = null;
+            Integer rankWins = null;
+            Integer rankLosses = null;
+            BigDecimal rankTotalWinRate = null;
 
-        Tier tier = null;
-        Division division = null;
+            if (season.isActive()) {
+                // 현재 진행 중인 시즌이라면 -> Riot API의 실시간 정보를 반영
+                Map<String, Object> leagueInfo = riotApiService.getLeagueInfoByPuuid(member.getPuuid());
 
-        if (tierStr != null) {
-            try {
-                tier = Tier.valueOf(tierStr);
-            } catch (IllegalArgumentException e) {
-                tier = Tier.UNRANKED;
+                String tierStr = (String) leagueInfo.get("tier");
+                String divisionStr = (String) leagueInfo.get("rank");
+
+                if (tierStr != null) {
+                    try {
+                        tier = Tier.valueOf(tierStr);
+                    } catch (Exception e) {
+                        tier = Tier.UNRANKED;
+                    }
+                }
+                if (divisionStr != null) {
+                    try {
+                        division = Division.valueOf(divisionStr);
+                    } catch (Exception e) {
+                        division = null;
+                    }
+                }
+
+                leaguePoints = (Integer) leagueInfo.get("leaguePoints");
+                rankWins = (Integer) leagueInfo.get("wins");
+                rankLosses = (Integer) leagueInfo.get("losses");
+
+                if (rankWins != null && rankLosses != null) {
+                    rankTotalWinRate = calculateWinRate(rankWins, rankLosses);
+                } else {
+                    rankWins = totalWins;
+                    rankLosses = totalLosses;
+                    rankTotalWinRate = rankWinRate;
+                }
+            } else {
+                // 과거 시즌(비활성화)이라면 -> 기존 DB에 저장된 스냅샷 유지
+                // (Entity의 기존 값을 꺼내서 다시 넣어줌으로써 null 업데이트 방지)
+                tier = stat.getTier();
+                division = stat.getDivision();
+                leaguePoints = stat.getLeaguePoint();
+                rankWins = stat.getRankWins() != null ? stat.getRankWins() : totalWins;
+                rankLosses = stat.getRankLoseRate() != null ? stat.getRankLoseRate() : totalLosses;
+                rankTotalWinRate = stat.getRankWinRate();
             }
+
+            stat.updateProfile(
+                    tier, division, leaguePoints, rankTotalWinRate, rankWins, rankLosses, recentWinRate, recentWins,
+                    recentLosses);
+            memberStatRepository.save(stat);
         }
-
-        if (divisionStr != null) {
-            try {
-                division = Division.valueOf(divisionStr);
-            } catch (IllegalArgumentException e) {
-                // MASTER, GRANDMASTER, CHALLENGER는 division이 없음
-                division = null;
-            }
-        }
-
-        Integer leaguePoints = (Integer) leagueInfo.get("leaguePoints");
-        Integer rankWins = (Integer) leagueInfo.get("wins");
-        Integer rankLosses = (Integer) leagueInfo.get("losses");
-
-        BigDecimal rankTotalWinRate = null;
-        if (rankWins != null && rankLosses != null) {
-            rankTotalWinRate = calculateWinRate(rankWins, rankLosses);
-        } else {
-            rankWins = totalWins;
-            rankLosses = totalLosses;
-            rankTotalWinRate = rankWinRate;
-        }
-
-        stat.updateProfile(
-                tier, division, leaguePoints, rankTotalWinRate, rankWins, rankLosses, recentWinRate, recentWins,
-                recentLosses);
-        memberStatRepository.save(stat);
     }
 
     @Transactional
@@ -475,7 +586,7 @@ public class MatchService {
         }
     }
 
-    private kr.draftgo.Draft_Go_BE.match.dto.MatchDetailRes convertToMatchDetailRes(MatchDocument match) {
+    private MatchDetailRes convertToMatchDetailRes(MatchDocument match) {
         try {
             Map<String, Object> data = match.getData();
             if (data == null)
@@ -493,11 +604,11 @@ public class MatchService {
             if (participantsData == null)
                 return null;
 
-            List<kr.draftgo.Draft_Go_BE.match.dto.ParticipantRes> participants = participantsData.stream()
+            List<ParticipantRes> participants = participantsData.stream()
                     .map(this::mapToParticipantRes)
                     .collect(Collectors.toList());
 
-            return kr.draftgo.Draft_Go_BE.match.dto.MatchDetailRes.builder()
+            return MatchDetailRes.builder()
                     .matchId(match.getMatchId())
                     .gameCreation(gameCreation)
                     .gameDuration(gameDuration)
@@ -511,7 +622,7 @@ public class MatchService {
         }
     }
 
-    private kr.draftgo.Draft_Go_BE.match.dto.ParticipantRes mapToParticipantRes(Map<String, Object> p) {
+    private ParticipantRes mapToParticipantRes(Map<String, Object> p) {
         String summonerName = (String) p.get("riotIdGameName");
         String tagLine = (String) p.get("riotIdTagline");
         String championName = (String) p.get("championName");
@@ -579,7 +690,7 @@ public class MatchService {
                 + ((Number) p.get("neutralMinionsKilled")).intValue();
         int championLevel = ((Number) p.get("champLevel")).intValue();
 
-        return kr.draftgo.Draft_Go_BE.match.dto.ParticipantRes.builder()
+        return ParticipantRes.builder()
                 .summonerName(summonerName)
                 .tagLine(tagLine)
                 .championName(championName)
@@ -600,5 +711,32 @@ public class MatchService {
                 .totalMinionsKilled(totalMinionsKilled)
                 .championLevel(championLevel)
                 .build();
+    }
+
+    private boolean isNewerVersion(String current, String active) {
+        if (current == null || active == null)
+            return false;
+        try {
+            // Parse Major.Minor
+            // e.g. 16.2.1 -> 16.2
+            // e.g. 16.1 -> 16.1
+            String[] curParts = current.split("\\.");
+            String[] actParts = active.split("\\.");
+
+            int curMajor = Integer.parseInt(curParts[0]);
+            int curMinor = curParts.length > 1 ? Integer.parseInt(curParts[1]) : 0;
+
+            int actMajor = Integer.parseInt(actParts[0]);
+            int actMinor = actParts.length > 1 ? Integer.parseInt(actParts[1]) : 0;
+
+            if (curMajor > actMajor)
+                return true;
+            if (curMajor == actMajor && curMinor > actMinor)
+                return true;
+
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

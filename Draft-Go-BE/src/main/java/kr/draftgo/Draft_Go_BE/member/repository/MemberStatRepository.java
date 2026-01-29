@@ -13,5 +13,7 @@ public interface MemberStatRepository extends JpaRepository<MemberStat, Long> {
 
     Optional<MemberStat> findByMemberId(Long memberId);
 
+    Optional<MemberStat> findByMemberIdAndSeasonId(Long memberId, String seasonId);
+
     boolean existsByMemberId(Long memberId);
 }

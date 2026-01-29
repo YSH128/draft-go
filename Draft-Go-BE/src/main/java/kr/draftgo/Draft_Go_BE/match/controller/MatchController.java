@@ -2,6 +2,7 @@ package kr.draftgo.Draft_Go_BE.match.controller;
 
 import kr.draftgo.Draft_Go_BE.match.service.MatchService;
 import kr.draftgo.Draft_Go_BE.member.dto.MemberRefreshStatusRes;
+import kr.draftgo.Draft_Go_BE.match.dto.MatchDetailRes;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ public class MatchController {
 
     @Operation(summary = "회원 매치 히스토리 조회", description = "특정 회원의 전적 리스트를 조회합니다. (페이징 지원)")
     @GetMapping("/history/{memberId}")
-    public ResponseEntity<List<kr.draftgo.Draft_Go_BE.match.dto.MatchDetailRes>> getMatchHistory(
+    public ResponseEntity<List<MatchDetailRes>> getMatchHistory(
             @PathVariable Long memberId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {

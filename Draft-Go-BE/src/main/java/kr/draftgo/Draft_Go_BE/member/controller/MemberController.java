@@ -32,10 +32,12 @@ public class MemberController {
         return ResponseEntity.ok(profile);
     }
 
-    @Operation(summary = "회원 정보 조회 (상세)", description = "특정 회원의 정보를 조회합니다. (전적/통계 포함)")
+    @Operation(summary = "회원 정보 조회 (상세)", description = "특정 회원의 정보를 조회합니다. (전적/통계 포함). seasonId를 지정하면 해당 시즌 통계를 조회합니다.")
     @GetMapping("/{memberId}")
-    public ResponseEntity<MemberProfileRes> getMemberProfile(@PathVariable Long memberId) {
-        MemberProfileRes profile = memberService.getProfileById(memberId);
+    public ResponseEntity<MemberProfileRes> getMemberProfile(
+            @PathVariable Long memberId,
+            @RequestParam(required = false) String seasonId) {
+        MemberProfileRes profile = memberService.getProfileByIdAndSeason(memberId, seasonId);
         return ResponseEntity.ok(profile);
     }
 

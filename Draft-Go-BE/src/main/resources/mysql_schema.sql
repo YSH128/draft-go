@@ -19,6 +19,7 @@ CREATE TABLE `member` (
 CREATE TABLE `member_stat` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `member_id` BIGINT NOT NULL,
+    `season_id` VARCHAR(10) NOT NULL COMMENT '시즌 ID (예: 1401, 1602)',
     `tier` VARCHAR(15) NULL COMMENT 'MongoDB에서 복제된 티어 정보 (IRON, BRONZE, SILVER, GOLD, PLATINUM, EMERALD, DIAMOND, MASTER, GRANDMASTER, CHALLENGER)',
     `division` VARCHAR(5) NULL COMMENT 'MongoDB에서 복제된 디비전 정보 (I, II, III, IV)',
     `league_point` INT NULL COMMENT 'MongoDB에서 복제된 리그 포인트',
@@ -31,7 +32,8 @@ CREATE TABLE `member_stat` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    CONSTRAINT `fk_ms_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`)
+    CONSTRAINT `fk_ms_member` FOREIGN KEY (`member_id`) REFERENCES `member` (`id`),
+    UNIQUE KEY `uk_member_season` (`member_id`, `season_id`)
 );
 
 CREATE TABLE `draft` (

@@ -4,9 +4,11 @@ import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
 import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
 import kr.draftgo.Draft_Go_BE.match.dto.MostChampionRes;
 import kr.draftgo.Draft_Go_BE.match.repository.MostChampionStatRepository;
+import kr.draftgo.Draft_Go_BE.match.service.DataDragonService;
 import kr.draftgo.Draft_Go_BE.match.service.RiotApiService;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
+import kr.draftgo.Draft_Go_BE.member.domain.SeasonDocument;
 import kr.draftgo.Draft_Go_BE.member.dto.*;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
@@ -33,7 +35,8 @@ public class MemberService {
     private final MemberStatRepository memberStatRepository;
     private final MostChampionStatRepository mostChampionStatRepository;
     private final RiotApiService riotApiService;
-    private final kr.draftgo.Draft_Go_BE.match.service.DataDragonService dataDragonService;
+    private final DataDragonService dataDragonService;
+    private final SeasonService seasonService;
 
     /**
      * 사용자명으로 회원 프로필 조회
@@ -44,7 +47,7 @@ public class MemberService {
     public MemberProfileRes getProfile(String username) {
         Member member = memberRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomException(ErrorType.MEMBER_NOT_FOUND));
-        return getMemberProfileRes(member);
+        return getMemberProfileRes(member, null); // 활성 시즌 자동 조회
     }
 
     /**
@@ -56,7 +59,20 @@ public class MemberService {
     public MemberProfileRes getProfileById(Long memberId) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorType.MEMBER_NOT_FOUND));
-        return getMemberProfileRes(member);
+        return getMemberProfileRes(member, null); // 활성 시즌 자동 조회
+    }
+
+    /**
+     * 회원 ID와 시즌 ID로 회원 프로필 조회
+     *
+     * @param memberId 회원 ID
+     * @param seasonId 시즌 ID (null이면 활성 시즌 자동 조회)
+     * @return 회원 프로필 정보 (통계, 최고 챔피언 포함)
+     */
+    public MemberProfileRes getProfileByIdAndSeason(Long memberId, String seasonId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomException(ErrorType.MEMBER_NOT_FOUND));
+        return getMemberProfileRes(member, seasonId);
     }
 
     /**
@@ -126,13 +142,23 @@ public class MemberService {
      *
      * MySQL의 통계 정보와 MongoDB의 최고 챔피언 정보를 결합하여 반환합니다.
      *
-     * @param member 회원 엔티티
+     * @param member   회원 엔티티
+     * @param seasonId 시즌 ID (null이면 활성 시즌 자동 조회)
      * @return 회원 프로필 응답 DTO
      */
-    private MemberProfileRes getMemberProfileRes(Member member) {
-        // MySQL에서 회원 통계 조회
-        MemberStat stat = memberStatRepository.findByMemberId(member.getId())
-                .orElse(null);
+    private MemberProfileRes getMemberProfileRes(Member member, String seasonId) {
+        // seasonId가 없으면 활성 시즌 조회
+        if (seasonId == null) {
+            SeasonDocument activeSeason = seasonService.getActiveSeason();
+            seasonId = (activeSeason != null) ? activeSeason.getSeasonId() : null;
+        }
+
+        // MySQL에서 회원 통계 조회 (시즌별)
+        MemberStat stat = null;
+        if (seasonId != null) {
+            stat = memberStatRepository.findByMemberIdAndSeasonId(member.getId(), seasonId)
+                    .orElse(null);
+        }
 
         // MongoDB에서 최고 챔피언 통계 조회
         List<MostChampionRes> mostChampions = mostChampionStatRepository.findByMemberId(member.getId())
@@ -146,10 +172,7 @@ public class MemberService {
         // Populate Profile Icon URL
         if (member.getProfileIconId() != null) {
             String iconUrl = dataDragonService.getProfileIconUrl(member.getProfileIconId());
-            // Need a setter or update builder to set this extra field, but DTO is
-            // immutable-ish (Builder).
-            // Let's modify MemberProfileRes.from or create a builder copy.
-            // Actually, MemberProfileRes uses @Builder.
+
             return MemberProfileRes.builder()
                     .memberId(res.getMemberId())
                     .username(res.getUsername())

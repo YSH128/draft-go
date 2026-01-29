@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "member_stat")
+@Table(name = "member_stat", uniqueConstraints = @UniqueConstraint(columnNames = { "member_id", "season_id" }))
 public class MemberStat {
 
     @Id
@@ -23,6 +23,9 @@ public class MemberStat {
 
     @Column(nullable = false)
     private Long memberId;
+
+    @Column(name = "season_id", nullable = false, length = 10)
+    private String seasonId;
 
     @Column(name = "tier", length = 15)
     @Enumerated(EnumType.STRING)
@@ -72,8 +75,8 @@ public class MemberStat {
     }
 
     public void updateProfile(Tier tier, Division division, Integer leaguePoint, BigDecimal rankWinRate,
-                             Integer rankWins, Integer rankLoseRate, BigDecimal lastedWinRate,
-                             Integer lastedWins, Integer lastedLosses) {
+            Integer rankWins, Integer rankLoseRate, BigDecimal lastedWinRate,
+            Integer lastedWins, Integer lastedLosses) {
         if (tier != null) {
             this.tier = tier;
         }

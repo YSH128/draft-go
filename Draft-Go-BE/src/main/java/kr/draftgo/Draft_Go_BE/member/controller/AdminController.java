@@ -5,8 +5,10 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionRecoveryService;
 import kr.draftgo.Draft_Go_BE.member.domain.SeasonDocument;
-import kr.draftgo.Draft_Go_BE.member.dto.AddTestMembersRes;
+import kr.draftgo.Draft_Go_BE.member.dto.SeasonRes;
 import kr.draftgo.Draft_Go_BE.member.repository.SeasonRepository;
+import kr.draftgo.Draft_Go_BE.member.service.SeasonService;
+import kr.draftgo.Draft_Go_BE.member.dto.AddTestMembersRes;
 import kr.draftgo.Draft_Go_BE.member.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Map;
 
 @Tag(name = "Admin", description = "관리자 API")
@@ -24,6 +27,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminController {
     private final SeasonRepository seasonRepository;
+    private final SeasonService seasonService;
     private final AdminService adminService;
     private final AuctionRecoveryService auctionRecoveryService;
 
@@ -35,6 +39,12 @@ public class AdminController {
         return seasonRepository.save(season);
     }
 
+    @Operation(summary = "시즌 목록 조회", description = "모든 시즌 정보를 조회합니다. (최신순)")
+    @GetMapping("/seasons")
+    public List<SeasonRes> getAllSeasons() {
+        return seasonService.getAllSeasons().stream()
+                .map(SeasonRes::from)
+                .collect(Collectors.toList());
     @Operation(summary = "테스트 멤버 로비 입장", description = "특정 드래프트에 test1~test10 멤버를 로비에 입장시킵니다. 이미 참가 중인 멤버는 건너뜁니다.")
     @PostMapping("/drafts/{draftId}/add-test-members")
     @PreAuthorize("hasRole('ADMIN')")

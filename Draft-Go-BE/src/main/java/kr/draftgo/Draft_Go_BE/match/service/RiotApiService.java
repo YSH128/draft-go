@@ -41,9 +41,15 @@ public interface RiotApiService {
      * Get Summoner Info (Profile Icon, Level, etc.) by PUUID.
      * Uses SUMMONER-V4 API.
      *
-     * @param puuid
      * @return Map containing summoner info (id, accountId, puuid, name,
      *         profileIconId, revisionDate, summonerLevel)
      */
     java.util.Map<String, Object> getSummonerInfo(String puuid);
+
+    /**
+     * [Automation] Get Challenger League to check if season/split has reset.
+     * 
+     * @param queue (e.g., RANKED_SOLO_5x5)
+     */
+    java.util.Map<String, Object> getChallengerLeague(String queue);
 }
