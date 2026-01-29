@@ -60,6 +60,9 @@ public class RoomController {
             }
         }
 
+        // memberId 추출 (비로그인 시 null)
+        Long memberId = member != null ? member.getId() : null;
+
         // 내가 참여한 대회만 필터링
         if (myParticipation) {
             // 비로그인 사용자가 내 참여 목록을 요청한 경우
@@ -69,19 +72,19 @@ public class RoomController {
             }
 
             if (draftStatus != null) {
-                return roomService.getDraftListByStatusAndMemberId(draftStatus, member.getId());
+                return roomService.getDraftListByStatusAndMemberId(draftStatus, memberId);
             } else {
-                return roomService.getDraftListByMemberId(member.getId());
+                return roomService.getDraftListByMemberId(memberId);
             }
         }
 
         // 상태별 필터링
         if (draftStatus != null) {
-            return roomService.getDraftListByStatus(draftStatus);
+            return roomService.getDraftListByStatus(draftStatus, memberId);
         }
 
         // 필터링 없이 전체 조회
-        return roomService.getDraftList();
+        return roomService.getDraftList(memberId);
     }
 
     @Operation(summary = "드래프트 방 생성", description = "새로운 드래프트 방을 생성하고 참여 코드를 발급받습니다.")

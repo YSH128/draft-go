@@ -21,4 +21,5 @@ public class DraftListRes {
     private Integer participantCount;
     private DraftStatus status;
     private LocalDateTime createdAt;
+    private Boolean myParticipant;
 }

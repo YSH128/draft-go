@@ -2,6 +2,7 @@ package kr.draftgo.Draft_Go_BE.draft.room.service;
 
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
+import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.LobbyParticipant;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
@@ -38,6 +39,7 @@ public class RoomService {
     private final LobbyWebSocketService lobbyWebSocketService;
     private final ChatWebSocketController chatWebSocketController;
     private final DataDragonService dataDragonService;
+    private final DraftMemberRepository draftMemberRepository;
 
     /**
      * 드래프트 방 생성
@@ -192,39 +194,77 @@ public class RoomService {
     /**
      * 드래프트 목록 조회
      */
-    public List<DraftListRes> getDraftList() {
+    public List<DraftListRes> getDraftList(Long memberId) {
         List<Draft> drafts = draftRepository.findAllWithOwner();
-        return buildDraftListResponse(drafts);
+        return buildDraftListResponse(drafts, memberId);
     }
 
     /**
      * 드래프트 목록 조회 (상태 필터링)
      */
-    public List<DraftListRes> getDraftListByStatus(DraftStatus status) {
+    public List<DraftListRes> getDraftListByStatus(DraftStatus status, Long memberId) {
         List<Draft> drafts = draftRepository.findAllByStatusWithOwner(status);
-        return buildDraftListResponse(drafts);
+        return buildDraftListResponse(drafts, memberId);
     }
 
     /**
      * 드래프트 목록 조회 (사용자 참여 필터링)
      */
     public List<DraftListRes> getDraftListByMemberId(Long memberId) {
-        List<Draft> drafts = draftRepository.findAllByMemberIdWithOwner(memberId);
-        return buildDraftListResponse(drafts);
+        // 1. DB에서 DraftMember로 참여 중인 드래프트 조회
+        List<Draft> draftsFromDb = draftRepository.findAllByMemberIdWithOwner(memberId);
+
+        // 2. 모든 LOBBY 상태 드래프트 조회하여 Redis에서 참여 여부 확인
+        List<Draft> lobbyDrafts = draftRepository.findAllByStatusWithOwner(DraftStatus.LOBBY);
+
+        // 3. Redis에서 참여 중이지만 DB에는 없는 LOBBY 드래프트 추가
+        for (Draft lobbyDraft : lobbyDrafts) {
+            boolean alreadyInList = draftsFromDb.stream()
+                    .anyMatch(d -> d.getId().equals(lobbyDraft.getId()));
+
+            if (!alreadyInList && lobbyRedisRepository.isParticipating(lobbyDraft.getId(), memberId)) {
+                draftsFromDb.add(lobbyDraft);
+            }
+        }
+
+        // 4. 생성일시 기준으로 정렬 (최신순)
+        draftsFromDb.sort((d1, d2) -> d2.getCreatedAt().compareTo(d1.getCreatedAt()));
+
+        return buildDraftListResponse(draftsFromDb, memberId);
     }
 
     /**
      * 드래프트 목록 조회 (상태 및 사용자 참여 필터링)
      */
     public List<DraftListRes> getDraftListByStatusAndMemberId(DraftStatus status, Long memberId) {
-        List<Draft> drafts = draftRepository.findAllByStatusAndMemberIdWithOwner(status, memberId);
-        return buildDraftListResponse(drafts);
+        // 1. DB에서 DraftMember로 참여 중인 드래프트 조회
+        List<Draft> draftsFromDb = draftRepository.findAllByStatusAndMemberIdWithOwner(status, memberId);
+
+        // 2. LOBBY 상태 필터링인 경우 Redis에서도 확인
+        if (status == DraftStatus.LOBBY) {
+            List<Draft> lobbyDrafts = draftRepository.findAllByStatusWithOwner(DraftStatus.LOBBY);
+
+            // Redis에서 참여 중이지만 DB에는 없는 LOBBY 드래프트 추가
+            for (Draft lobbyDraft : lobbyDrafts) {
+                boolean alreadyInList = draftsFromDb.stream()
+                        .anyMatch(d -> d.getId().equals(lobbyDraft.getId()));
+
+                if (!alreadyInList && lobbyRedisRepository.isParticipating(lobbyDraft.getId(), memberId)) {
+                    draftsFromDb.add(lobbyDraft);
+                }
+            }
+
+            // 생성일시 기준으로 정렬 (최신순)
+            draftsFromDb.sort((d1, d2) -> d2.getCreatedAt().compareTo(d1.getCreatedAt()));
+        }
+
+        return buildDraftListResponse(draftsFromDb, memberId);
     }
 
     /**
      * Draft 리스트를 DraftListRes로 변환
      */
-    private List<DraftListRes> buildDraftListResponse(List<Draft> drafts) {
+    private List<DraftListRes> buildDraftListResponse(List<Draft> drafts, Long memberId) {
         return drafts.stream()
                 .map(draft -> {
                     List<LobbyParticipant> participants = lobbyRedisRepository.getParticipants(draft.getId());
@@ -233,6 +273,18 @@ public class RoomService {
                     String ownerProfileImageUrl = null;
                     if (draft.getOwner().getProfileIconId() != null) {
                         ownerProfileImageUrl = dataDragonService.getProfileIconUrl(draft.getOwner().getProfileIconId());
+                    }
+
+                    // 현재 사용자의 참여 여부 확인 (비로그인 시 false)
+                    boolean isMyParticipant = false;
+                    if (memberId != null) {
+                        // 1. DB에서 DraftMember 확인 (드래프트가 시작된 경우)
+                        isMyParticipant = draftMemberRepository.findByDraftIdAndMemberId(draft.getId(), memberId).isPresent();
+
+                        // 2. LOBBY 상태인 경우 Redis에서도 확인
+                        if (!isMyParticipant && draft.getStatus() == DraftStatus.LOBBY) {
+                            isMyParticipant = lobbyRedisRepository.isParticipating(draft.getId(), memberId);
+                        }
                     }
 
                     return DraftListRes.builder()
@@ -245,6 +297,7 @@ public class RoomService {
                             .participantCount(participants.size())
                             .status(draft.getStatus())
                             .createdAt(draft.getCreatedAt())
+                            .myParticipant(isMyParticipant)
                             .build();
                 })
                 .collect(Collectors.toList());
