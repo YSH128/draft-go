@@ -158,6 +158,28 @@ public class LobbyService {
             throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 역할을 변경할 수 있습니다.");
         }
 
+        // 팀장으로 변경 시 검증
+        if ("LEADER".equals(req.getRole())) {
+            LobbyParticipant participant = lobbyRedisRepository.getParticipant(draftId, req.getTargetUserId());
+
+            // 현재 포지션이 OBSERVER이면 에러
+            if (participant != null && participant.getPosition() == Position.OBSERVER) {
+                throw new CustomException(ErrorType.LEADER_CANNOT_BE_OBSERVER);
+            }
+
+            // 현재 팀장이 아닌 경우에만 팀장 수 확인 (이미 팀장이면 카운트 변경 없음)
+            if (participant != null && !"LEADER".equals(participant.getRole())) {
+                List<LobbyParticipant> participants = lobbyRedisRepository.getParticipants(draftId);
+                long currentLeaderCount = participants.stream()
+                        .filter(p -> "LEADER".equals(p.getRole()))
+                        .count();
+
+                if (currentLeaderCount >= draft.getMaxTeamCount()) {
+                    throw new CustomException(ErrorType.MAX_TEAM_COUNT_EXCEEDED);
+                }
+            }
+        }
+
         lobbyRedisRepository.changeRole(draftId, req.getTargetUserId(), req.getRole());
 
         // WebSocket 브로드캐스트
@@ -175,6 +197,12 @@ public class LobbyService {
         // 본인 또는 관리자만 포지션 변경 가능
         if (!draft.getOwner().getId().equals(memberId) && !req.getTargetUserId().equals(memberId)) {
             throw new CustomException(ErrorType.UNAUTHORIZED_POSITION_CHANGE);
+        }
+
+        // 팀장이 관전자가 되는 것을 방지
+        LobbyParticipant participant = lobbyRedisRepository.getParticipant(draftId, req.getTargetUserId());
+        if (participant != null && "LEADER".equals(participant.getRole()) && req.getPosition() == Position.OBSERVER) {
+            throw new CustomException(ErrorType.LEADER_CANNOT_BE_OBSERVER);
         }
 
         lobbyRedisRepository.changePosition(draftId, req.getTargetUserId(), req.getPosition());

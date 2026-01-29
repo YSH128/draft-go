@@ -52,6 +52,12 @@ public class LobbyController {
     @Operation(summary = "역할 변경 (관리자 전용)", description = "참여자의 역할을 팀장(LEADER) 또는 팀원(MEMBER)으로 변경합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "역할 변경 성공", content = @Content()),
+            @ApiResponse(responseCode = "400", description = """
+                    LEADER_CANNOT_BE_OBSERVER - 팀장은 관전자가 될 수 없습니다
+                    
+                    MAX_TEAM_COUNT_EXCEEDED - 최대 팀 수를 초과하여 팀장을 추가할 수 없습니다
+                    """,
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "403", description = "UNAUTHORIZED_ADMIN_ONLY - 관리자만 역할을 변경할 수 있습니다",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "DRAFT_NOT_FOUND - 존재하지 않는 드래프트입니다 / PARTICIPANT_NOT_FOUND - 참가자를 찾을 수 없습니다",
@@ -69,6 +75,8 @@ public class LobbyController {
     @Operation(summary = "포지션 변경", description = "참여자의 포지션을 변경합니다. (TOP, JUNGLE, MID, BOT, SUP, OBSERVER)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "포지션 변경 성공", content = @Content()),
+            @ApiResponse(responseCode = "400", description = "LEADER_CANNOT_BE_OBSERVER - 팀장은 관전자가 될 수 없습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "403", description = "UNAUTHORIZED_POSITION_CHANGE - 본인 또는 관리자만 포지션을 변경할 수 있습니다",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "DRAFT_NOT_FOUND - 존재하지 않는 드래프트입니다 / PARTICIPANT_NOT_FOUND - 참가자를 찾을 수 없습니다",

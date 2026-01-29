@@ -35,6 +35,8 @@ public enum ErrorType {
 
     // 로비 참가자 관련 에러
     PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "PARTICIPANT_NOT_FOUND", "드래프트에 참여하지 않은 사용자입니다"),
+    LEADER_CANNOT_BE_OBSERVER(HttpStatus.BAD_REQUEST, "LEADER_CANNOT_BE_OBSERVER", "팀장은 관전자가 될 수 없습니다. 특정 포지션을 선택해주세요"),
+    MAX_TEAM_COUNT_EXCEEDED(HttpStatus.BAD_REQUEST, "MAX_TEAM_COUNT_EXCEEDED", "최대 팀 수를 초과하여 팀장을 추가할 수 없습니다"),
 
     // 드래프트 시작 검증 에러
     NO_LEADERS(HttpStatus.BAD_REQUEST, "NO_LEADERS", "팀장이 없습니다"),

@@ -151,9 +151,26 @@ public class RoomService {
             throw new CustomException(ErrorType.DRAFT_NOT_IN_LOBBY, "로비 상태에서만 참가할 수 있습니다.");
         }
 
+        // 팀장으로 입장하려는 경우 최대 팀 수 확인
+        if ("LEADER".equals(role)) {
+            List<LobbyParticipant> participants = lobbyRedisRepository.getParticipants(draftId);
+            long currentLeaderCount = participants.stream()
+                    .filter(p -> "LEADER".equals(p.getRole()))
+                    .count();
+
+            if (currentLeaderCount >= draft.getMaxTeamCount()) {
+                throw new CustomException(ErrorType.MAX_TEAM_COUNT_EXCEEDED);
+            }
+        }
+
         // position이 null이면 OBSERVER를 기본값으로 사용
         Position selectedPosition =
                 req.getPosition() != null ? req.getPosition() : Position.OBSERVER;
+
+        // 팀장(LEADER)은 OBSERVER 포지션으로 입장할 수 없음
+        if ("LEADER".equals(role) && selectedPosition == Position.OBSERVER) {
+            throw new CustomException(ErrorType.LEADER_CANNOT_BE_OBSERVER);
+        }
 
         LobbyParticipant participant = LobbyParticipant.builder()
                 .memberId(member.getId())
