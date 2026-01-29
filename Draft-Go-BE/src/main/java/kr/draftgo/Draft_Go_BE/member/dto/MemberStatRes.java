@@ -1,0 +1,40 @@
+package kr.draftgo.Draft_Go_BE.member.dto;
+
+import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
+import kr.draftgo.Draft_Go_BE.member.domain.Tier;
+import kr.draftgo.Draft_Go_BE.member.domain.Division;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class MemberStatRes {
+    private Tier tier;
+    private Division division;
+    private Integer leaguePoints;
+    private BigDecimal winRate;
+    private Integer wins;
+    private Integer losses;
+    private BigDecimal recentWinRate;
+
+    public static MemberStatRes from(MemberStat stat) {
+        if (stat == null)
+            return null;
+
+        return MemberStatRes.builder()
+                .tier(stat.getTier())
+                .division(stat.getDivision())
+                .leaguePoints(stat.getLeaguePoint())
+                .winRate(stat.getRankWinRate())
+                .wins(stat.getRankWins())
+                .losses(stat.getRankLoseRate())
+                .recentWinRate(stat.getLastedWinRate())
+                .build();
+    }
+}
