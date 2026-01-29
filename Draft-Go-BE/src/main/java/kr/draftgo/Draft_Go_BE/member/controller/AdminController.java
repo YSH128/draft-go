@@ -34,8 +34,6 @@ public class AdminController {
     @Operation(summary = "시즌 생성", description = "새로운 시즌 정보를 생성합니다.")
     @PostMapping("/season")
     public SeasonDocument createSeason(@RequestBody SeasonDocument season) {
-        // If marking as active, safely could set others to inactive if needed (manual
-        // logic for now)
         return seasonRepository.save(season);
     }
 
@@ -45,6 +43,8 @@ public class AdminController {
         return seasonService.getAllSeasons().stream()
                 .map(SeasonRes::from)
                 .collect(Collectors.toList());
+    }
+
     @Operation(summary = "테스트 멤버 로비 입장", description = "특정 드래프트에 test1~test10 멤버를 로비에 입장시킵니다. 이미 참가 중인 멤버는 건너뜁니다.")
     @PostMapping("/drafts/{draftId}/add-test-members")
     @PreAuthorize("hasRole('ADMIN')")
@@ -70,8 +70,7 @@ public class AdminController {
         auctionRecoveryService.manualRecovery(draftId);
 
         return ResponseEntity.ok(Map.of(
-            "draftId", draftId.toString(),
-            "message", "경매가 복구되었습니다."
-        ));
+                "draftId", draftId.toString(),
+                "message", "경매가 복구되었습니다."));
     }
 }
