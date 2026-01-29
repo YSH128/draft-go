@@ -15,6 +15,7 @@ import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomJoinReq;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.UpdateDraftInfoReq;
 import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
 import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
+import kr.draftgo.Draft_Go_BE.match.service.DataDragonService;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class RoomService {
     private final RedisLobbyRepository lobbyRedisRepository;
     private final LobbyWebSocketService lobbyWebSocketService;
     private final ChatWebSocketController chatWebSocketController;
+    private final DataDragonService dataDragonService;
 
     /**
      * 드래프트 방 생성
@@ -46,6 +48,7 @@ public class RoomService {
         int startPrice = req.getStartPrice() != null ? req.getStartPrice() : 100;
         int startPoint = req.getStartPoint() != null ? req.getStartPoint() : 1000;
         int maxTeamCount = req.getMaxTeamCount() != null ? req.getMaxTeamCount() : 2;
+        String thumbnailUrl = req.getThumbnailUrl() != null ? req.getThumbnailUrl() : "https://picsum.photos/160/90";
 
         if (startPrice > startPoint) {
             throw new CustomException(ErrorType.DRAFT_START_PRICE_INVALID);
@@ -57,6 +60,7 @@ public class RoomService {
                 .startPrice(startPrice)
                 .startPoint(startPoint)
                 .maxTeamCount(maxTeamCount)
+                .thumbnailUrl(thumbnailUrl)
                 .build();
 
         draftRepository.save(draft);
@@ -172,19 +176,58 @@ public class RoomService {
      * 드래프트 목록 조회
      */
     public List<DraftListRes> getDraftList() {
-        List<Draft> drafts = draftRepository.findAll();
+        List<Draft> drafts = draftRepository.findAllWithOwner();
+        return buildDraftListResponse(drafts);
+    }
 
+    /**
+     * 드래프트 목록 조회 (상태 필터링)
+     */
+    public List<DraftListRes> getDraftListByStatus(DraftStatus status) {
+        List<Draft> drafts = draftRepository.findAllByStatusWithOwner(status);
+        return buildDraftListResponse(drafts);
+    }
+
+    /**
+     * 드래프트 목록 조회 (사용자 참여 필터링)
+     */
+    public List<DraftListRes> getDraftListByMemberId(Long memberId) {
+        List<Draft> drafts = draftRepository.findAllByMemberIdWithOwner(memberId);
+        return buildDraftListResponse(drafts);
+    }
+
+    /**
+     * 드래프트 목록 조회 (상태 및 사용자 참여 필터링)
+     */
+    public List<DraftListRes> getDraftListByStatusAndMemberId(DraftStatus status, Long memberId) {
+        List<Draft> drafts = draftRepository.findAllByStatusAndMemberIdWithOwner(status, memberId);
+        return buildDraftListResponse(drafts);
+    }
+
+    /**
+     * Draft 리스트를 DraftListRes로 변환
+     */
+    private List<DraftListRes> buildDraftListResponse(List<Draft> drafts) {
         return drafts.stream()
                 .map(draft -> {
                     List<LobbyParticipant> participants = lobbyRedisRepository.getParticipants(draft.getId());
+
+                    // Owner의 profileIconId를 사용하여 프로필 이미지 URL 생성
+                    String ownerProfileImageUrl = null;
+                    if (draft.getOwner().getProfileIconId() != null) {
+                        ownerProfileImageUrl = dataDragonService.getProfileIconUrl(draft.getOwner().getProfileIconId());
+                    }
 
                     return DraftListRes.builder()
                             .draftId(draft.getId())
                             .title(draft.getTitle())
                             .ownerName(draft.getOwner().getGameName())
+                            .ownerProfileImage(ownerProfileImageUrl)
+                            .thumbnailUrl(draft.getThumbnailUrl())
                             .maxTeamCount(draft.getMaxTeamCount())
                             .participantCount(participants.size())
                             .status(draft.getStatus())
+                            .createdAt(draft.getCreatedAt())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -231,6 +274,9 @@ public class RoomService {
         if (req.getMaxTeamCount() != null && !req.getMaxTeamCount().equals(draft.getMaxTeamCount())) {
             changedFields.append("최대 팀 수: ").append(draft.getMaxTeamCount()).append(" → ").append(req.getMaxTeamCount()).append(", ");
         }
+        if (req.getThumbnailUrl() != null && !req.getThumbnailUrl().equals(draft.getThumbnailUrl())) {
+            changedFields.append("썸네일 URL 변경됨, ");
+        }
 
         // 드래프트 정보 업데이트 (null이 아닌 값만 업데이트됨)
         draft.updateDraftInfo(
@@ -239,6 +285,11 @@ public class RoomService {
                 req.getStartPoint(),
                 req.getMaxTeamCount()
         );
+
+        // 썸네일 URL은 별도로 업데이트 (null 허용)
+        if (req.getThumbnailUrl() != null) {
+            draft.updateThumbnailUrl(req.getThumbnailUrl());
+        }
 
         draftRepository.save(draft);
 

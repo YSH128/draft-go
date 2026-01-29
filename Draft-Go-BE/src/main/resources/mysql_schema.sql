@@ -41,9 +41,11 @@ CREATE TABLE `draft` (
 	`start_price` INT NOT NULL,
 	`start_point` INT NOT NULL,
     `max_team_count` INT NOT NULL,
+    `thumbnail_url` VARCHAR(500) NULL,
 	`member_code` VARCHAR(6) NOT NULL,
 	`leader_code` VARCHAR(6) NOT NULL,
 	`status` VARCHAR(20) NOT NULL DEFAULT 'RECRUITING' COMMENT 'RECRUITING, AUCTION, AUCTION_FINISHED, COMPLETED',
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     CONSTRAINT `fk_draft_owner` FOREIGN KEY (`owner_id`) REFERENCES `member` (`id`)
 );

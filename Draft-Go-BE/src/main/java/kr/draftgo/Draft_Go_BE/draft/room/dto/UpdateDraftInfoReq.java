@@ -38,4 +38,9 @@ public class UpdateDraftInfoReq {
      */
     @Min(value = 2, message = "최대 팀 수는 2 이상이어야 합니다")
     private Integer maxTeamCount;
+
+    /**
+     * 썸네일 URL (선택적)
+     */
+    private String thumbnailUrl;
 }

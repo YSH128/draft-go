@@ -13,4 +13,5 @@ public class RoomCreateReq {
     private Integer maxTeamCount;
     private Integer startPrice;
     private Integer startPoint;
+    private String thumbnailUrl;
 }

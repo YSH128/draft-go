@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.DraftListRes;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateReq;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateRes;
@@ -19,6 +20,7 @@ import kr.draftgo.Draft_Go_BE.global.exception.ErrorResponse;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,9 +35,42 @@ import java.util.List;
 public class RoomController {
     private final RoomService roomService;
 
-    @Operation(summary = "드래프트 목록 조회", description = "모든 드래프트 방 목록을 조회합니다.")
+    @Operation(summary = "드래프트 목록 조회",
+               description = "드래프트 방 목록을 조회합니다. 상태 필터링 및 내가 참여한 대회 필터링을 지원합니다.")
     @GetMapping
-    public List<DraftListRes> getDraftList() {
+    public List<DraftListRes> getDraftList(
+            @Parameter(description = "상태 필터 (ALL, LOBBY, IN_DRAFT, COMPLETED)")
+            @RequestParam(required = false) String status,
+            @Parameter(description = "내가 참여한 대회만 조회 (true/false)")
+            @RequestParam(name = "my_participation", required = false, defaultValue = "false") Boolean myParticipation,
+            Authentication authentication) {
+
+        // status가 "ALL"이면 null로 처리 (전체 조회)
+        DraftStatus draftStatus = null;
+        if (status != null && !status.equalsIgnoreCase("ALL")) {
+            try {
+                draftStatus = DraftStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // 잘못된 status는 무시하고 전체 조회
+            }
+        }
+
+        // 내가 참여한 대회만 필터링
+        if (myParticipation && authentication != null && authentication.isAuthenticated()) {
+            Member member = (Member) authentication.getPrincipal();
+            if (draftStatus != null) {
+                return roomService.getDraftListByStatusAndMemberId(draftStatus, member.getId());
+            } else {
+                return roomService.getDraftListByMemberId(member.getId());
+            }
+        }
+
+        // 상태별 필터링
+        if (draftStatus != null) {
+            return roomService.getDraftListByStatus(draftStatus);
+        }
+
+        // 필터링 없이 전체 조회
         return roomService.getDraftList();
     }
 

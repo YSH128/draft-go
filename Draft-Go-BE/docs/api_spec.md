@@ -64,8 +64,8 @@
 
 ### [GET] 인기 드래프트 목록 조회
 
-* **URL:** `/api/v1/drafts`
 * **Res:** `List<DraftSummary>` (ID, 제목, 참여자 수, 방장 닉네임)
+- 내가 참여한 진행 중 대회: `GET /api/v1/drafts?status=IN_DRAFT&my_participation=true` (인증 필요)
 
 ### [GET] 드래프트 상세 모달 조회
 
@@ -83,7 +83,7 @@
 ### [POST] 드래프트 방 생성
 
 * **URL:** `/api/v1/drafts`
-* **Req:** `title`, `maxTeamCount`
+* **Req:** `title`, `maxTeamCount`, `startPrice`, `startPoint`, `thumbnailUrl` (선택)
 * **Res:** `draftId`, `teamMemberCode`, `teamLeaderCode`
 
 ### [POST] 드래프트 방 입장
@@ -119,7 +119,7 @@
 
 ### [POST] 준비 완료 토글 (Leader 전용)
 
-* **URL:** `/api/v1/drafts/{draftId}/ready`
+* **Req:** `title`, `maxTeamCount`
 * **Req:** `isReady` (boolean)
 
 ### [POST] 드래프트 시작 (Admin 전용)

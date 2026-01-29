@@ -88,7 +88,6 @@ public class Member {
             this.profileIconId = profileIconId;
         }
     }
-
     public void refreshUpdatedAt() {
         this.updatedAt = LocalDateTime.now();
     }

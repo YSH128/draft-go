@@ -6,6 +6,9 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -44,14 +47,22 @@ public class Draft {
     @Column(nullable = false, length = 20)
     private DraftStatus status;
 
+    @Column(length = 500)
+    private String thumbnailUrl;
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
     @Builder
-    public Draft(Member owner, String title, Integer startPrice, Integer startPoint, Integer maxTeamCount) {
+    public Draft(Member owner, String title, Integer startPrice, Integer startPoint, Integer maxTeamCount, String thumbnailUrl) {
         this.owner = owner;
         this.title = title;
         this.startPrice = startPrice;
         this.startPoint = startPoint;
         this.status = DraftStatus.LOBBY;
         this.maxTeamCount = maxTeamCount;
+        this.thumbnailUrl = thumbnailUrl;
         // Generate random 6-char codes
         this.memberCode = UUID.randomUUID().toString().substring(0, 6);
         this.leaderCode = UUID.randomUUID().toString().substring(0, 6);
@@ -103,6 +114,13 @@ public class Draft {
         if (maxTeamCount != null) {
             this.maxTeamCount = maxTeamCount;
         }
+    }
+
+    /**
+     * 썸네일 URL 수정
+     */
+    public void updateThumbnailUrl(String thumbnailUrl) {
+        this.thumbnailUrl = thumbnailUrl;
     }
 
     /**
