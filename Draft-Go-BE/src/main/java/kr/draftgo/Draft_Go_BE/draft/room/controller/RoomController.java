@@ -20,7 +20,7 @@ import kr.draftgo.Draft_Go_BE.global.exception.ErrorResponse;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,13 +37,18 @@ public class RoomController {
 
     @Operation(summary = "드래프트 목록 조회",
                description = "드래프트 방 목록을 조회합니다. 상태 필터링 및 내가 참여한 대회 필터링을 지원합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "401", description = "MISSING_TOKEN - 내가 참여한 대회를 조회하려면 로그인이 필요합니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     @GetMapping
     public List<DraftListRes> getDraftList(
             @Parameter(description = "상태 필터 (ALL, LOBBY, IN_DRAFT, COMPLETED)")
             @RequestParam(required = false) String status,
             @Parameter(description = "내가 참여한 대회만 조회 (true/false)")
             @RequestParam(name = "my_participation", required = false, defaultValue = "false") Boolean myParticipation,
-            Authentication authentication) {
+            @CurrentMember Member member) {
 
         // status가 "ALL"이면 null로 처리 (전체 조회)
         DraftStatus draftStatus = null;
@@ -56,8 +61,13 @@ public class RoomController {
         }
 
         // 내가 참여한 대회만 필터링
-        if (myParticipation && authentication != null && authentication.isAuthenticated()) {
-            Member member = (Member) authentication.getPrincipal();
+        if (myParticipation) {
+            // 비로그인 사용자가 내 참여 목록을 요청한 경우
+            // Spring Security의 표준 예외를 발생시켜 JwtAuthenticationEntryPoint에서 처리
+            if (member == null) {
+                throw new InsufficientAuthenticationException("내가 참여한 대회를 조회하려면 로그인이 필요합니다.");
+            }
+
             if (draftStatus != null) {
                 return roomService.getDraftListByStatusAndMemberId(draftStatus, member.getId());
             } else {
