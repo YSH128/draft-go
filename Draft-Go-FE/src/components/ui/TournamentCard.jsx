@@ -27,7 +27,7 @@ export default function TournamentCard({
   const isScheduled = status === "scheduled";
 
   return (
-    <div className="group relative overflow-hidden rounded-lg border border-primary/20 bg-card-dark transition-all hover:-translate-y-2 hover:border-primary hover:shadow-[0_0_25px_rgba(200,155,60,0.15)]">
+    <div className="group relative overflow-hidden rounded-lg border border-white/5 bg-[#1e2328] transition-all hover:-translate-y-2 hover:border-[#c89b3c] hover:shadow-[0_0_25px_rgba(200,155,60,0.15)]">
       {/* 호버시 외부 링크 아이콘 */}
       <div className="absolute right-0 top-0 z-20 p-3 opacity-0 transition-opacity group-hover:opacity-100">
         <Icon name="open_in_new" className="text-primary" />

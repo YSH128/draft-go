@@ -1,53 +1,59 @@
 import { GoldButton } from "../../../components/ui";
+import FadeInUp from "../../../components/ui/FadeInUp";
+import poppyBg from "../../../assets/images/poppy.png";
 
-export default function CTASection({ onCreateClick, onContactClick }) {
+export default function CTASection({ onCreateClick }) {
+  // Hextech Diamond Pattern (Simple SVG data URI)
+  const diamondPattern = `data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0 L60 30 L30 60 L0 30 Z' fill='none' stroke='rgba(200, 155, 60, 0.05)' stroke-width='1'/%3E%3C/svg%3E`;
+
   return (
-    <section className="mb-10 mt-10 px-4 sm:mb-16 sm:mt-16 sm:px-6 md:mb-20 md:mt-20">
-      <div className="group relative flex flex-col items-center justify-between gap-8 overflow-hidden rounded-[2px] border border-primary/30 bg-card-dark p-6 shadow-2xl sm:gap-10 sm:p-10 md:flex-row md:gap-12 md:p-20">
-        {/* 배경 장식 */}
-        <div className="pointer-events-none absolute -mr-48 -mt-48 right-0 top-0 h-[300px] w-[300px] rounded-full bg-primary/10 blur-[80px] sm:h-[500px] sm:w-[500px] sm:blur-[120px]" />
-        <div className="pointer-events-none absolute -mb-48 -ml-48 bottom-0 left-0 h-[300px] w-[300px] rounded-full bg-hextech-blue/5 blur-[80px] sm:h-[500px] sm:w-[500px] sm:blur-[120px]" />
-        <div className="absolute left-6 top-0 h-12 w-[1px] bg-gradient-to-b from-primary to-transparent opacity-50 sm:left-10 sm:h-20" />
-        <div className="absolute bottom-0 right-6 h-12 w-[1px] bg-gradient-to-t from-primary to-transparent opacity-50 sm:right-10 sm:h-20" />
+    <section className="mb-20 mt-10 px-4 sm:px-6">
+      <FadeInUp>
+        <div className="relative w-full max-w-7xl mx-auto overflow-hidden rounded-xl border border-[#c89b3c] bg-[#0f141e] shadow-[0_0_20px_rgba(200,155,60,0.15)]">
+          {/* Background Pattern */}
+          <div
+            className="absolute inset-0 opacity-50"
+            style={{ backgroundImage: `url("${diamondPattern}")` }}
+          />
 
-        {/* 텍스트 영역 */}
-        <div className="relative z-10 flex-1 space-y-4 text-center sm:space-y-6 md:text-left">
-          <div className="mb-2 inline-block rounded border border-hextech-blue/30 bg-hextech-blue/10 px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-hextech-blue sm:px-3 sm:text-[10px]">
-            New Feature
+          {/* Character Background (Poppy) */}
+          <div
+            className="absolute top-0 right-0 h-full w-[60%] md:w-[50%] bg-cover bg-right-center bg-no-repeat z-0"
+            style={{
+              backgroundImage: `url("${poppyBg}")`,
+              maskImage: "linear-gradient(to left, black 40%, transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to left, black 40%, transparent 100%)",
+            }}
+          />
+
+          {/* Hextech Glow Effects */}
+          <div className="absolute -left-20 -top-20 h-60 w-60 rounded-full bg-primary/10 blur-[80px]" />
+          
+          <div className="relative z-10 w-full md:max-w-[75%] flex flex-col md:flex-row items-center md:justify-start gap-8 px-8 py-14 md:px-12 lg:px-16">
+            {/* Text Content */}
+            <div className="flex-1 text-center md:text-left">
+              <h2 className="text-2xl font-bold text-white md:text-3xl lg:text-3xl whitespace-nowrap">
+                경매를 통해 팀 밸런스를 재미있게!
+              </h2>
+              <p className="mt-3 text-base text-gray-400 md:text-lg whitespace-nowrap">
+                복잡한 준비 없이, 클릭 한 번으로 팀빌딩을 시작해보세요.
+              </p>
+            </div>
+
+            {/* Action Button */}
+            <div className="flex-shrink-0">
+              <GoldButton
+                size="lg"
+                variant="primary"
+                onClick={onCreateClick}
+                className="min-w-[180px] shadow-lg"
+              >
+                대회 생성하기
+              </GoldButton>
+            </div>
           </div>
-          <h2 className="text-2xl font-black leading-[1.1] text-white sm:text-4xl md:text-5xl">
-            지금 나만의 대회를
-            <br />
-            <span className="text-primary">직접 열어보세요!</span>
-          </h2>
-          <p className="max-w-lg text-sm leading-relaxed text-slate-400 sm:text-lg md:text-xl">
-            완벽한 경매 시스템과 실시간 포인트 동기화, 자동 대진표 기능을
-            제공합니다. 복잡한 엑셀은 이제 잊으세요.
-          </p>
         </div>
-
-        {/* 버튼 영역 */}
-        <div className="relative z-10 flex w-full shrink-0 flex-col gap-3 sm:w-auto sm:flex-row sm:gap-5">
-          <GoldButton
-            size="md"
-            variant="primary"
-            icon="rocket_launch"
-            onClick={onCreateClick}
-            className="h-12 px-6 text-base sm:h-14 sm:px-10 sm:text-lg"
-          >
-            대회 생성하기
-          </GoldButton>
-          <GoldButton
-            size="md"
-            variant="ghost"
-            icon="mail"
-            onClick={onContactClick}
-            className="h-12 px-6 text-base sm:h-14 sm:px-10 sm:text-lg"
-          >
-            문의하기
-          </GoldButton>
-        </div>
-      </div>
+      </FadeInUp>
     </section>
   );
 }

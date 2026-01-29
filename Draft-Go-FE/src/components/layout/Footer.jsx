@@ -1,118 +1,132 @@
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import logo from "../../assets/images/main-logo-noname.png";
 
 export default function Footer() {
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const helpRef = useRef(null);
+
+  // 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (helpRef.current && !helpRef.current.contains(event.target)) {
+        setIsHelpOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
-    <footer className="relative overflow-hidden border-t border-primary/20 bg-background-dark pb-8 pt-12 sm:pb-12 sm:pt-16 md:pt-20">
-      {/* 상단 그라데이션 라인 */}
-      <div className="absolute left-1/2 top-0 h-[1px] w-full -translate-x-1/2 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-
-      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-8">
-        <div className="mb-10 grid grid-cols-1 gap-8 sm:mb-12 sm:gap-10 md:mb-16 md:grid-cols-12 md:gap-12">
-          {/* 로고 & 설명 */}
-          <div className="flex flex-col gap-4 sm:gap-6 md:col-span-5">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="flex size-8 items-center justify-center rounded-sm bg-primary sm:size-10">
-                <span className="material-symbols-outlined text-xl font-bold text-background-dark sm:text-2xl">
-                  gavel
-                </span>
-              </div>
-              <h1 className="text-xl font-black tracking-widest text-primary-bright sm:text-2xl">
-                DRAFT-<span className="text-primary">GO</span>
-              </h1>
-            </div>
-            <p className="max-w-sm text-sm leading-relaxed text-slate-500 sm:text-base md:text-lg">
-              이스포츠 드래프트를 위한 가장 스마트한 선택.
-              <br />
-              실시간 경매 시스템으로 더 공정하고 재미있는 대회를 만들어보세요.
-            </p>
-            <div className="flex gap-3 sm:gap-4">
-              <SocialButton icon="share" />
-              <SocialButton icon="chat_bubble" />
-              <SocialButton icon="help" />
-            </div>
+    <footer className="w-full border-t border-[#1e282d] bg-[var(--color-header-bg)] px-8 py-6">
+      <div className="flex flex-col items-center justify-between gap-6 md:flex-row md:gap-0">
+        {/* Left Side: Brand & Copyright */}
+        <div className="flex flex-col items-center gap-1 md:items-start">
+          <div className="flex items-center gap-3">
+            <img
+              src={logo}
+              alt="Draft-GO"
+              className="h-7 w-auto drop-shadow-[0_0_1px_#c89b3c]"
+            />
+            <span className="font-display text-lg font-bold tracking-wide text-white">
+              Draft-GO
+            </span>
           </div>
-
-          {/* 링크 그룹 */}
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 sm:gap-8 md:col-span-7 md:gap-4">
-            <FooterLinkGroup title="Service">
-              <FooterLink href="#">대회 만들기</FooterLink>
-              <FooterLink href="#">진행 방식 가이드</FooterLink>
-              <FooterLink href="#">포인트 정책</FooterLink>
-              <FooterLink href="#">이용 꿀팁</FooterLink>
-            </FooterLinkGroup>
-
-            <FooterLinkGroup title="Community">
-              <FooterLink href="#">공지사항</FooterLink>
-              <FooterLink href="#">자유 게시판</FooterLink>
-              <FooterLink href="#">디스코드</FooterLink>
-              <FooterLink href="#">패치 노트</FooterLink>
-            </FooterLinkGroup>
-
-            <FooterLinkGroup title="Legal">
-              <FooterLink href="#">이용약관</FooterLink>
-              <FooterLink href="#">개인정보처리방침</FooterLink>
-              <FooterLink href="#">청소년 보호방침</FooterLink>
-              <FooterLink href="#">쿠키 정책</FooterLink>
-            </FooterLinkGroup>
-          </div>
+          <p className="text-xs text-gray-500">
+            © 2026 SSAFY-14th A205. All rights reserved.
+          </p>
         </div>
 
-        {/* 하단 저작권 */}
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-6 sm:gap-6 sm:pt-8 md:flex-row">
-          <p className="text-xs font-medium text-slate-600 sm:text-sm">
-            © 2024 LoL Auction Team. All rights reserved.
-          </p>
-          <div className="flex gap-4 sm:gap-8">
-            <FooterBadge color="primary" text="Designed for Gamers" />
-            <FooterBadge color="hextech-blue" text="Hextech UI v2.0" />
+        {/* Right Side: Links & Utility */}
+        <div className="flex items-center gap-6">
+          <nav className="flex gap-6">
+            <Link
+              to="#"
+              className="text-sm text-gray-400 transition-colors hover:text-white"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              to="#"
+              className="text-sm text-gray-400 transition-colors hover:text-white"
+            >
+              Terms of Service
+            </Link>
+            <Link
+              to="#"
+              className="text-sm text-gray-400 transition-colors hover:text-white"
+            >
+              Contact Us
+            </Link>
+          </nav>
+
+          {/* Help Button & Dropdown */}
+          <div className="relative" ref={helpRef}>
+            <button
+              onClick={() => setIsHelpOpen(!isHelpOpen)}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold text-black shadow-md transition-colors hover:bg-gray-200"
+              aria-label="Help"
+            >
+              ?
+            </button>
+
+            {/* Dropdown Menu */}
+            {isHelpOpen && (
+              <div className="absolute right-0 bottom-full z-50 mb-3 w-56 rounded-md border border-[#1e282d] bg-[#1e2328] py-2 shadow-xl">
+                {/* Group 1 */}
+                <div className="flex flex-col">
+                  <Link
+                    to="#"
+                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+                  >
+                    이용 가이드
+                  </Link>
+                  <Link
+                    to="#"
+                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+                  >
+                    패치 노트
+                  </Link>
+                </div>
+
+                {/* Divider */}
+                <div className="my-1 border-t border-white/5"></div>
+
+                {/* Group 2 */}
+                <div className="flex flex-col">
+                  <Link
+                    to="#"
+                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+                  >
+                    버그 제보
+                  </Link>
+                  <Link
+                    to="#"
+                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+                  >
+                    개발팀 문의
+                  </Link>
+                </div>
+
+                {/* Divider */}
+                <div className="my-1 border-t border-white/5"></div>
+
+                {/* Group 3 */}
+                <div className="flex flex-col">
+                  <button
+                    onClick={() => alert("준비 중입니다.")}
+                    className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+                  >
+                    언어 변경 (한국어)
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </footer>
-  );
-}
-
-function SocialButton({ icon }) {
-  return (
-    <a
-      href="#"
-      className="flex size-10 items-center justify-center rounded-sm border border-white/10 bg-card-dark text-slate-400 transition-all hover:border-primary hover:text-primary"
-    >
-      <span className="material-symbols-outlined text-xl">{icon}</span>
-    </a>
-  );
-}
-
-function FooterLinkGroup({ title, children }) {
-  return (
-    <div className="flex flex-col gap-6">
-      <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-primary before:h-3 before:w-1 before:bg-primary before:content-['']">
-        {title}
-      </span>
-      <nav className="flex flex-col gap-3">{children}</nav>
-    </div>
-  );
-}
-
-
-function FooterLink({ href, children }) {
-  return (
-    <Link
-      to={href}
-      className="text-sm font-medium text-slate-400 transition-colors hover:text-primary-bright"
-    >
-      {children}
-    </Link>
-  );
-}
-
-function FooterBadge({ color, text }) {
-  const colorClass = color === "primary" ? "bg-primary" : "bg-primary";
-  // const colorClass = "text-primary";
-  return (
-    <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-600">
-      <span className={`size-1.5 rounded-full ${colorClass}`} />
-      {text}
-    </span>
   );
 }

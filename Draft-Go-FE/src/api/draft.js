@@ -1,4 +1,5 @@
 import { instance as api } from '../libs/axios';
+import { adaptDraftList } from './draftAdapter';
 
 // API Base URL 설정을 위한 인스턴스 (auth.js와 공유하거나 별도로 생성)
 // TODO: 전역 설정으로 이동 고려
@@ -12,11 +13,28 @@ import { instance as api } from '../libs/axios';
 // Draft Room & Lobby API
 
 /**
- * 드래프트 목록 조회
+ * 드래프트 목록 조회 (Raw 데이터)
+ */
+export const getDraftListRaw = async () => {
+    const response = await api.get('/drafts');
+    return response.data;
+};
+
+/**
+ * 드래프트 목록 조회 (Adapter 적용)
+ * UI 컴포넌트에서 바로 사용 가능한 형태로 변환된 데이터 반환
  */
 export const getDraftList = async () => {
     const response = await api.get('/drafts');
-    return response.data;
+    return adaptDraftList(response.data);
+};
+
+/**
+ * 드래프트 목록 조회 (fetchDrafts alias)
+ * TournamentSection 등에서 사용하는 통합 함수
+ */
+export const fetchDrafts = async () => {
+    return getDraftList();
 };
 
 /**

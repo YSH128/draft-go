@@ -8,3 +8,4 @@ export { default as TournamentCard, TournamentCardWrapper } from "./TournamentCa
 export { default as Avatar } from "./Avatar";
 export { default as Badge } from "./Badge";
 export { default as SectionTitle } from "./SectionTitle";
+export { default as Skeleton, TournamentCardSkeleton, TournamentGridSkeleton } from "./Skeleton";

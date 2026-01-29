@@ -5,7 +5,7 @@ import AuthInput from "../../components/ui/AuthInput";
 import AuthButton from "../../components/ui/AuthButton";
 import SectionDivider from "../../components/ui/SectionDivider";
 import TextLink, { FooterLinks } from "../../components/ui/TextLink";
-import riotIcon from "../../assets/riot-logo.png";
+import riotIcon from "../../assets/images/riot-logo.png";
 import useAuthStore from "../../stores/useAuthStore";
 
 const LoginPage = () => {

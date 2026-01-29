@@ -1,15 +1,11 @@
-import {
-  HeroSection,
-  StatsSection,
-  TournamentSection,
-  CTASection,
-} from "./sections";
+import { HeroSection, TournamentSection, CTASection } from "./sections";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import JoinWithCodeModal from "../../components/ui/JoinWithCodeModal";
 import CreateDraftModal from "../../components/ui/CreateDraftModal";
 import AlertModal from "../../components/ui/AlertModal";
 import useAuthStore from "../../stores/useAuthStore";
+import FadeInUp from "../../components/ui/FadeInUp";
 
 export default function HomePage() {
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
@@ -35,12 +31,11 @@ export default function HomePage() {
   };
 
   const handleContact = () => {
-    console.log("Contact clicked");
     // TODO: 문의 페이지로 이동 또는 이메일
   };
 
   const handleAlertConfirm = () => {
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
@@ -49,13 +44,17 @@ export default function HomePage() {
         onCreateClick={handleCreateTournament}
         onJoinClick={handleJoinWithCode}
       />
-      <StatsSection />
-      <TournamentSection />
-      <CTASection
-        onCreateClick={handleCreateTournament}
-        onContactClick={handleContact}
-      />
-      <JoinWithCodeModal 
+
+      <div className="relative z-10 mx-auto -mt-24 max-w-7xl space-y-20 px-6 pb-20">
+        <FadeInUp delay={0}>
+          <TournamentSection />
+        </FadeInUp>
+        <CTASection
+          onCreateClick={handleCreateTournament}
+          onContactClick={handleContact}
+        />
+      </div>
+      <JoinWithCodeModal
         isOpen={isJoinModalOpen}
         onClose={() => setIsJoinModalOpen(false)}
       />
