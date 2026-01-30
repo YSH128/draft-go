@@ -1,140 +1,192 @@
+import { useState } from "react";
 import Icon from "./Icon";
 import StatusBadge from "./StatusBadge";
 
-const iconMap = {
-  esports: "sports_esports",
-  trophy: "trophy",
-  swords: "swords",
-  calendar: "calendar_today",
+// 기본 썸네일 이미지 (이미지 로드 실패 시 폴백)
+const DEFAULT_THUMBNAIL = "https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Lux_0.jpg";
+
+// 상태별 버튼 설정
+const buttonConfig = {
+  recruiting: {
+    label: "참가하기",
+    variant: "primary",
+    handler: "onJoin",
+  },
+  "in-progress": {
+    label: "관전하기",
+    variant: "secondary",
+    handler: "onSpectate",
+  },
+  scheduled: {
+    label: "알림받기",
+    variant: "secondary",
+    handler: "onNotify",
+  },
+  completed: {
+    label: "결과보기",
+    variant: "ghost",
+    handler: "onJoin",
+  },
 };
 
 export default function TournamentCard({
   title,
   host,
+  hostProfileImage,
   imageUrl,
   status = "recruiting",
-  icon = "esports",
   current,
   total,
-  liveText,
   startsIn,
+  isParticipating = false,
   onJoin,
   onSpectate,
   onNotify,
 }) {
+  const [imgError, setImgError] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
   const isRecruiting = status === "recruiting";
   const isInProgress = status === "in-progress";
   const isScheduled = status === "scheduled";
+  const isFull = isRecruiting && current >= total;
+
+  // 썸네일 URL 결정 (에러 시 폴백)
+  const thumbnailUrl = imgError || !imageUrl ? DEFAULT_THUMBNAIL : imageUrl;
+
+  // 버튼 설정 가져오기
+  const btnConfig = buttonConfig[status] || buttonConfig.recruiting;
+  const handlers = { onJoin, onSpectate, onNotify };
+
+  // 참여 중인 경우 버튼 텍스트 변경
+  const getButtonLabel = () => {
+    if (isParticipating) return "입장하기";
+    if (isFull) return "모집완료";
+    return btnConfig.label;
+  };
+
+  const getButtonVariant = () => {
+    if (isParticipating) return "primary";
+    if (isFull) return "disabled";
+    return btnConfig.variant;
+  };
 
   return (
-    <div className="group relative overflow-hidden rounded-lg border border-white/5 bg-[#1e2328] transition-all hover:-translate-y-2 hover:border-[#c89b3c] hover:shadow-[0_0_25px_rgba(200,155,60,0.15)]">
-      {/* 호버시 외부 링크 아이콘 */}
-      <div className="absolute right-0 top-0 z-20 p-3 opacity-0 transition-opacity group-hover:opacity-100">
-        <Icon name="open_in_new" className="text-primary" />
-      </div>
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-white/10 bg-[#1a1f25] transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-[0_8px_30px_rgba(200,155,60,0.12)]">
+      {/* 썸네일 영역 */}
+      <div className="relative aspect-video w-full overflow-hidden">
+        <img
+          src={thumbnailUrl}
+          alt={title}
+          className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+          onError={() => setImgError(true)}
+        />
+        {/* 그라데이션 오버레이 */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1a1f25] via-transparent to-transparent" />
 
-      {/* 이미지 영역 */}
-      <div
-        className="relative aspect-[16/9] overflow-hidden bg-cover bg-center"
-        style={{ backgroundImage: `url('${imageUrl}')` }}
-      >
-        <div className="absolute inset-0 bg-background-dark/20 transition-colors group-hover:bg-transparent" />
-        <div className="absolute left-4 top-4">
+        {/* 상태 뱃지 */}
+        <div className="absolute left-3 top-3">
           <StatusBadge status={status} />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-card-dark via-transparent to-transparent opacity-90" />
+
+        {/* 참여 중 표시 */}
+        {isParticipating && (
+          <div className="absolute right-3 top-3">
+            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 py-1 text-[10px] font-bold text-emerald-400 backdrop-blur-md">
+              <Icon name="check_circle" className="text-xs" />
+              참여중
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 컨텐츠 영역 */}
-      <div className="relative p-6">
-        {/* 아이콘 뱃지 */}
-        <div className="absolute left-6 top-0 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-primary/30 bg-background-dark">
-          <Icon name={iconMap[icon] || iconMap.esports} className="text-xl text-primary" />
-        </div>
-
+      <div className="flex flex-1 flex-col p-4">
         {/* 제목 */}
-        <h3 className="mt-2 truncate text-xl font-black leading-tight text-white transition-colors group-hover:text-primary">
+        <h3 className="truncate text-base font-bold text-white transition-colors group-hover:text-primary">
           {title}
         </h3>
 
-        {/* 호스트 정보 */}
-        <div className="mt-4 flex items-center gap-3">
-          <div className="flex size-6 items-center justify-center rounded-full border border-primary/30 bg-primary/20">
-            <Icon name="person" className="text-sm text-primary" />
+        {/* 방장 정보 */}
+        <div className="mt-2 flex items-center gap-2">
+          {/* 아바타 */}
+          <div className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-slate-700">
+            {!avatarError && hostProfileImage ? (
+              <img
+                src={hostProfileImage}
+                alt={host}
+                className="size-full object-cover"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <Icon name="person" className="text-xs text-slate-400" />
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase text-slate-500">Host</span>
-            <span className="text-xs font-bold text-slate-200">{host}</span>
-          </div>
+          <span className="truncate text-xs text-slate-400">{host}</span>
         </div>
 
         {/* 하단 정보 & 버튼 */}
-        <div className="mt-5 flex items-center justify-between border-t border-white/5 pt-5">
+        <div className="mt-auto flex items-end justify-between gap-3 border-t border-white/5 pt-3">
+          {/* 상태별 정보 표시 */}
           <div className="flex flex-col">
             {isRecruiting && (
-              <>
-                <span className="mb-1 text-[10px] font-bold uppercase leading-none text-slate-500">
-                  Entry
-                </span>
-                <span className="text-lg font-black tracking-tighter text-white">
-                  {current} <span className="text-sm font-medium text-slate-500">/ {total}</span>
-                </span>
-              </>
+              <div className="flex items-center gap-1.5">
+                <Icon name="groups" className="text-base text-slate-500" />
+                <span className="text-sm font-bold text-white">{total}팀</span>
+              </div>
             )}
             {isInProgress && (
-              <>
-                <span className="mb-1 text-[10px] font-bold uppercase leading-none text-slate-500">
-                  Status
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-red-500" />
                 </span>
-                <span className="text-lg font-black tracking-tighter text-hextech-blue">
-                  {liveText || "Live"}
-                </span>
-              </>
+                <span className="text-sm font-bold text-red-400">LIVE</span>
+              </div>
             )}
-            {isScheduled && (
-              <>
-                <span className="mb-1 text-[10px] font-bold uppercase leading-none text-slate-500">
-                  Starts In
-                </span>
-                <span className="text-lg font-black tracking-tighter text-white">{startsIn}</span>
-              </>
+            {isScheduled && startsIn && (
+              <div className="flex items-center gap-1.5">
+                <Icon name="schedule" className="text-base text-slate-500" />
+                <span className="text-sm font-medium text-slate-300">{startsIn}</span>
+              </div>
             )}
           </div>
 
-          {isRecruiting && (
-            <CardButton variant="primary" onClick={onJoin}>
-              Join Now
-            </CardButton>
-          )}
-          {isInProgress && (
-            <CardButton variant="secondary" onClick={onSpectate}>
-              Spectate
-            </CardButton>
-          )}
-          {isScheduled && (
-            <CardButton variant="secondary" onClick={onNotify}>
-              Notify
-            </CardButton>
-          )}
+          {/* 액션 버튼 */}
+          <CardButton
+            variant={getButtonVariant()}
+            onClick={handlers[btnConfig.handler]}
+            disabled={isFull && !isParticipating}
+          >
+            {getButtonLabel()}
+          </CardButton>
         </div>
       </div>
     </div>
   );
 }
 
-function CardButton({ children, variant = "primary", onClick }) {
+function CardButton({ children, variant = "primary", onClick, disabled = false }) {
   const baseClasses =
-    "flex h-9 items-center justify-center rounded-sm px-4 text-xs font-bold uppercase tracking-wider transition-all";
+    "flex h-8 items-center justify-center rounded-md px-3 text-xs font-bold transition-all";
 
   const variantClasses = {
     primary:
-      "bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-background-dark",
+      "bg-primary/15 text-primary border border-primary/30 hover:bg-primary hover:text-background-dark active:scale-95",
     secondary:
-      "bg-background-dark text-slate-400 border border-white/10 hover:text-white hover:border-white/30",
+      "bg-slate-700/50 text-slate-300 border border-slate-600/50 hover:bg-slate-600 hover:text-white active:scale-95",
+    ghost:
+      "bg-transparent text-slate-400 border border-transparent hover:text-white hover:bg-white/5",
+    disabled:
+      "bg-slate-800/50 text-slate-500 border border-slate-700/50 cursor-not-allowed",
   };
 
   return (
-    <button onClick={onClick} className={`${baseClasses} ${variantClasses[variant]}`}>
+    <button
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className={`${baseClasses} ${variantClasses[variant]}`}
+    >
       {children}
     </button>
   );

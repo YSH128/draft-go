@@ -1,37 +1,42 @@
 const statusStyles = {
   recruiting: {
-    bg: "bg-hextech-blue/10",
-    text: "text-hextech-blue",
-    border: "border-hextech-blue/30",
-    label: "Recruiting",
+    bg: "bg-cyan-500/15",
+    text: "text-cyan-400",
+    border: "border-cyan-400/40",
+    label: "모집중",
+    dot: "bg-cyan-400",
   },
   "in-progress": {
-    bg: "bg-primary/10",
-    text: "text-primary",
-    border: "border-primary/30",
-    label: "In Progress",
+    bg: "bg-amber-500/15",
+    text: "text-amber-400",
+    border: "border-amber-400/40",
+    label: "진행중",
+    dot: "bg-amber-400 animate-pulse",
   },
   scheduled: {
-    bg: "bg-primary/10",
-    text: "text-primary",
-    border: "border-primary/30",
-    label: "Scheduled",
+    bg: "bg-violet-500/15",
+    text: "text-violet-400",
+    border: "border-violet-400/40",
+    label: "예정",
+    dot: "bg-violet-400",
   },
   completed: {
-    bg: "bg-slate-500/10",
+    bg: "bg-slate-500/15",
     text: "text-slate-400",
-    border: "border-slate-500/30",
-    label: "Completed",
+    border: "border-slate-500/40",
+    label: "종료",
+    dot: "bg-slate-400",
   },
 };
 
-export default function StatusBadge({ status }) {
+export default function StatusBadge({ status, showDot = true }) {
   const style = statusStyles[status] || statusStyles.recruiting;
 
   return (
     <span
-      className={`rounded-sm px-3 py-1 text-[10px] font-black uppercase tracking-wider backdrop-blur-md ${style.bg} ${style.text} border ${style.border}`}
+      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide backdrop-blur-md ${style.bg} ${style.text} border ${style.border}`}
     >
+      {showDot && <span className={`size-1.5 rounded-full ${style.dot}`} />}
       {style.label}
     </span>
   );

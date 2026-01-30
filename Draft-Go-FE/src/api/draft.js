@@ -12,29 +12,44 @@ import { adaptDraftList } from './draftAdapter';
 
 // Draft Room & Lobby API
 
+// API 상태값 상수 (Swagger 스펙 기준)
+export const DRAFT_STATUS = {
+  ALL: 'ALL',
+  LOBBY: 'LOBBY',
+  IN_DRAFT: 'IN_DRAFT',
+  COMPLETED: 'COMPLETED',
+};
+
 /**
  * 드래프트 목록 조회 (Raw 데이터)
+ * @param {Object} params - 쿼리 파라미터
+ * @param {string} [params.status] - 상태 필터 (ALL, LOBBY, IN_DRAFT, COMPLETED)
+ * @param {boolean} [params.my_participation] - 내가 참여한 대회만 조회
  */
-export const getDraftListRaw = async () => {
-    const response = await api.get('/drafts');
+export const getDraftListRaw = async (params = {}) => {
+    const response = await api.get('/drafts', { params });
     return response.data;
 };
 
 /**
  * 드래프트 목록 조회 (Adapter 적용)
- * UI 컴포넌트에서 바로 사용 가능한 형태로 변환된 데이터 반환
+ * @param {Object} params - 쿼리 파라미터
+ * @param {string} [params.status] - 상태 필터 (ALL, LOBBY, IN_DRAFT, COMPLETED)
+ * @param {boolean} [params.my_participation] - 내가 참여한 대회만 조회
  */
-export const getDraftList = async () => {
-    const response = await api.get('/drafts');
+export const getDraftList = async (params = {}) => {
+    const response = await api.get('/drafts', { params });
     return adaptDraftList(response.data);
 };
 
 /**
  * 드래프트 목록 조회 (fetchDrafts alias)
- * TournamentSection 등에서 사용하는 통합 함수
+ * @param {Object} params - 쿼리 파라미터
+ * @param {string} [params.status] - 상태 필터 (ALL, LOBBY, IN_DRAFT, COMPLETED)
+ * @param {boolean} [params.my_participation] - 내가 참여한 대회만 조회
  */
-export const fetchDrafts = async () => {
-    return getDraftList();
+export const fetchDrafts = async (params = {}) => {
+    return getDraftList(params);
 };
 
 /**

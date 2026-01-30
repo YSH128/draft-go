@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
 import {
   Icon,
   FilterButton,
@@ -9,44 +8,45 @@ import {
   GoldButton,
 } from "../../../components/ui";
 import FadeInUp from "../../../components/ui/FadeInUp";
-import { fetchDrafts } from "../../../api/draft";
-import { filterDraftsByStatus } from "../../../api/draftAdapter";
 
 const INITIAL_VISIBLE_COUNT = 8;
 const LOAD_MORE_COUNT = 8;
 
-const filters = [
-  { id: "all", label: "전체 보기" },
-  { id: "recruiting", label: "모집중" },
-  { id: "in-progress", label: "진행중" },
-  { id: "my", label: "나의 참여", disabled: true },
-];
-
-// 상태별 아이콘 매핑
-const statusIconMap = {
-  recruiting: "sports_esports",
-  "in-progress": "trophy",
-  scheduled: "calendar_today",
-  completed: "check_circle",
-};
-
-export default function TournamentSection() {
+/**
+ * TournamentSection 컴포넌트
+ * @param {Object} props
+ * @param {Array} props.drafts - 드래프트 목록 (isParticipating 플래그 포함)
+ * @param {boolean} props.isLoading - 로딩 상태
+ * @param {boolean} props.isError - 에러 상태
+ * @param {Error} props.error - 에러 객체
+ * @param {Function} props.refetch - 데이터 재조회 함수
+ * @param {Function} props.onCardAction - 카드 클릭 핸들러
+ * @param {boolean} props.isLoggedIn - 로그인 여부
+ */
+export default function TournamentSection({
+  drafts = [],
+  isLoading = false,
+  isError = false,
+  error = null,
+  refetch = () => {},
+  onCardAction = () => {},
+  isLoggedIn = false,
+}) {
   const [activeFilter, setActiveFilter] = useState("all");
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
 
-  // React Query로 드래프트 목록 조회
-  const {
-    data: drafts = [],
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ["drafts"],
-    queryFn: fetchDrafts,
-    staleTime: 60000, // 1분간 캐시 유지
-    refetchOnWindowFocus: false,
-  });
+  // 필터 옵션 (로그인 시에만 "나의 참여" 표시)
+  const filters = useMemo(() => {
+    const baseFilters = [
+      { id: "all", label: "전체 보기" },
+      { id: "recruiting", label: "모집중" },
+      { id: "in-progress", label: "진행중" },
+    ];
+    if (isLoggedIn) {
+      baseFilters.push({ id: "my", label: "나의 참여" });
+    }
+    return baseFilters;
+  }, [isLoggedIn]);
 
   // 필터 변경 시 visibleCount 초기화
   useEffect(() => {
@@ -54,7 +54,13 @@ export default function TournamentSection() {
   }, [activeFilter]);
 
   // 클라이언트 사이드 필터링
-  const filteredDrafts = filterDraftsByStatus(drafts, activeFilter);
+  const filteredDrafts = useMemo(() => {
+    if (!activeFilter || activeFilter === "all") return drafts;
+    if (activeFilter === "my") {
+      return drafts.filter((draft) => draft.isParticipating);
+    }
+    return drafts.filter((draft) => draft.status === activeFilter);
+  }, [drafts, activeFilter]);
 
   // 현재 보여줄 카드 목록
   const visibleDrafts = filteredDrafts.slice(0, visibleCount);
@@ -64,10 +70,12 @@ export default function TournamentSection() {
     setVisibleCount((prev) => prev + LOAD_MORE_COUNT);
   };
 
-  // TODO: 실제 네비게이션/모달 로직으로 교체 필요
-  const handleJoin = () => {};
-  const handleSpectate = () => {};
-  const handleNotify = () => {};
+  // 빈 상태 메시지
+  const getEmptyMessage = () => {
+    if (activeFilter === "all") return "진행 중인 대회가 없습니다";
+    if (activeFilter === "my") return "참여 중인 대회가 없습니다";
+    return "해당하는 대회가 없습니다";
+  };
 
   return (
     <section className="mt-16 px-4 sm:mt-24 sm:px-6 md:mt-32">
@@ -87,9 +95,7 @@ export default function TournamentSection() {
             <FilterButton
               key={filter.id}
               active={activeFilter === filter.id}
-              onClick={() => !filter.disabled && setActiveFilter(filter.id)}
-              disabled={filter.disabled}
-              className={filter.disabled ? "opacity-50 cursor-not-allowed" : ""}
+              onClick={() => setActiveFilter(filter.id)}
             >
               {filter.label}
             </FilterButton>
@@ -134,9 +140,7 @@ export default function TournamentSection() {
                 <Icon name="inbox" className="text-3xl text-primary" />
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-white">
-                  {activeFilter === "all" ? "진행 중인 대회가 없습니다" : "해당하는 대회가 없습니다"}
-                </p>
+                <p className="text-lg font-bold text-white">{getEmptyMessage()}</p>
                 <p className="mt-1 text-sm text-gray-400">새로운 대회가 열리면 이곳에 표시됩니다</p>
               </div>
             </div>
@@ -150,16 +154,16 @@ export default function TournamentSection() {
                 <TournamentCard
                   title={draft.title}
                   host={draft.ownerName}
+                  hostProfileImage={draft.ownerProfileImage}
                   imageUrl={draft.thumbnailUrl}
                   status={draft.status}
-                  icon={statusIconMap[draft.status] || "sports_esports"}
                   current={draft.currentParticipants}
                   total={draft.maxParticipants}
                   startsIn={draft.startTimeRelative}
-                  liveText={draft.status === "in-progress" ? "Live" : undefined}
-                  onJoin={() => handleJoin(draft.id)}
-                  onSpectate={() => handleSpectate(draft.id)}
-                  onNotify={() => handleNotify(draft.id)}
+                  isParticipating={draft.isParticipating}
+                  onJoin={() => onCardAction(draft)}
+                  onSpectate={() => onCardAction(draft)}
+                  onNotify={() => onCardAction(draft)}
                 />
               </FadeInUp>
             ))}

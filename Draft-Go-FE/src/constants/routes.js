@@ -7,5 +7,6 @@ export const ROUTES = {
   DESIGN_PREVIEW: "/preview",
   RESULT: "/result",
   DRAFT: "/draft",
-  DRAFT_LOBBY: "/draft-lobby/:draftId"
+  DRAFT_LOBBY: "/draft-lobby/:draftId",
+  DRAFT_ROOM: "/draft/room/:draftId"
 };

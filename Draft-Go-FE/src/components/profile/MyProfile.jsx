@@ -93,10 +93,12 @@ export default function MyProfile({ data, onProfileUpdate, onRefreshMatches }) {
   };
 
   // --- 렌더링 헬퍼 ---
-  // API 응답의 stats에서 티어 정보 추출
-  const tierFromStats = data.stats?.rank || data.tier || "UNRANKED";
-  const tierImageSrc = getTierImage(tierFromStats);
-  const tierLabel = getTierLabel(tierFromStats);
+  // 어댑터에서 정규화된 티어 정보 사용 (data.tier, data.division)
+  const tier = data.tier || data.stats?.tier || "UNRANKED";
+  const division = data.division || data.stats?.division || "";
+  const tierImageSrc = getTierImage(tier);
+  const tierLabel = getTierLabel(tier);
+  const tierDisplay = division ? `${tierLabel} ${division}` : tierLabel;
 
   // 프로필 아이콘 URL (API에서 profileIconUrl이 있으면 최우선 사용, 없으면 profileIconId로 조합)
   const avatarUrl = data.profileIconUrl || data.avatarUrl || getProfileIconUrl(data.profileIconId);
@@ -170,8 +172,8 @@ export default function MyProfile({ data, onProfileUpdate, onRefreshMatches }) {
             </h2>
             <div className="flex items-center gap-2 mb-2">
                {/* 티어 아이콘 (작게) */}
-               <img src={tierImageSrc} alt={tierLabel} className="w-4 h-4 object-contain" />
-               <span className={`text-sm font-bold ${THEME.goldText} uppercase tracking-wider`}>{tierLabel}</span>
+               <img src={tierImageSrc} alt={tierDisplay} className="w-4 h-4 object-contain" />
+               <span className={`text-sm font-bold ${THEME.goldText} uppercase tracking-wider`}>{tierDisplay}</span>
             </div>
             <span className="text-xs text-gray-500 mb-8">아이디: {data.username}</span>
 
@@ -298,7 +300,7 @@ export default function MyProfile({ data, onProfileUpdate, onRefreshMatches }) {
            {/* ----------------- [2. 전적 통계 Row] ----------------- */}
            {data.stats && (
               <div className="flex flex-col flex-1 min-h-0">
-                 <h4 className="text-sm font-bold text-white mb-3 shrink-0">최근 10경기 전적 통계</h4>
+                 <h4 className="text-sm font-bold text-white mb-3 shrink-0">랭크 전적 통계</h4>
                  <div className="w-full bg-[#13161f] border border-gray-800 rounded-lg p-5 mb-6">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                        <div className="text-center">

@@ -22,6 +22,7 @@ export default function AppRouter() {
         <Route path={ROUTES.RESULT} element={<ResultPage />} />
         <Route path={ROUTES.DESIGN_PREVIEW} element={<Index />} />
         <Route path={ROUTES.DRAFT_LOBBY} element={<DraftLobby />} />
+        <Route path={ROUTES.DRAFT_ROOM} element={<DraftLobby />} />
       </Route>
 
       {/* 자체 레이아웃 사용 페이지 */}

@@ -6,19 +6,51 @@
 
 import { formatRelativeTime } from '../utils/dateFormatter';
 
-// 기본 썸네일 이미지 (LoL 협곡 관련 이미지들)
+// 기본 썸네일 이미지 (Riot CDN - LoL 고퀄리티 배경)
 const DEFAULT_THUMBNAILS = [
   'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Lux_0.jpg',
   'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Jinx_0.jpg',
   'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Yasuo_0.jpg',
   'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Ahri_0.jpg',
+  'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/LeeSin_0.jpg',
 ];
+
+/**
+ * 유효한 썸네일 URL인지 검사
+ * - Mock 데이터(picsum, placeholder 등)는 무효 처리
+ * @param {string} url
+ * @returns {boolean}
+ */
+const isValidThumbnailUrl = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  const invalidPatterns = ['picsum', 'placeholder', 'via.placeholder', 'placehold'];
+  return !invalidPatterns.some((pattern) => url.toLowerCase().includes(pattern));
+};
+
+/**
+ * Deterministic 썸네일 URL 결정
+ * - 유효한 URL이 있으면 그대로 사용
+ * - 없거나 Mock 데이터면 draftId 기반 고정 이미지 할당
+ * @param {string|null} apiUrl - API에서 받은 URL
+ * @param {number|string} draftId - 드래프트 ID
+ * @returns {string}
+ */
+const getDeterministicThumbnail = (apiUrl, draftId) => {
+  if (isValidThumbnailUrl(apiUrl)) {
+    return apiUrl;
+  }
+  // draftId를 숫자로 변환 후 배열 길이로 나눈 나머지 사용
+  const numericId = typeof draftId === 'number' ? draftId : parseInt(draftId, 10) || 0;
+  const index = Math.abs(numericId) % DEFAULT_THUMBNAILS.length;
+  return DEFAULT_THUMBNAILS[index];
+};
 
 // API 상태값 → UI 상태값 매핑 (TournamentCard/StatusBadge 호환)
 const STATUS_MAP = {
   LOBBY: 'recruiting',
   RECRUITING: 'recruiting',
   IN_PROGRESS: 'in-progress',
+  IN_DRAFT: 'in-progress', // Swagger 스펙: IN_DRAFT
   AUCTION: 'in-progress',
   SCHEDULED: 'scheduled',
   COMPLETED: 'completed',
@@ -33,12 +65,19 @@ export const STATUS_LABELS = {
   completed: '완료',
 };
 
-// 필터 탭용 상태 상수
+// 필터 탭용 상태 상수 (UI용)
 export const FILTER_STATUS = {
   ALL: 'all',
   RECRUITING: 'recruiting',
   IN_PROGRESS: 'in-progress',
   MY: 'my',
+};
+
+// UI 필터값 → API status 파라미터 변환
+export const UI_FILTER_TO_API_STATUS = {
+  all: 'ALL',
+  recruiting: 'LOBBY',
+  'in-progress': 'IN_DRAFT',
 };
 
 /**
@@ -87,10 +126,8 @@ const generateRandomPastTime = () => {
 export const adaptDraft = (raw) => {
   const draftId = raw.draftId || raw.id;
 
-  // 썸네일: API에서 제공하지 않으면 해시 기반 기본 이미지 선택
-  const thumbnailUrl =
-    raw.thumbnailUrl ||
-    DEFAULT_THUMBNAILS[getHashIndex(draftId, DEFAULT_THUMBNAILS.length)];
+  // 썸네일: Deterministic 방식으로 결정 (Mock 데이터 필터링 포함)
+  const thumbnailUrl = getDeterministicThumbnail(raw.thumbnailUrl, draftId);
 
   // 프로필 이미지: API에서 제공하지 않으면 DiceBear 아바타 생성
   const ownerName = raw.ownerName || raw.hostName || '익명';
@@ -141,6 +178,9 @@ export const adaptDraft = (raw) => {
     // 게임 설정
     startPrice: raw.startPrice ?? 0,
     startPoint: raw.startPoint ?? 0,
+
+    // 참여 상태 (백엔드 API에서 제공 - myParticipant)
+    isParticipating: raw.myParticipant || false,
 
     // 원본 데이터 보존 (디버깅용)
     _raw: raw,

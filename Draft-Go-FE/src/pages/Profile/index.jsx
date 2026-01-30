@@ -10,10 +10,13 @@ import {
   refreshMatches,
   getRefreshStatus,
 } from "../../api/profileApi";
+import { fetchDrafts } from "../../api/draft";
+import { adaptProfile } from "../../api/profileAdapter";
 
 export default function ProfilePage() {
   const [profileData, setProfileData] = useState(null);
   const [matchHistory, setMatchHistory] = useState([]);
+  const [participatingDrafts, setParticipatingDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -22,8 +25,9 @@ export default function ProfilePage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getMyProfile();
-      
+      const rawData = await getMyProfile();
+      const data = adaptProfile(rawData);
+
       setProfileData(data);
 
       // 매치 히스토리도 함께 로드
@@ -42,10 +46,16 @@ export default function ProfilePage() {
 
         // 1. 최근 10개만 유지
         const recentTen = transformedList.slice(0, 10);
-        
-
-
         setMatchHistory(recentTen);
+      }
+
+      // 참가한 대회 목록 로드
+      try {
+        const drafts = await fetchDrafts({ my_participation: true });
+        setParticipatingDrafts(drafts || []);
+      } catch (draftErr) {
+        console.error("참가 대회 로드 실패:", draftErr);
+        setParticipatingDrafts([]);
       }
     } catch (err) {
       console.error("프로필 로드 실패:", err);
@@ -100,40 +110,18 @@ export default function ProfilePage() {
     );
   }
 
-  // 전적 통계 계산 (최근 10경기 기준)
-  const calculateRecentStats = () => {
-    if (!matchHistory || matchHistory.length === 0) return null;
-
-    const wins = matchHistory.filter((m) => m.win).length;
-    const losses = matchHistory.length - wins;
-    const winRate = matchHistory.length > 0 ? Math.round((wins / matchHistory.length) * 100) : 0;
-    
-    // API의 seasonal stats 대신 계산된 stats 사용
-    // 기존 stats의 구조를 유지하되, win/loss/rate만 덮어씀 (LP 등은 유지)
-    return {
-      ...profileData?.stats, 
-      wins,
-      losses,
-      winRate,
-    };
+  // 프로필 데이터가 없으면 기본값 사용 (백엔드 stats 데이터 신뢰)
+  const displayData = profileData || {
+    memberId: null,
+    username: "-",
+    gameName: "소환사",
+    tagLine: "KR1",
+    mainPosition: "TOP",
+    subPosition: "JUNGLE",
+    stats: null,
+    mostChampions: [],
+    bio: "",
   };
-
-  const calculatedStats = calculateRecentStats();
-
-  // 프로필 데이터가 없으면 기본값 사용
-  const displayData = profileData
-    ? { ...profileData, stats: calculatedStats || profileData.stats } // 계산된 통계 우선 적용
-    : {
-        memberId: null,
-        username: "-",
-        gameName: "소환사",
-        tagLine: "KR1",
-        mainPosition: "TOP",
-        subPosition: "JUNGLE",
-        stats: null,
-        mostChampions: [],
-        bio: "", // introduction -> bio
-      };
 
   return (
     <div className="bg-background-dark min-h-screen p-4 text-white md:p-10">
@@ -177,21 +165,17 @@ export default function ProfilePage() {
           </div>
 
           {/* 오른쪽: 참가한 대회 */}
-          <div>
+          <div className="flex flex-col h-full">
             <h2 className="text-xl font-bold text-white mb-4">참가한 대회</h2>
-            <ParticipatingTournaments
-              tournaments={displayData.participatingTournaments || []}
-            />
+            <div className="flex-1">
+              <ParticipatingTournaments
+                tournaments={participatingDrafts}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 하단 푸터 */}
-      <div className="mx-auto mt-16 max-w-[1400px] border-t border-white/5 pt-8">
-        <p className="mt-8 text-center text-xs text-gray-700">
-          © 2026 Draft-Go. All rights reserved.
-        </p>
-      </div>
     </div>
   );
 }
