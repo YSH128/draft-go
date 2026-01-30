@@ -1,0 +1,28 @@
+notify_mr_merged:
+  stage: notify
+  image: curlimages/curl:latest
+  tags:
+    - mattermost
+  rules:
+    # dev나 main 브랜치로 무언가 합쳐졌을 때만 실행
+    - if: $CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "master"
+  script:
+    - |
+      # 1. 현재 커밋과 연관된 MR 정보를 API로 조회
+      # CI_JOB_TOKEN을 사용해 별도 설정 없이 API 권한 획득 가능
+      MR_DATA=$(curl --header "JOB-TOKEN: $CI_JOB_TOKEN" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/commits/${CI_COMMIT_SHA}/merge_requests")
+      
+      # 2. 결과가 비어있지 않은지 확인 (jq가 없다면 단순 문자열 파싱)
+      # 실제 현업에서는 jq를 사용해 데이터를 깔끔하게 추출하는 것을 권장합니다.
+      MR_TITLE=$(echo $MR_DATA | sed -n 's/.*"title":"\([^"]*\)".*/\1/p')
+      MR_URL=$(echo $MR_DATA | sed -n 's/.*"web_url":"\([^"]*\)".*/\1/p')
+      MR_DESC=$(echo $MR_DATA | sed -n 's/.*"description":"\([^"]*\)".*/\1/p')
+
+      # 3. Mattermost 전송
+      MESSAGE="🎉 **Merge Request 병합 완료!**\n\n"
+      MESSAGE="${MESSAGE}**📌 MR 제목:** ${MR_TITLE}\n"
+      MESSAGE="${MESSAGE}**📝 설명:** ${MR_DESC}\n"
+      MESSAGE="${MESSAGE}**🔗 바로가기:** ${MR_URL}"
+
+      curl -i -X POST -H 'Content-Type: application/json' \
+      -d "{\"text\": \"${MESSAGE}\"}" "${MM_WEBHOOK_URL}"
