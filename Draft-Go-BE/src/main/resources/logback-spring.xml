@@ -2,17 +2,23 @@
 <configuration>
     <include resource="org/springframework/boot/logging/logback/base.xml"/>
 
-    <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-        <!-- 
-            localhost:5000 points to the Logstash container exposed on the host. 
-            If the server IP is different, change 'localhost' to the server IP.
-        -->
-        <destination>localhost:5000</destination>
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
-    </appender>
-
-    <root level="INFO">
-        <appender-ref ref="LOGSTASH" />
-        <appender-ref ref="CONSOLE" />
-    </root>
+    <!-- 서버에서만 ENABLE_ELK=true 환경변수 설정 -->
+    <if condition='property("ENABLE_ELK").equals("true")'>
+        <then>
+            <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+                <destination>localhost:5000</destination>
+                <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+            </appender>
+            
+            <root level="INFO">
+                <appender-ref ref="LOGSTASH" />
+                <appender-ref ref="CONSOLE" />
+            </root>
+        </then>
+        <else>
+            <root level="INFO">
+                <appender-ref ref="CONSOLE" />
+            </root>
+        </else>
+    </if>
 </configuration>
