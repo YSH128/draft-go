@@ -45,7 +45,11 @@ export default function TeamLeaderCard({
 
   return (
     <div
-      className={`group relative flex min-h-[460px] w-full max-w-[340px] flex-col items-center overflow-hidden rounded-2xl border bg-panel-dark pt-10 pb-6 shadow-[0_0_20px_rgba(0,0,0,0.5)] transition-transform duration-300 hover:scale-[1.02] ${onCardClick ? 'cursor-pointer' : ''}`}
+      className={`group relative flex min-h-[460px] w-full max-w-[340px] flex-col items-center overflow-hidden rounded-2xl border bg-panel-dark pt-10 pb-6 transition-transform duration-300 hover:scale-[1.02] ${onCardClick ? 'cursor-pointer' : ''} ${
+        isCurrentUser 
+          ? 'shadow-[0_0_20px_rgba(10,200,185,0.6),0_0_40px_rgba(10,200,185,0.3)]' 
+          : 'shadow-[0_0_20px_rgba(0,0,0,0.5)]'
+      }`}
       style={{ borderColor: tierColor }}
       onClick={onCardClick || undefined}
     >
@@ -164,7 +168,8 @@ export default function TeamLeaderCard({
             ) : (
                 /* Case 2 & 3: 보기 모드 (준비 완료 또는 대기 중) */
                  <div className="flex flex-col items-center justify-center bg-[#0f0e0b] border border-[#393528] py-4 rounded-xl shadow-inner w-full opacity-90">
-                    {selectedRole ? (
+                    {/* 타인이 볼 때는 Ready 상태일 때만 포지션 표시 */}
+                    {(isReady && selectedRole) ? (
                         <>
                             <PositionIcon position={selectedRole} className="w-8 h-8 mb-1 drop-shadow-md" style={{ color: tierColor}} />
                             <span className="text-[10px] font-bold uppercase tracking-[0.1em]" style={{ color: tierColor }}>{selectedRole} 선택</span>

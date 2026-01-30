@@ -1,7 +1,19 @@
 import { useEffect } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AppRouter from "./router";
 import useAuthStore from "../stores/useAuthStore";
 import { getMyProfile } from "../api/auth";
+
+// QueryClient 인스턴스 생성
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60, // 1분
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {
   const { accessToken, user, login } = useAuthStore();
@@ -29,7 +41,12 @@ function App() {
     loadUserProfile();
   }, [accessToken, user, login]);
 
-  return <AppRouter />;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppRouter />
+    </QueryClientProvider>
+  );
 }
 
 export default App;
+

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom"; 
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { useQueryClient } from "@tanstack/react-query";
 import * as DraftApi from "../../api/draft"; 
 
 import TeamLeaderCard from "../../components/ui/TeamLeaderCard";
@@ -12,10 +13,15 @@ import Button from "../../components/ui/Button";
 import CreateDraftModal from "../../components/ui/CreateDraftModal";
 import CodeGenerationModal from "../../components/ui/CodeGenerationModal";
 import TeamLeaderSettingsModal from "../../components/ui/TeamLeaderSettingsModal";
-import ParticipantProfileModal from "../../components/ui/ParticipantProfileModal";
+import ParticipantProfileModal from  "../../components/ui/ParticipantProfileModal";
 import KickConfirmModal from "../../components/ui/KickConfirmModal";
+import AlertModal from '../../components/ui/AlertModal';
 import Badge from "../../components/ui/Badge";
+import StatsDashboard from "../../components/ui/StatsDashboard";
+import DraftPoolColumn from "../../components/ui/DraftPoolColumn";
 import useAuthStore from "../../stores/useAuthStore";
+import { useLobbyData } from "../../hooks/useLobbyData";
+import { useLobbySocket } from "../../hooks/useLobbySocket";
 
 // 포지션 매핑 함수 (API ↔ UI 변환)
 const mapPositionToAPI = (position) => {
@@ -29,6 +35,96 @@ const mapPositionToUI = (position) => {
     return mapping[position] || position;
 };
 
+// Tier text color mapping
+const TIER_TEXT_COLORS = {
+    challenger: "text-[var(--color-tier-challenger-text)]",
+    grandmaster: "text-[var(--color-tier-grandmaster-text)]",
+    master: "text-[var(--color-tier-master-text)]",
+    diamond: "text-[var(--color-tier-diamond-text)]",
+    emerald: "text-[var(--color-tier-emerald-text)]",
+    platinum: "text-[var(--color-tier-platinum-text)]",
+    gold: "text-[var(--color-tier-gold-text)]",
+    silver: "text-[var(--color-tier-silver-text)]",
+    bronze: "text-[var(--color-tier-bronze-text)]",
+    iron: "text-[var(--color-tier-iron-text)]",
+    manager: "text-[#666]",
+    observer: "text-[#666]"
+};
+
+const getTierTextClass = (tier) => {
+    if (!tier) return "text-[#bab29c]";
+    const tierLower = tier.toLowerCase();
+    return TIER_TEXT_COLORS[tierLower] || `text-[var(--color-tier-${tierLower}-text)]`;
+};
+
+// Tier score calculation constants and functions
+const TIER_ORDER = ["iron", "bronze", "silver", "gold", "platinum", "emerald", "diamond", "master", "grandmaster", "challenger"];
+const DIV_MAP = { "I": 3, "II": 2, "III": 1, "IV": 0, "i": 3, "ii": 2, "iii": 1, "iv": 0 };
+const DIV_REVERSE = ["IV", "III", "II", "I"];
+
+const getTierScore = (tierStr, divisionStr) => {
+    if (!tierStr) return 0;
+    
+    const tier = tierStr.toLowerCase();
+    const div = divisionStr || (TIER_ORDER.indexOf(tier) >= 7 ? "I" : "IV");
+    
+    const tierIdx = TIER_ORDER.indexOf(tier);
+    if (tierIdx === -1) return 0;
+
+    let score = tierIdx * 4;
+    
+    if (tierIdx >= 7) {
+         return score; 
+    }
+
+    score += (DIV_MAP[div] !== undefined ? DIV_MAP[div] : 0);
+    return score;
+};
+
+const getTierFromScore = (score) => {
+    const tierIdx = Math.floor(score / 4);
+    const divScore = Math.round(score % 4);
+    
+    const clampedTierIdx = Math.max(0, Math.min(tierIdx, TIER_ORDER.length - 1));
+    const tierName = TIER_ORDER[clampedTierIdx];
+    const baseTierName = tierName.charAt(0).toUpperCase() + tierName.slice(1);
+    
+    if (clampedTierIdx >= 7) {
+        return { 
+            name: baseTierName, 
+            baseTier: baseTierName,
+            color: getTierTextClass(tierName) 
+        }; 
+    }
+    
+    const divStr = DIV_REVERSE[divScore] || "IV";
+    
+    return { 
+        name: `${baseTierName} ${divStr}`,
+        division: divStr,
+        baseTier: baseTierName, 
+        color: getTierTextClass(tierName)
+    };
+};
+
+const calculateAverageTier = (participants) => {
+    if (!participants || participants.length === 0) return { name: "Unranked", baseTier: "Unranked", color: "text-[#666]" };
+    
+    let sum = 0;
+    let count = 0;
+    
+    participants.forEach(p => {
+        if (p.tier && p.tier !== "Unranked") {
+           sum += getTierScore(p.tier, p.division);
+           count++;
+        }
+    });
+
+    if (count === 0) return { name: "Unranked", baseTier: "Unranked", color: "text-[#666]" };
+    
+    const avg = Math.round(sum / count);
+    return getTierFromScore(avg);
+};
 
 
 
@@ -36,29 +132,35 @@ export default function DraftLobby() {
   const { user } = useAuthStore(); // 현재 유저
   const { draftId } = useParams(); 
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   
+  // ========== TanStack Query & WebSocket ==========
+  // 서버 데이터 가져오기 (실시간 동기화)
+  const { data: rawData, isLoading, isFetching, isError } = useLobbyData(draftId);
 
-  const [userRole, setUserRole] = useState("MEMBER");
-  const [isHost, setIsHost] = useState(false); 
-  const [data, setData] = useState(null);
+  // DEBUG: Check raw data structure
+  useEffect(() => {
+    if (rawData) console.log('🔍 [DraftLobby] RAW DATA:', rawData);
+  }, [rawData]);
+  
+  // WebSocket 연결 및 이벤트 리스닝
+  // WebSocket 연결 및 이벤트 리스닝
+  const handleLobbyEnded = useCallback(() => {
+      console.warn('Draft deleted by host. Showing alert.');
+      setIsLobbyClosedAlertOpen(true);
+  }, []);
 
-  const [lobbyTitle, setLobbyTitle] = useState("Lobby Loading...");
+  useLobbySocket(draftId, handleLobbyEnded);
+  
+  // ========== Local State (UI only) ==========
   const [isEditDraftModalOpen, setIsEditDraftModalOpen] = useState(false);
-
-  
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
-  const [codes, setCodes] = useState({
-      teamLeaderCode: "LOADING...",
-      teamMemberCode: "LOADING..."
-  });
-
-  const [captains, setCaptains] = useState([]);
-  const [draftPool, setDraftPool] = useState({
-      TOP: [], JNG: [], MID: [], ADC: [], SUP: [], SPECTATOR: []
-  });
-  
-
   const [messages, setMessages] = useState([]);
+  
+  const [isKickedAlertOpen, setIsKickedAlertOpen] = useState(false);
+  const [isLobbyClosedAlertOpen, setIsLobbyClosedAlertOpen] = useState(false);
+  const [isDestroyConfirmOpen, setIsDestroyConfirmOpen] = useState(false);
+  const isSelfLeavingRef = useRef(false); // Track if user is leaving voluntarily
 
 
   const chatContainerRef = useRef(null);
@@ -77,408 +179,236 @@ export default function DraftLobby() {
   }, [messages]);
 
 
-  
 
+  // ========== Derived State from Query Data ==========
+  // 서버 데이터를 UI 형식으로 변환 (useMemo로 최적화)
+  const data = useMemo(() => {
+    if (!rawData) return null;
+    
+    // DraftList에서 추가 정보 병합 (필요시)
+    return rawData;
+  }, [rawData]);
 
-  const fetchLobbyData = async () => {
-      try {
-          const targetId = draftId || 1;
+  // ========== Auto-redirect when kicked from lobby ==========
+  useEffect(() => {
+    // 데이터가 로딩 중이거나 없으면 리다이렉트 하지 않음
+    // invalidateQueries 후 refetch 중일 때(isRefetching/isFetching)도 기다려야 함
+    if (isLoading || isFetching || !data || !user?.id) {
+        return;
+    }
 
-          const [data, draftList] = await Promise.all([
-              DraftApi.getDraftLobby(targetId),
-              DraftApi.getDraftList()
-          ]);
-          
-          console.log("Lobby Data:", data);
-          console.log("Draft List:", draftList);
-          
- 
-          let mergedData = { ...data };
-          
+    const myId = Number(user.id);
+    
+    // Check if current user exists in any participant list
+    const isInLeaders = data.leaders?.some(leader => Number(leader.id) === myId) || false;
+    const isInMembers = Array.isArray(data.members) 
+      ? data.members.some(member => Number(member.id) === myId)
+      : (data.members ? Object.values(data.members).flat().some(member => Number(member.id) === myId) : false);
 
-          let validList = [];
-          if (Array.isArray(draftList)) validList = draftList;
-          else if (Array.isArray(draftList?.data)) validList = draftList.data;
-          else if (Array.isArray(draftList?.content)) validList = draftList.content;
+    const isInObservers = data.observers?.some(obs => Number(obs.id) === myId) || false;
 
-          if (validList.length > 0) {
-              const currentDraftConfig = validList.find(d => {
-                  const dId = d.id || d.draftId;
-                  return Number(dId) === Number(targetId);
-              });
-
-              if (currentDraftConfig) {
-                  mergedData = {
-                      ...mergedData,
-                      startPoint: currentDraftConfig.startPoint ?? mergedData.startPoint,
-                      maxTeamCount: currentDraftConfig.maxTeamCount ?? mergedData.maxTeamCount,
-                      startPrice: currentDraftConfig.startPrice ?? mergedData.startPrice,
-                      title: currentDraftConfig.title ?? mergedData.title
-                  };
-              }
-          }
-          
-
-          if (mergedData.startPoint === undefined && mergedData.leaders && mergedData.leaders.length > 0) {
-               mergedData.startPoint = mergedData.leaders[0].leaderPoint || 1000;
-          }
-
-          setData(mergedData);
-          console.log("[DraftLobby] MERGED DATA:", JSON.stringify(mergedData, null, 2));
-
-          if (!mergedData) return;
-
-          setLobbyTitle(mergedData.title || "Unknown Lobby");
-          
-          if (mergedData.codes) {
-              setCodes(mergedData.codes);
-          }
-
-
-          const leaders = Array.isArray(data.leaders) ? data.leaders : [];
-          
-
-          const myId = user?.id;
-          if (!myId) {
-              console.warn('[DraftLobby] User ID not found in AuthStore');
-          }
-          
-          
-
-          const hasAdminCodes = data.codes && (data.codes.teamLeaderCode || data.codes.teamMemberCode);
-          
-
-          const ownerIdValue = data.ownerId || data.hostId || data.masterId; 
-          const isExplicitOwner = ownerIdValue && Number(ownerIdValue) === Number(myId);
-          
-          const isOwner = isExplicitOwner || !!hasAdminCodes;
-          setIsHost(isOwner);
-
-
-          let myRole = "MEMBER";
-          
-
-          if (leaders.some(l => Number(l.id) === Number(myId))) {
-              myRole = "CAPTAIN";
-          }
-
-          const membersList = Array.isArray(data.members) ? data.members : [];
-          if (membersList.some(m => Number(m.id) === Number(myId))) {
-              myRole = "CREW";
-          }
-
-          if (data.observers && data.observers.some(o => Number(o.id) === Number(myId))) {
-              myRole = "SPECTATOR";
-          }
-
-
-          if (myRole === "MEMBER" && isOwner) {
-              myRole = "ADMIN";
-          }
-          
-          setUserRole(myRole);
-          console.log('[DraftLobby] Logic Check -> HasCodes:', !!hasAdminCodes, 'IsOwner:', isOwner);
-          console.log('[DraftLobby] Final Role:', myRole);
-
-
-          const mappedCaptains = leaders.map((leader, index) => {
-              const baseData = {
-                  id: leader.id,
-                  name: leader.name,
-                  tier: leader.tier,
-                  division: leader.division, 
-                  teamNumber: index + 1,
-                  image: leader.profileIcon || "", 
-                  ready: leader.isReady,
-                  selectedRole: mapPositionToUI(leader.position),
-                  isSelf: Number(leader.id) === Number(myId),
-                  points: leader.leaderPoint || mergedData.startPoint || 1000,
-                  loading: false,
-                  role: 'MID',
-
-                  mainPosition: leader.mainPosition,
-                  subPosition: leader.subPosition,
-                  mostChampions: leader.mostChampions,
-                  lp: leader.leaguePoints,
-                  gameName: leader.gameName,
-                  tagLine: leader.tagLine,
-                  level: leader.summonerLevel,
-                  winRate: leader.winRate,
-                  recent20: leader.recentStats, // { wins, losses }
-                  memberId: leader.memberId || leader.id, // 전적 갱신용 memberId 추가 (fallback to id)
-                  lastUpdated: leader.updatedAt || leader.lastUpdated // 전적 갱신 쿨타임 계산용
-              };
-
-
-              const cached = refreshedProfilesRef.current[leader.memberId] || refreshedProfilesRef.current[leader.id];
-              if (cached) {
-                  return { ...baseData, ...cached };
-              }
-              return baseData;
-          });
-          setCaptains(mappedCaptains);
-
-
-          const newPool = { TOP: [], JNG: [], MID: [], ADC: [], SUP: [], SPECTATOR: [] };
-          
-          const members = Array.isArray(data.members) ? data.members : [];
-          members.forEach(member => {
-              const uiPosition = mapPositionToUI(member.position);
-              if (newPool[uiPosition]) {
-                  let memberData = {
-                      id: member.id,
-                      name: member.name,
-                      tier: member.tier,
-                      division: member.division, 
-                      color: getTierTextClass(member.tier),
-                      lp: member.leaguePoints,
-                      isSelf: Number(member.id) === Number(myId),
-                      image: member.profileIcon,
-                      // Profile Data
-                      mainPosition: member.mainPosition,
-                      subPosition: member.subPosition,
-                      mostChampions: member.mostChampions,
-                      gameName: member.gameName,
-                      tagLine: member.tagLine,
-                      level: member.summonerLevel,
-                      winRate: member.winRate,
-                      recent20: member.recentStats,
-                      memberId: member.memberId || member.id, // 전적 갱신용 memberId 추가
-                      lastUpdated: member.updatedAt || member.lastUpdated
-                  };
-
-
-                  const cached = refreshedProfilesRef.current[member.memberId] || refreshedProfilesRef.current[member.id];
-                  if (cached) {
-                      memberData = { ...memberData, ...cached };
-                  }
-
-                  newPool[uiPosition].push(memberData);
-              }
-          });
-          
-
-          if (data.observers) {
-              newPool.SPECTATOR = data.observers.map(obs => {
-                  let obsData = {
-                      id: obs.id,
-                      name: obs.name,
-                      tier: "Obs",
-                      color: "text-gray-500",
-                      isSelf: Number(obs.id) === Number(myId),
- 
-                      mainPosition: obs.mainPosition,
-                      subPosition: obs.subPosition,
-                      mostChampions: obs.mostChampions,
-                      gameName: obs.gameName,
-                      tagLine: obs.tagLine,
-                      level: obs.summonerLevel,
-                      winRate: obs.winRate,
-                      recent20: obs.recentStats,
-                      memberId: obs.memberId || obs.id,
-                      lastUpdated: obs.updatedAt || obs.lastUpdated
-                  };
-
-
-                  const cached = refreshedProfilesRef.current[obs.memberId] || refreshedProfilesRef.current[obs.id];
-                  if (cached) {
-                      obsData = { ...obsData, ...cached };
-                  }
-                  return obsData;
-              });
-          }
-
-          setDraftPool(newPool);
-
-          // [Sync] Update selectedParticipant if it's currently open
-          if (selectedParticipant) {
-              const targetId = selectedParticipant.memberId || selectedParticipant.id;
-              
-              // 1. Try finding in mappedCaptains
-              let freshProfile = mappedCaptains.find(c => (c.memberId || c.id) === targetId);
-              
-              // 2. If not found, try finding in newPool
-              if (!freshProfile) {
-                  const allMembers = Object.values(newPool).flat();
-                  freshProfile = allMembers.find(m => (m.memberId || m.id) === targetId);
-              }
-
-              // 3. If found and timestamp is newer, update it
-              if (freshProfile) {
-                  // Keep the modal open and just update data
-                  setSelectedParticipant(prev => ({
-                      ...prev,
-                      ...freshProfile
-                  }));
-              }
-          }
-
-          return data;
-      } catch (error) {
-          console.error("Failed to fetch lobby:", error);
-          // navigate('/'); // 에러 시 홈으로?
+    // If user is not found in any list
+    if (!isInLeaders && !isInMembers && !isInObservers) {
+      if (isSelfLeavingRef.current) {
+          // Voluntarily leaving (handled by confirmKick navigation)
+          return;
       }
-  };
 
-  useEffect(() => {
-     fetchLobbyData();
-     // Polling (5초마다 갱신) - 소켓 연동 전까지 임시
-     const interval = setInterval(fetchLobbyData, 5000);
-     return () => clearInterval(interval);
-
-  }, [draftId, user?.id]);
-
-  // Auto-refresh user stats on entry
-  const hasAutoRefreshed = useRef(false);
-
-  useEffect(() => {
-    if (user?.id && !hasAutoRefreshed.current) {
-        hasAutoRefreshed.current = true;
-        
-        // 내 전적 갱신 요 (with full calc)
-        updateMemberStats(user.id, false)
-            .then(() => {
-                console.log("[AutoRefresh] User stats refreshed & calculated on entry.");
-                // fetchLobbyData(); // Already local cached, but good for sync
-            })
-            .catch(err => {
-                console.error("[AutoRefresh] Failed:", err);
-            });
+      console.warn('[DraftLobby] User not found (Kicked by Admin). Showing alert...');
+      setIsKickedAlertOpen(true);
     }
-  }, [user?.id]);
+  }, [data, user, navigate, isLoading, isFetching]);
 
-  // Handle Refresh Code
-  const handleRefreshCode = async (type) => {
-      // type: 'LEADER' | 'MEMBER' (UI에서는 undefined일 수 있으니 매핑 필요)
-       // Modal에서 어떤 타입을 요청하는지 확인 필요.
-       // 현재 모달은 전체 갱신 버튼이 있는 형태라면 둘 다 하거나 특정 타입 지정.
-       // 여기서는 예시로 LEADER라고 가정하거나, 인자로 받음.
-       try {
-           const codeType = type === 'LEADER' ? 'LEADER' : 'MEMBER';
-           const targetId = draftId || 1;
-           await DraftApi.refreshInviteCode(targetId, codeType);
-           fetchLobbyData(); // 데이터 다시 로드
-       } catch (error) {
-           console.error("Code refresh failed:", error);
-           alert("초대 코드 갱신 실패");
-       }
-  };
 
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [selectedSettingsCaptain, setSelectedSettingsCaptain] = useState(null);
+  // Lobby Title
+  const lobbyTitle = useMemo(() => {
+    if (!data) return "대회 로비";
+    return data.title || "대회 로비";
+  }, [data]);
+
+  // Codes
+  const codes = useMemo(() => {
+    if (!data) return { teamLeaderCode: '', teamMemberCode: '' };
+    
+    // API 응답 구조에 맞게 필드명 매핑
+    const leaderCode = data.teamLeaderCode || data.leaderCode || data.codes?.teamLeaderCode || '';
+    const memberCode = data.teamMemberCode || data.memberCode || data.codes?.teamMemberCode || '';
+    
+    return {
+      teamLeaderCode: leaderCode,
+      teamMemberCode: memberCode
+    };
+  }, [data]);
+
+
   
-
-  const [isKickModalOpen, setIsKickModalOpen] = useState(false);
-  const [kickTarget, setKickTarget] = useState(null);
-
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [selectedParticipant, setSelectedParticipant] = useState(null);
-
-
-  const handleKickClick = (target, isSelf = false) => {
-    setKickTarget({ ...target, isSelf });
-    setIsKickModalOpen(true);
-  };
-
-  const confirmKick = async () => {
-    if (!kickTarget) return;
-    try {
-        const targetId = draftId || 1;
-        
-        // Self Leave Logic
-        if (kickTarget.isSelf) {
-            // API Call for leaving (Kick myself)
-            // Note: API 명세에 본인 나가기는 kick과 동일하게 처리되는지, 
-            // 아니면 별도 leave가 있는지 확인했으나 일단 kick/{userId}로 통일을 가정.
-            await DraftApi.kickParticipant(targetId, kickTarget.id); // userId 필요
-            navigate('/');
-            return;
-        }
-
-        // Kick Others
-        await DraftApi.kickParticipant(targetId, kickTarget.id);
-        
-        // Refresh UI
-        fetchLobbyData();
-        
-    } catch (error) {
-        console.error("Kick failed:", error);
-        alert("퇴장 처리에 실패했습니다.");
-    } finally {
-        setIsKickModalOpen(false);
-        setKickTarget(null);
+  const userRole = useMemo(() => {
+    if (!data || !user?.id) return "MEMBER";
+    
+    const myId = user.id;
+    const leaders = Array.isArray(data.leaders) ? data.leaders : [];
+    const members = Array.isArray(data.members) ? data.members : [];
+    const observers = data.observers || [];
+    
+    // 팀장 여부
+    if (leaders.some(l => Number(l.id) === Number(myId))) {
+      return "CAPTAIN";
     }
-  };
-
-
-  const totalParticipants = captains.filter(c => c.name).length + 
-    Object.entries(draftPool).reduce((acc, [role, players]) => role === 'SPECTATOR' ? acc : acc + players.length, 0);
-
-
-  const handleRoleSelect = async (captainId, role) => {
-
-    setCaptains(prev => prev.map(c => 
-      c.id === captainId ? { ...c, selectedRole: role } : c
-    ));
-
-    try {
-        const targetId = draftId || 1;
-        await DraftApi.changePosition(targetId, {
-            targetUserId: captainId,
-            position: mapPositionToAPI(role) // 포지션 매핑 적용
-        });
-        await fetchLobbyData();
-    } catch (e) {
-        console.error("Failed to change position:", e);
-        alert("포지션 변경에 실패했습니다.");
-        fetchLobbyData();
+    
+    // 팀원 여부
+    if (members.some(m => Number(m.id) === Number(myId))) {
+      return "CREW";
     }
-  };
-
-  const handleReadyToggle = async (captainId) => {
-    try {
-        const targetId = draftId || 1;
-        const captain = captains.find(c => c.id === captainId);
-
-        await DraftApi.toggleReady(targetId, !captain.ready);
-        fetchLobbyData();
-    } catch (e) {
-        console.error("Ready toggle failed:", e);
-        alert("준비 상태 변경 실패: " + (e.response?.data?.message || e.message));
+    
+    // 관전자 여부
+    if (observers.some(o => Number(o.id) === Number(myId))) {
+      return "SPECTATOR";
     }
-  };
+    
+    // 호스트 여부 확인
+    const hasAdminCodes = data.codes && (data.codes.teamLeaderCode || data.codes.teamMemberCode);
+    const ownerIdValue = data.ownerId || data.hostId || data.masterId;
+    const isExplicitOwner = ownerIdValue && Number(ownerIdValue) === Number(myId);
+    const isOwner = isExplicitOwner || !!hasAdminCodes;
+    
+    if (isOwner) return "ADMIN";
+    
+    return "MEMBER";
+  }, [data, user?.id]);
+  
+  const isHost = useMemo(() => {
+    if (!data || !user?.id) return false;
+    
+    const hasAdminCodes = data.codes && (data.codes.teamLeaderCode || data.codes.teamMemberCode);
+    const ownerIdValue = data.ownerId || data.hostId || data.masterId;
+    const isExplicitOwner = ownerIdValue && Number(ownerIdValue) === Number(user.id);
+    
+    return isExplicitOwner || !!hasAdminCodes;
+  }, [data, user?.id]);
 
-  const handleOpenSettings = (captain) => {
-    setSelectedSettingsCaptain(captain);
-    setIsSettingsModalOpen(true);
-  };
-
-  const handleOpenProfile = (participant) => {
-    console.log('handleOpenProfile called:', participant, 'userRole:', userRole);
-
-      const profileData = {
-        summonerName: participant.name,
-        gameName: participant.gameName || participant.name,
-        tagLine: participant.tagLine,
-        profileIconUrl: participant.image || "",
-        tier: participant.tier,
-        division: participant.division,
-        lp: participant.lp || 0,
-        level: participant.level || 0,
-        winRate: participant.winRate || 0,
-        recent20: participant.recent20 || { wins: 0, losses: 0 },
-        mostChampions: participant.mostChampions || [],
-        mainPosition: participant.mainPosition,
-        subPosition: participant.subPosition,
-        lastUpdated: participant.lastUpdated, // API provision needed
-        memberId: participant.memberId // 전적 갱신용
+  const captains = useMemo(() => {
+    if (!data) return [];
+    
+    const leaders = Array.isArray(data.leaders) ? data.leaders : [];
+    const myId = user?.id;
+    
+    return leaders.map((leader, index) => {
+      const baseData = {
+        id: leader.id,
+        name: leader.name,
+        tier: leader.tier,
+        division: leader.division,
+        teamNumber: index + 1,
+        image: leader.profileIcon || "",
+        ready: leader.isReady,
+        selectedRole: mapPositionToUI(leader.position),
+        isSelf: Number(leader.id) === Number(myId),
+        points: leader.leaderPoint || 0, // 포인트 정보: 순수 leaderPoint 값만 사용 (기본값 0)
+        leaderPoint: leader.leaderPoint || 0,
+        loading: false,
+        role: 'MID',
+        mainPosition: leader.mainPosition,
+        subPosition: leader.subPosition,
+        mostChampions: leader.mostChampions,
+        lp: leader.leaguePoints,
+        gameName: leader.gameName,
+        tagLine: leader.tagLine,
+        level: leader.summonerLevel,
+        winRate: leader.winRate,
+        recent20: leader.recentStats,
+        memberId: leader.memberId || leader.id,
+        lastUpdated: leader.updatedAt || leader.lastUpdated
       };
-      setSelectedParticipant(profileData);
-      setIsProfileModalOpen(true);
-  };
+      
+      // 캐시된 전적 데이터 적용
+      const cached = refreshedProfilesRef.current[leader.memberId] || refreshedProfilesRef.current[leader.id];
+      if (cached) {
+        return { ...baseData, ...cached };
+      }
+      return baseData;
+    });
+  }, [data, user?.id]);
+  
+  const draftPool = useMemo(() => {
+    if (!data) return { TOP: [], JNG: [], MID: [], ADC: [], SUP: [], SPECTATOR: [] };
+    
+    const newPool = { TOP: [], JNG: [], MID: [], ADC: [], SUP: [], SPECTATOR: [] };
+    const members = Array.isArray(data.members) ? data.members : [];
+    const myId = user?.id;
+    
+    members.forEach(member => {
+      const uiPosition = mapPositionToUI(member.position);
+      if (newPool[uiPosition]) {
+        let memberData = {
+          id: member.id,
+          name: member.name,
+          tier: member.tier,
+          division: member.division,
+          color: getTierTextClass(member.tier),
+          lp: member.leaguePoints,
+          isSelf: Number(member.id) === Number(myId),
+          image: member.profileIcon,
+          mainPosition: member.mainPosition,
+          subPosition: member.subPosition,
+          mostChampions: member.mostChampions,
+          gameName: member.gameName,
+          tagLine: member.tagLine,
+          level: member.summonerLevel,
+          winRate: member.winRate,
+          recent20: member.recentStats,
+          memberId: member.memberId || member.id,
+          lastUpdated: member.updatedAt || member.lastUpdated
+        };
+        
+        const cached = refreshedProfilesRef.current[member.memberId] || refreshedProfilesRef.current[member.id];
+        if (cached) {
+          memberData = { ...memberData, ...cached };
+        }
+        
+        newPool[uiPosition].push(memberData);
+      }
+    });
+    
+    // 관전자 추가
+    if (data.observers) {
+      // 팀장 목록에 있는 유저는 관전자 목록에서 제외 (중복 표시 방지)
+      const leaderIds = new Set((data.leaders || []).map(l => Number(l.id)));
+      
+      newPool.SPECTATOR = data.observers
+        .filter(obs => !leaderIds.has(Number(obs.id))) // 팀장인 경우 관전자 목록에서 제외
+        .map(obs => {
+        let obsData = {
+          id: obs.id,
+          name: obs.name,
+          tier: "Obs",
+          color: "text-gray-500",
+          isSelf: Number(obs.id) === Number(myId),
+          mainPosition: obs.mainPosition,
+          subPosition: obs.subPosition,
+          mostChampions: obs.mostChampions,
+          gameName: obs.gameName,
+          tagLine: obs.tagLine,
+          level: obs.summonerLevel,
+          winRate: obs.winRate,
+          recent20: obs.recentStats,
+          memberId: obs.memberId || obs.id,
+          lastUpdated: obs.updatedAt || obs.lastUpdated
+        };
+        
+        const cached = refreshedProfilesRef.current[obs.memberId] || refreshedProfilesRef.current[obs.id];
+        if (cached) {
+          obsData = { ...obsData, ...cached };
+        }
+        return obsData;
+      });
+    }
+    
+    return newPool;
+  }, [data, user?.id]);
 
   // Helper: Fetch & Calculate Stats (Logic reuse)
-  const updateMemberStats = async (targetId, showNotification = false) => {
+  // Defined before useEffect that uses it to avoid initialization errors
+  const updateMemberStats = useCallback(async (targetId, showNotification = false) => {
       try {
          await DraftApi.refreshMemberData(targetId);
          const memberProfile = await DraftApi.getMemberProfile(targetId);
@@ -550,20 +480,8 @@ export default function DraftLobby() {
          refreshedProfilesRef.current[targetId] = newData;
          sessionStorage.setItem('refreshedProfiles', JSON.stringify(refreshedProfilesRef.current));
 
-         // Update State (Captains & Pool)
-         setCaptains(prev => prev.map(c => 
-             (c.memberId || c.id) === targetId ? { ...c, ...newData } : c
-         ));
-
-         setDraftPool(prev => {
-            const newPool = { ...prev };
-            Object.keys(newPool).forEach(role => {
-                newPool[role] = newPool[role].map(m => 
-                    (m.memberId || m.id) === targetId ? { ...m, ...newData } : m
-                );
-            });
-            return newPool;
-         });
+         // Query를 무효화하여 서버에서 최신 데이터 가져오기
+         queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
 
          if (showNotification) {
              alert('전적 갱신이 완료되었습니다.');
@@ -574,6 +492,175 @@ export default function DraftLobby() {
          console.error(`[UpdateStats] Failed for ${targetId}:`, error);
          throw error;
       }
+  }, [draftId, queryClient]);
+
+  // [REMOVED] Auto-refresh logic - Server provides up-to-date stats from signup
+  // Manual refresh is still available via ParticipantProfileModal button
+
+  // Handle Refresh Code
+  const handleRefreshCode = async (type) => {
+      try {
+          const codeType = type === 'LEADER' ? 'LEADER' : 'MEMBER';
+          const targetId = draftId || 1;
+          await DraftApi.refreshInviteCode(targetId, codeType);
+          // 데이터 갱신 (WebSocket 이벤트로 자동 갱신되지만, 명시적 호출)
+          queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
+      } catch (error) {
+          console.error("Code refresh failed:", error);
+          alert("초대 코드 갱신 실패");
+      }
+  };
+
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [selectedSettingsCaptain, setSelectedSettingsCaptain] = useState(null);
+  
+
+  const [isKickModalOpen, setIsKickModalOpen] = useState(false);
+  const [kickTarget, setKickTarget] = useState(null);
+
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [selectedParticipant, setSelectedParticipant] = useState(null);
+
+
+  const handleKickClick = (target, isSelf = false) => {
+    setKickTarget({ ...target, isSelf });
+    setIsKickModalOpen(true);
+  };
+
+  const confirmKick = async () => {
+    if (!kickTarget) return;
+    try {
+        const targetId = draftId || 1;
+        
+        // Self Leave Logic
+        if (kickTarget.isSelf) {
+            isSelfLeavingRef.current = true; // Mark as self-initiated leave
+            
+            console.log('[DraftLobby] Self leave initiated. isHost:', isHost, 'userRole:', userRole, 'kickTarget:', kickTarget);
+
+            // 관리자가 나가는 경우 -> 방 삭제
+            if (isHost || userRole === 'ADMIN') {
+                 console.log('[DraftLobby] Host is leaving -> Deleting Draft');
+                 try {
+                     await DraftApi.deleteDraft(draftId);
+                     console.log('[DraftLobby] Delete request success');
+                 } catch (err) {
+                     console.error('[DraftLobby] Delete request failed:', err);
+                 }
+                 // 방이 삭제되면 소켓 이벤트(DRAFT_DELETED)가 발생하거나,
+                 // 백엔드에서 처리가 늦을 수 있으므로 바로 나감
+                 navigate('/');
+            } else {
+                 await DraftApi.kickParticipant(targetId, kickTarget.id);
+                 navigate('/');
+            }
+            return;
+        }
+
+        // Kick Others
+        await DraftApi.kickParticipant(targetId, kickTarget.id);
+        
+        // Refresh UI
+        queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
+        
+    } catch (error) {
+        console.error("Kick failed:", error);
+        alert("퇴장 처리에 실패했습니다.");
+    } finally {
+        setIsKickModalOpen(false);
+        setKickTarget(null);
+    }
+  };
+
+
+  const totalParticipants = captains.filter(c => c.name).length + 
+    Object.entries(draftPool).reduce((acc, [role, players]) => role === 'SPECTATOR' ? acc : acc + players.length, 0);
+
+
+  const handleRoleSelect = async (captainId, role) => {
+    try {
+        const targetId = draftId || 1;
+        await DraftApi.changePosition(targetId, {
+            targetUserId: captainId,
+            position: mapPositionToAPI(role)
+        });
+        // WebSocket 이벤트로 자동 갱신됨
+        queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
+    } catch (e) {
+        console.error("Failed to change position:", e);
+        alert("포지션 변경에 실패했습니다.");
+    }
+  };
+
+  const handleDestroyDraft = async () => {
+    try {
+        await DraftApi.destroyDraft(draftId);
+        setIsDestroyConfirmOpen(false);
+        // 성공 메시지는 WebSocket 이벤트로 처리됨
+        // 방장도 DRAFT_DESTROYED 이벤트를 받아 홈으로 이동함
+    } catch (error) {
+        console.error('[DraftLobby] Destroy draft failed:', error);
+        setIsDestroyConfirmOpen(false);
+        
+        const errorMessage = error.response?.data?.message || '로비 닫기에 실패했습니다.';
+        alert(errorMessage);
+    }
+  };
+
+  const handleReadyToggle = async (captainId) => {
+    try {
+        const targetId = draftId || 1;
+        const captain = captains.find(c => c.id === captainId);
+
+        // 포지션 미선택 시 준비 불가 (준비 상태로 변경하려는 경우만)
+        if (!captain.ready && !captain.selectedRole) {
+            alert('포지션을 먼저 선택해주세요.');
+            return;
+        }
+        // 팀장이 아닌 경우, 팀원 풀에 있는 경우에만 준비 가능
+        if (userRole === "CREW") {
+            const myMember = Object.values(draftPool).flat().find(m => m.id === user.id);
+            if (!myMember || !myMember.mainPosition) {
+                alert('팀원은 포지션을 선택해야 준비할 수 있습니다.');
+                return;
+            }
+        }
+
+        await DraftApi.toggleReady(targetId, !captain.ready);
+        queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
+    } catch (e) {
+        console.error("Ready toggle failed:", e);
+        alert("준비 상태 변경 실패: " + (e.response?.data?.message || e.message));
+    }
+  };
+
+  const handleOpenSettings = (captain) => {
+    setSelectedSettingsCaptain(captain);
+    setIsSettingsModalOpen(true);
+  };
+
+  const handleOpenProfile = (participant) => {
+    console.log('handleOpenProfile called:', participant, 'userRole:', userRole);
+
+      const profileData = {
+        summonerName: participant.name,
+        gameName: participant.gameName || participant.name,
+        tagLine: participant.tagLine,
+        profileIconUrl: participant.image || "",
+        tier: participant.tier,
+        division: participant.division,
+        lp: participant.lp || 0,
+        level: participant.level || 0,
+        winRate: participant.winRate || 0,
+        recent20: participant.recent20 || { wins: 0, losses: 0 },
+        mostChampions: participant.mostChampions || [],
+        mainPosition: participant.mainPosition,
+        subPosition: participant.subPosition,
+        lastUpdated: participant.lastUpdated, // API provision needed
+        memberId: participant.memberId // 전적 갱신용
+      };
+      setSelectedParticipant(profileData);
+      setIsProfileModalOpen(true);
   };
 
   const handleRefreshProfile = async () => {
@@ -586,108 +673,9 @@ export default function DraftLobby() {
     try {
         const newData = await updateMemberStats(targetId, true);
         setSelectedParticipant(newData);
-    } catch (e) {
-        // Error logged in helper
+    } catch (error) {
+        console.error('Profile refresh failed:', error);
     }
-  };
-
-  // Helper Maps - Must be static for Tailwind JIT
-  const TIER_TEXT_COLORS = {
-    challenger: "text-[var(--color-tier-challenger-text)]",
-    grandmaster: "text-[var(--color-tier-grandmaster-text)]",
-    master: "text-[var(--color-tier-master-text)]",
-    diamond: "text-[var(--color-tier-diamond-text)]",
-    emerald: "text-[var(--color-tier-emerald-text)]",
-    platinum: "text-[var(--color-tier-platinum-text)]",
-    gold: "text-[var(--color-tier-gold-text)]",
-    silver: "text-[var(--color-tier-silver-text)]",
-    bronze: "text-[var(--color-tier-bronze-text)]",
-    iron: "text-[var(--color-tier-iron-text)]",
-    manager: "text-[#666]",
-    observer: "text-[#666]"
-  };
-
-
-
-  // --- 티어 및 단계별 점수 계산 로직 ---
-  const TIER_ORDER = ["iron", "bronze", "silver", "gold", "platinum", "emerald", "diamond", "master", "grandmaster", "challenger"];
-  const DIV_MAP = { "I": 3, "II": 2, "III": 1, "IV": 0, "i": 3, "ii": 2, "iii": 1, "iv": 0 }; // Case insensitive map
-  const DIV_REVERSE = ["IV", "III", "II", "I"]; // 0->IV, 3->I
-
-  // 티어 점수 계산 (각 티어당 4점 + 단계별 점수)
-  const getTierScore = (tierStr, divisionStr) => {
-      if (!tierStr) return 0;
-      
-      const tier = tierStr.toLowerCase();
-      // division이 없으면 기본값 처리 (마스터 이상은 i, 그 외는 iv)
-      const div = divisionStr || (TIER_ORDER.indexOf(tier) >= 7 ? "I" : "IV");
-      
-      const tierIdx = TIER_ORDER.indexOf(tier);
-      if (tierIdx === -1) return 0;
-
-      let score = tierIdx * 4;
-      
-      // 마스터 티어 이상은 단계 구분 없이 처리
-      if (tierIdx >= 7) {
-           return score; 
-      }
-
-      score += (DIV_MAP[div] !== undefined ? DIV_MAP[div] : 0);
-      return score;
-  };
-
-  const getTierFromScore = (score) => {
-      const tierIdx = Math.floor(score / 4);
-      const divScore = Math.round(score % 4);
-      
-      const clampedTierIdx = Math.max(0, Math.min(tierIdx, TIER_ORDER.length - 1));
-      const tierName = TIER_ORDER[clampedTierIdx];
-      const baseTierName = tierName.charAt(0).toUpperCase() + tierName.slice(1);
-      
-      // 마스터 이상은 티어 이름만 표시
-      if (clampedTierIdx >= 7) {
-          return { 
-              name: baseTierName, 
-              baseTier: baseTierName,
-              color: getTierTextClass(tierName) 
-          }; 
-      }
-      
-      // 마스터 미만은 티어와 단계(I~IV) 표시
-      const divStr = DIV_REVERSE[divScore] || "IV";
-      
-      return { 
-          name: baseTierName, // Just name
-          division: divStr,   // Division separate
-          baseTier: baseTierName, 
-          color: getTierTextClass(tierName)
-      };
-  };
-
-  const calculateAverageTier = (participants) => {
-      if (!participants || participants.length === 0) return { name: "Unranked", baseTier: "Unranked", color: "text-[#666]" };
-      
-      let sum = 0;
-      let count = 0;
-      
-      participants.forEach(p => {
-          if (p.tier && p.tier !== "Unranked") {
-             sum += getTierScore(p.tier, p.division);
-             count++;
-          }
-      });
-
-      if (count === 0) return { name: "Unranked", baseTier: "Unranked", color: "text-[#666]" };
-      
-      const avg = Math.round(sum / count);
-      return getTierFromScore(avg);
-  };
-
-  const getTierTextClass = (tier) => {
-        if (!tier) return "text-[#bab29c]";
-        // tier is just "DIAMOND", "GOLD" etc now
-        const tierLower = tier.toLowerCase();
-        return TIER_TEXT_COLORS[tierLower] || `text-[var(--color-tier-${tierLower}-text)]`;
   };
 
   const handleSaveSettings = async (captainId, newData) => {
@@ -705,6 +693,18 @@ export default function DraftLobby() {
               const targetUser = poolList.find(p => p.name === newData.name);
               
               if (targetUser) {
+                  // 관전자를 팀장으로 승격하는 경우, 먼저 일반 포지션으로 변경
+                  // draftPool.SPECTATOR에 있는지 확인
+                  const isObserver = draftPool.SPECTATOR.some(obs => obs.id === targetUser.id);
+                  
+                  if (isObserver) {
+                      console.log(`[AddCaptain] Observer -> Leader: Changing position from OBSERVER to TOP first`);
+                      await DraftApi.changePosition(targetId, {
+                          targetUserId: targetUser.id,
+                          position: 'TOP' // Default position for new leader
+                      });
+                  }
+                  
                   await DraftApi.changeRole(targetId, {
                       targetUserId: targetUser.id,
                       role: 'LEADER'
@@ -716,8 +716,8 @@ export default function DraftLobby() {
                            point: Number(newData.points)
                        });
                   }
-                  fetchLobbyData();
-              }
+                   queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
+               }
           } else {
               // 기존 팀장 수정
               const currentCaptain = captains.find(c => c.id === captainId);
@@ -740,28 +740,40 @@ export default function DraftLobby() {
                       role: 'MEMBER'
                   });
 
-                  // 3. Promote New Captain (MEMBER -> LEADER)
+                  // 3. 관전자를 팀장으로 승격하는 경우, 먼저 일반 포지션으로 변경
+                  // draftPool.SPECTATOR에 있는지 확인
+                  const isNewCaptainObserver = draftPool.SPECTATOR.some(obs => obs.id === newCaptainUser.id);
+                  
+                  if (isNewCaptainObserver) {
+                      console.log(`[ChangeCaptain] Observer -> Leader: Changing position from OBSERVER to TOP first`);
+                      await DraftApi.changePosition(targetId, {
+                          targetUserId: newCaptainUser.id,
+                          position: 'TOP' // Default position for new leader
+                      });
+                  }
+
+                  // 4. Promote New Captain (MEMBER -> LEADER)
                   await DraftApi.changeRole(targetId, {
                       targetUserId: newCaptainUser.id,
                       role: 'LEADER'
                   });
 
                   // 4. Update Points for New Captain
-                  if (newData.points !== undefined) {
+                  if (newData.point !== undefined) {
                       await DraftApi.setLeaderPoint(targetId, {
                           leaderId: newCaptainUser.id,
-                          point: Number(newData.points)
+                          point: Number(newData.point)
                       });
                   }
               } else {
                   // 이름 변경 없음 -> 포인트만 수정
                   await DraftApi.setLeaderPoint(targetId, {
                       leaderId: captainId, // captainId is userId here
-                      point: Number(newData.points)
+                      point: Number(newData.point)
                   });
               }
-              fetchLobbyData();
-          }
+               queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
+           }
       } catch (e) {
           console.error("Save settings failed:", e);
       }
@@ -777,18 +789,11 @@ export default function DraftLobby() {
     // ID 파싱 (draggableId: 'captain-123' or 'player-Name' -> 실제 ID 필요)
     // DroppableId 파싱 (captain-slot-1, pool-TOP)
     
-    // 편의상 DraggableId에 userId를 넣었다고 가정하거나, index로 찾음.
-    // 기존 코드: captain-${id}, player-${name}
-    // API 연동을 위해 DraggableId에 userId를 쓰는게 좋음. 
-    // fetchLobbyData에서 `draggableId={`player-${p.id}`}` 로 수정 필요.
-    
-    // 여기서는 기존 로직의 흐름만 API로 변경.
     const targetId = draftId || 1;
     const isSourceCaptain = source.droppableId.startsWith('captain-slot');
     const isDestCaptain = destination.droppableId.startsWith('captain-slot');
     
     // 1. Captain <-> Captain (Swap) -> Not Supported by Backend yet? (Client only reorder or ignore)
-    // 사용자가 "팀장 순서 상관없다"고 했으므로 무시.
     if (isSourceCaptain && isDestCaptain) return;
 
     try {
@@ -799,11 +804,49 @@ export default function DraftLobby() {
             const playerId = result.draggableId.replace('player-', '');
             if (!playerId) return;
 
+            // 목표 슬롯 인덱스 추출 (captain-slot-0, captain-slot-1, ...)
+            const slotIndex = destination.droppableId.split('-')[2];
+            
+            // 해당 슬롯에 이미 팀장이 있는지 확인
+            const existingCaptain = captains[slotIndex];
+            
+            // 드래그한 참가자의 원래 위치 확인
+            const sourceRole = source.droppableId.split('-')[1]; // TOP, JNG, MID, ADC, SUP, SPECTATOR
+            
+            console.log('[DragDrop] Pool -> Captain slot:', {
+                slotIndex,
+                newLeaderId: playerId,
+                sourceRole,
+                existingCaptain: existingCaptain,
+                hasExisting: existingCaptain && existingCaptain.id
+            });
+
+            // 슬롯에 이미 팀장이 있다면, 기존 팀장을 먼저 강등
+            if (existingCaptain && existingCaptain.id) {
+                console.log(`[DragDrop] Demoting existing captain ${existingCaptain.id} to MEMBER`);
+                await DraftApi.changeRole(targetId, {
+                    targetUserId: Number(existingCaptain.id),
+                    role: 'MEMBER'
+                });
+            }
+
+            // 관전자를 팀장으로 승격하는 경우, 먼저 일반 포지션으로 변경
+            if (sourceRole === 'SPECTATOR') {
+                console.log(`[DragDrop] Observer -> Leader: Changing position from OBSERVER to TOP first`);
+                await DraftApi.changePosition(targetId, {
+                    targetUserId: Number(playerId),
+                    position: 'TOP' // Default position for new leader
+                });
+            }
+
+            // 새 팀원을 팀장으로 승격
+            console.log(`[DragDrop] Promoting member ${playerId} to LEADER`);
             await DraftApi.changeRole(targetId, {
                 targetUserId: Number(playerId),
                 role: 'LEADER'
             });
-            fetchLobbyData();
+            
+            queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
             return;
         }
 
@@ -814,11 +857,37 @@ export default function DraftLobby() {
              const captainId = result.draggableId.replace('captain-', '');
              if (!captainId) return;
              
-             await DraftApi.changeRole(targetId, {
-                 targetUserId: Number(captainId),
-                 role: 'MEMBER'
-             });
-             fetchLobbyData();
+             const targetRole = destination.droppableId.split('-')[1];
+
+             // Case: Captain -> Spectator
+             if (targetRole === 'SPECTATOR') {
+                // Demote first (LEADER -> MEMBER)
+                await DraftApi.changeRole(targetId, {
+                    targetUserId: Number(captainId),
+                    role: 'MEMBER'
+                });
+                // Then set Position to OBSERVER
+                await DraftApi.changePosition(targetId, {
+                    targetUserId: Number(captainId),
+                    position: 'OBSERVER'
+                });
+             } else {
+                 // Normal Demotion to Pool (MEMBER) with Position Change
+                 console.log(`[DragDrop] Captain -> Pool: Demoting ${captainId} to ${targetRole}`);
+                 
+                 // Demote first (LEADER -> MEMBER)
+                 await DraftApi.changeRole(targetId, {
+                     targetUserId: Number(captainId),
+                     role: 'MEMBER'
+                 });
+                 
+                 // Set position to target role (TOP, JNG, MID, ADC, SUP)
+                 await DraftApi.changePosition(targetId, {
+                     targetUserId: Number(captainId),
+                     position: mapPositionToAPI(targetRole)
+                 });
+             }
+             queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
              return;
         }
 
@@ -835,10 +904,12 @@ export default function DraftLobby() {
              if (!playerId) return;
 
              // Logic Switch: Spectator is a Role, not a Position
+             // [REVISED] Spectator as a Position (OBSERVER)
              if (targetRole === 'SPECTATOR') {
-                 await DraftApi.changeRole(targetId, {
+                 // Case 1: Pool Member -> Spectator
+                 await DraftApi.changePosition(targetId, {
                      targetUserId: Number(playerId),
-                     role: 'OBSERVER'
+                     position: 'OBSERVER'
                  });
              } else {
                  await DraftApi.changePosition(targetId, {
@@ -846,11 +917,28 @@ export default function DraftLobby() {
                      position: mapPositionToAPI(targetRole)
                  });
              }
-             fetchLobbyData();
+             queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
              return;
         }
     } catch (e) {
         console.error("Drag Drop Action Failed:", e);
+        const errorCode = e.response?.data?.errorCode;
+        const errorMessage = e.response?.data?.message;
+
+        if (errorCode === 'MAX_TEAM_COUNT_EXCEEDED') {
+            alert('팀장 인원이 가득 찼습니다.');
+        } else if (errorCode === 'LEADER_CANNOT_BE_OBSERVER') {
+            alert('팀장은 관전자가 될 수 없습니다.');
+        } else {
+             // Fallback for legacy messages if needed
+            if (errorMessage?.includes('팀장') && errorMessage?.includes('관전자')) {
+                alert('팀장은 관전자가 될 수 없습니다.');
+            } else if (errorMessage?.includes('팀장') && (errorMessage?.includes('최대') || errorMessage?.includes('가득'))) {
+                alert('팀장 인원이 가득 찼습니다.');
+            } else {
+                alert('작업에 실패했습니다: ' + (errorMessage || '알 수 없는 오류'));
+            }
+        }
     }
   };
 
@@ -867,30 +955,61 @@ export default function DraftLobby() {
 
            console.log('[handleJoinPool] 포지션 변경 요청:', { targetRole, myId, draftId: targetId });
 
-           // 관전자(SPECTATOR)로 이동하는 경우 별도 처리
-           if (targetRole === 'SPECTATOR') {
-               // 관전자 변경은 changeRole API 사용 (OBSERVER role)
-               await DraftApi.changeRole(targetId, {
-                   targetUserId: myId,
-                   role: 'OBSERVER'
-               });
-               console.log('[handleJoinPool] 관전자로 변경 완료');
-           } else {
-               // 일반 포지션 변경
-               await DraftApi.changePosition(targetId, {
-                   targetUserId: myId,
-                   position: mapPositionToAPI(targetRole)
-               });
-               console.log('[handleJoinPool] 포지션 변경 완료:', mapPositionToAPI(targetRole));
-           }
-           
-           fetchLobbyData();
-       } catch (error) {
-           console.error("Position change failed:", error);
-           console.error("Error response:", error.response?.data);
-           alert("포지션 변경 실패: " + (error.response?.data?.message || error.message));
-       }
-   };
+            // 관전자(SPECTATOR)로 이동하는 경우
+            if (targetRole === 'SPECTATOR') {
+                console.log('[handleJoinPool] 관전자로 포지션 변경 시도 (OBSERVER)');
+                
+                // 만약 현재 팀장(Captain)이라면, 먼저 팀장직을 내려놓아야 함 (MEMBER로 변경)
+                // 그래야 백엔드 leaders 리스트에서 제거되어 중복 표시가 방지됨
+                if (userRole === 'CAPTAIN') {
+                    console.log('[handleJoinPool] 팀장이 관전자로 이동 -> MEMBER로 강등 먼저 수행');
+                    await DraftApi.changeRole(targetId, {
+                        targetUserId: myId,
+                        role: 'MEMBER'
+                    });
+                }
+
+                // 이후 관전자 포지션으로 변경
+                await DraftApi.changePosition(targetId, {
+                    targetUserId: myId,
+                    position: 'OBSERVER'
+                });
+            } else {
+                // 일반 포지션 변경 (Pool로 이동)
+                console.log('[handleJoinPool] 일반 포지션 변경 시도:', targetRole);
+
+                // 만약 현재 팀장(Captain)이라면, 먼저 팀장직을 내려놓아야 함 (MEMBER로 변경)
+                // (관리자가 팀장에서 일반 팀원으로 이동하는 경우)
+                if (userRole === 'CAPTAIN') {
+                     console.log('[handleJoinPool] 팀장이 Pool로 이동 -> MEMBER로 강등 먼저 수행');
+                     await DraftApi.changeRole(targetId, {
+                         targetUserId: myId,
+                         role: 'MEMBER'
+                     });
+                }
+                
+                 await DraftApi.changePosition(targetId, {
+                     targetUserId: myId,
+                     position: mapPositionToAPI(targetRole)
+                 });
+                 console.log('[handleJoinPool] 포지션 변경 완료:', mapPositionToAPI(targetRole));
+             }
+            
+            queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
+        } catch (error) {
+            console.error("Position change failed:", error);
+            const errorCode = error.response?.data?.errorCode;
+            const errorMessage = error.response?.data?.message;
+
+            if (errorCode === 'MAX_TEAM_COUNT_EXCEEDED') {
+                alert("팀장 인원이 가득 찼습니다.");
+            } else if (errorCode === 'LEADER_CANNOT_BE_OBSERVER') {
+                alert("팀장은 관전자가 될 수 없습니다.");
+            } else {
+                alert("포지션 변경 실패: " + (errorMessage || error.message));
+            }
+        }
+    };
 
   // Chat Handler
   const handleSendMessage = (text) => {
@@ -900,6 +1019,37 @@ export default function DraftLobby() {
     setMessages(prev => [...prev, { id: Date.now(), sender: "나 (Me)", message: text, variant: "me", timestamp }]);
   };
 
+  // ========== Loading & Error States ==========
+  if (isLoading) {
+    return (
+      <div className="draft-lobby-container">
+        <div style={{ padding: '3rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem' }}>로비 데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="draft-lobby-container">
+        <div style={{ padding: '3rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-error)', fontSize: '1.2rem', marginBottom: '1rem' }}>
+            로비 데이터를 불러오지 못했습니다.
+          </p>
+          <button 
+            onClick={() => navigate('/')} 
+            className="btn" 
+            style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '0.5rem' }}
+          >
+            홈으로 돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ========== Main Render ==========
   return (
     <DragDropContext onDragEnd={onDragEnd}>
     <div className="flex min-h-[calc(100vh-var(--header-height))] justify-center bg-background-dark font-sans text-white relative">
@@ -932,16 +1082,20 @@ export default function DraftLobby() {
                 </div>
                 {/* Stats */}
                 <div className="flex items-center gap-6 mb-1 shrink-0">
-                   {/* Admin Action Button */}
+                   {/* Admin Action Buttons */}
                    {isHost && (
-                       <Button 
-                           variant="primaryStatic" 
-                           onClick={() => setIsCodeModalOpen(true)}
-                           className="!rounded-full !px-6 !py-2.5 !text-base transition-all"
-                       >
-                           <span className="material-symbols-outlined font-bold">key</span>
-                           초대 코드
-                       </Button>
+                       <div className="flex items-center gap-3">
+
+                           
+                           <Button 
+                               variant="primaryStatic" 
+                               onClick={() => setIsCodeModalOpen(true)}
+                               className="!rounded-full !px-6 !py-2.5 !text-base transition-all"
+                           >
+                               <span className="material-symbols-outlined font-bold">key</span>
+                               초대 코드
+                           </Button>
+                       </div>
                    )}
 
                    {/* ... Stats Content ... */}
@@ -950,6 +1104,24 @@ export default function DraftLobby() {
                       <div>
                          <p className="text-[10px] text-[#bab29c] font-bold uppercase tracking-wider">총 참가 인원</p>
                          <p className="text-white font-bold leading-none">{totalParticipants}명</p>
+                      </div>
+                   </div>
+
+                   {/* Start Point Stat */}
+                   <div className="bg-panel-dark border border-[#393528] px-4 py-2 rounded-lg flex items-center gap-3 hidden md:flex">
+                      <span className="material-symbols-outlined text-[#bab29c] text-lg">monetization_on</span>
+                      <div>
+                         <p className="text-[10px] text-[#bab29c] font-bold uppercase tracking-wider">시작 포인트</p>
+                         <p className="text-white font-bold leading-none">{data?.startPoint || 1000} P</p>
+                      </div>
+                   </div>
+
+                   {/* Min Bid Stat */}
+                   <div className="bg-panel-dark border border-[#393528] px-4 py-2 rounded-lg flex items-center gap-3 hidden md:flex">
+                      <span className="material-symbols-outlined text-[#bab29c] text-lg">gavel</span>
+                      <div>
+                         <p className="text-[10px] text-[#bab29c] font-bold uppercase tracking-wider">입찰 최소가</p>
+                         <p className="text-white font-bold leading-none">{data?.startPrice || 100} P</p>
                       </div>
                    </div>
                     <div className="bg-panel-dark border border-[#393528] px-4 py-2 rounded-lg flex items-center gap-3 w-[150px]">
@@ -1079,68 +1251,11 @@ export default function DraftLobby() {
               </section>
 
               {/* Stats Dashboard */}
-              <section className="bg-black/40 border border-[#393528] rounded-2xl p-6 mb-10 flex flex-col md:flex-row items-center justify-between gap-8 backdrop-blur-sm">
-                 {/* Left: General Info */}
-                 <div className="flex items-center gap-8 border-b md:border-b-0 md:border-r border-[#393528] pb-6 md:pb-0 md:pr-8 w-full md:w-auto justify-center md:justify-start">
-                    <div>
-                        <p className="text-[#bab29c] text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm">groups</span> 전체 참가자
-                        </p>
-                        {/* Values */}
-                    <p className="text-white text-3xl font-black font-display tracking-tight flex items-baseline gap-2">
-                        {totalParticipants} <span className="text-lg text-[#666] font-bold">Players</span>
-                    </p></div>
-                    <div>
-                        <p className="text-[#bab29c] text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm">leaderboard</span> 평균 티어
-                        </p>
-                        <div className="flex items-center gap-2 mt-4">
-                            {(() => {
-                                const allPlayers = [
-                                    ...captains.filter(c => c.name),
-                                    ...Object.values(draftPool).flat().filter(p => !p.tier || p.tier !== 'Obs')
-                                ];
-                                const avg = calculateAverageTier(allPlayers);
-                                return (
-                                    <>
-                                     <Badge variant={avg.baseTier.toLowerCase()}>{avg.baseTier.toUpperCase()}</Badge>
-                                     <span className="text-white font-bold text-sm w-[60px]">{avg.name}</span>
-                                    </>
-                                );
-                            })()}
-                        </div>
-                    </div>
-                 </div>
-
-                 {/* Right: Role Breakdown */}
-                 <div className="flex-1 flex justify-around w-full">
-                    {['TOP', 'JNG', 'MID', 'ADC', 'SUP'].map(role => {
-                        // Calculate Captain Count for this role
-                        const captainCount = captains.filter(c => c.selectedRole === role).length;
-                        
-                        return (
-                        <div key={role} className="flex flex-col items-center text-center gap-1 group cursor-default">
-                             <div className="text-[#bab29c] group-hover:text-primary transition-colors">
-                                <PositionIcon position={role} className="w-8 h-8" />
-                             </div>
-                             <p className="text-[#bab29c] text-[10px] font-bold uppercase tracking-widest group-hover:text-white transition-colors">{role}</p>
-                             
-                             {/* Count Display: Pool (+Captain) */}
-                             <p className="text-white font-bold leading-none">
-                                {draftPool[role]?.length || 0}
-                                {captainCount > 0 && <span className="text-primary text-xs ml-1">(+{captainCount})</span>}
-                             </p>
-
-                             <p className="text-[#666] text-[10px] font-bold">
-                                {(() => {
-                                    const avg = calculateAverageTier(draftPool[role] || []);
-                                    return avg.name !== 'Unranked' ? avg.name : '-';
-                                })()}
-                             </p>
-                        </div>
-                    )})}
-                 </div>
-              </section>
+               <StatsDashboard 
+                  captains={captains}
+                  draftPool={draftPool}
+                  calculateAverageTier={calculateAverageTier}
+               />
 
               {/* Draft Pool Section (Simplified for this phase - Fixed Layout) */}
               <section className="pb-10">
@@ -1163,7 +1278,8 @@ export default function DraftLobby() {
                         droppableId="pool-TOP" 
                         roleName="탑 (Top)" 
                         role="TOP" 
-                        count={draftPool.TOP.length} 
+                        count={draftPool.TOP.length}
+                        captainCount={captains.filter(c => c.selectedRole === 'TOP' && c.ready).length}
                         players={draftPool.TOP} 
                         userRole={userRole} 
                         isAdmin={isHost}
@@ -1176,7 +1292,8 @@ export default function DraftLobby() {
                         droppableId="pool-JNG" 
                         roleName="정글 (Jungle)" 
                         role="JNG" 
-                        count={draftPool.JNG.length} 
+                        count={draftPool.JNG.length}
+                        captainCount={captains.filter(c => c.selectedRole === 'JNG' && c.ready).length}
                         players={draftPool.JNG} 
                         userRole={userRole} 
                         isAdmin={isHost}
@@ -1189,7 +1306,8 @@ export default function DraftLobby() {
                         droppableId="pool-MID" 
                         roleName="미드 (Mid)" 
                         role="MID" 
-                        count={draftPool.MID.length} 
+                        count={draftPool.MID.length}
+                        captainCount={captains.filter(c => c.selectedRole === 'MID' && c.ready).length}
                         players={draftPool.MID} 
                         userRole={userRole} 
                         isAdmin={isHost}
@@ -1203,7 +1321,8 @@ export default function DraftLobby() {
                         droppableId="pool-ADC" 
                         roleName="원딜 (ADC)" 
                         role="ADC" 
-                        count={draftPool.ADC.length} 
+                        count={draftPool.ADC.length}
+                        captainCount={captains.filter(c => c.selectedRole === 'ADC' && c.ready).length}
                         players={draftPool.ADC} 
                         userRole={userRole} 
                         isAdmin={isHost}
@@ -1214,9 +1333,10 @@ export default function DraftLobby() {
                         onJoin={handleJoinPool} 
                         onPlayerClick={handleOpenProfile} 
                         droppableId="pool-SUP" 
-                        roleName="서포터 (SUP)" 
+                        roleName="서포터 (Support)" 
                         role="SUP" 
-                        count={draftPool.SUP.length} 
+                        count={draftPool.SUP.length}
+                        captainCount={captains.filter(c => c.selectedRole === 'SUP' && c.ready).length}
                         players={draftPool.SUP} 
                         userRole={userRole} 
                         isAdmin={isHost}
@@ -1227,8 +1347,8 @@ export default function DraftLobby() {
                         onJoin={handleJoinPool} 
                         onPlayerClick={handleOpenProfile} 
                         droppableId="pool-SPECTATOR" 
-                        roleName="관전자 (Spectators)" 
-                        roleIcon="visibility" 
+                        roleName="관전자 (Spectator)" 
+                        role="SPECTATOR" 
                         count={draftPool.SPECTATOR.length} 
                         players={draftPool.SPECTATOR} 
                         userRole={userRole} 
@@ -1239,7 +1359,20 @@ export default function DraftLobby() {
               </section>
 
               {/* Auction Control / Status - Bottom Right */}
-              <div className="flex justify-end pt-4" style={{ marginBottom: '1px' }}> {/* Adjusted alignment */}
+              <div className="flex justify-end pt-4 gap-3" style={{ marginBottom: '1px' }}> {/* Adjusted alignment & added gap */}
+                  
+                  {/* 로비 닫기 버튼 (Moved from Header) */}
+                  {isHost && (
+                        <button
+                            onClick={() => setIsDestroyConfirmOpen(true)}
+                            className="flex items-center gap-2 rounded-xl px-6 py-3 bg-[#1a1812] hover:bg-red-900/20 text-red-500 font-bold text-base border-2 border-red-900/30 hover:border-red-500/50 transition-all"
+                            title="로비를 닫고 모든 참가자를 퇴장시킵니다"
+                        >
+                            <span className="material-symbols-outlined font-bold">meeting_room</span>
+                            로비 닫기
+                        </button>
+                    )}
+
                   {isHost ? (
                       <Button 
                         variant="bid" 
@@ -1315,8 +1448,8 @@ export default function DraftLobby() {
         onClose={() => setIsEditDraftModalOpen(false)}
         isEditMode={true}
         draftId={draftId}
-        initialData={data} // Pass full data object (contains title, maxTeamCount, etc.)
-        onUpdate={fetchLobbyData}
+        initialData={data}
+        onUpdate={() => queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] })}
         activeCaptainCount={captains.filter(c => c.name).length}
         captainList={captains.filter(c => c.name)}
       />
@@ -1341,121 +1474,51 @@ export default function DraftLobby() {
         participantData={selectedParticipant}
         onRefresh={handleRefreshProfile}
       />
-      <KickConfirmModal 
+      <KickConfirmModal
         isOpen={isKickModalOpen}
         onClose={() => setIsKickModalOpen(false)}
         onConfirm={confirmKick}
         participantName={kickTarget?.name}
-        isSelf={kickTarget?.isSelf}
+        isSelf={kickTarget?.isSelf} 
+      />
+      
+      {/* Kicked Notification Modal */}
+       <AlertModal
+        isOpen={isKickedAlertOpen}
+        onClose={() => {
+            setIsKickedAlertOpen(false);
+            navigate('/');
+        }}
+        title="퇴장 알림"
+        message="관리자에 의해 퇴장되었습니다."
+        variant="error"
+        icon="block"
       />
 
+       {/* Lobby Closed Notification Modal */}
+       <AlertModal
+        isOpen={isLobbyClosedAlertOpen}
+        onClose={() => {
+            setIsLobbyClosedAlertOpen(false);
+            navigate('/');
+        }}
+        title="로비 종료"
+        message="방장에 의해 로비가 종료되었습니다."
+        variant="warning"
+        icon="meeting_room"
+      />
 
-
+       {/* Destroy Draft Confirm Modal */}
+       <AlertModal
+        isOpen={isDestroyConfirmOpen}
+        onClose={() => setIsDestroyConfirmOpen(false)}
+        onConfirm={handleDestroyDraft}
+        title="로비 닫기 확인"
+        message={"정말로 로비를 닫으시겠습니까?\n\n모든 참가자가 퇴장되며, 드래프트 데이터가 완전히 삭제됩니다.\n\n이 작업은 되돌릴 수 없습니다."}
+        variant="error"
+        icon="warning"
+      />
     </div>
     </DragDropContext>
   );
-}
-
-// Internal Sub-component for Draft Pool Column to keep file clean
-function DraftPoolColumn({ roleName, role, roleIcon, count, players, userRole, isAdmin, droppableId, onJoin, onPlayerClick, onKick }) {
-    // 현재 사용자가 이미 이 풀에 있는지 확인
-    const hasCurrentUser = players.some(p => p.isSelf || p.name === "나 (Me)");
-    
-    return (
-        <div className="flex flex-col h-full">
-            <div className={`bg-gradient-to-r ${isAdmin ? 'from-[#3a2e15] to-[#2a2215] border-yellow-600' : 'from-[#1e1a0d] to-[#161410] border-primary'} border-l-4 px-5 py-3 mb-0 rounded-t-lg flex items-center justify-between`}>
-                <h4 className="text-white font-bold text-base flex items-center gap-2 uppercase tracking-widest">
-                    {role ? (
-                        <PositionIcon position={role} className="w-6 h-6" />
-                    ) : (
-                        <span className="material-symbols-outlined text-primary text-xl">{roleIcon}</span>
-                    )}
-                    {roleName}
-                </h4>
-                <span className="text-xs text-[#bab29c] font-mono font-bold">{count}</span>
-            </div>
-            
-            <Droppable droppableId={droppableId} type="DRAFT_SWAP">
-              {(provided) => (
-                <div 
-                   className="bg-panel-dark rounded-b-lg border border-t-0 border-[#393528] flex-1 flex flex-col relative min-h-[100px] max-h-[240px] overflow-y-auto [&::-webkit-scrollbar]:hidden"
-                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                   ref={provided.innerRef}
-                   {...provided.droppableProps}
-                >
-                    {players.map((p, idx) => (
-                        <Draggable key={p.id} draggableId={`player-${p.id}`} index={idx} isDragDisabled={!isAdmin}>
-                           {(provided) => (
-                                <div
-                                   ref={provided.innerRef}
-                                   {...provided.draggableProps}
-                                   {...provided.dragHandleProps}
-                                   className="flex items-center gap-4 px-5 py-4 hover:bg-white/[0.03] transition-colors border-b border-[#393528] last:border-0 group cursor-pointer relative"
-                                   onClick={(e) => {
-                                     // 카드 클릭 시 프로필 열기 (모든 사용자 가능)
-                                     if (onPlayerClick) {
-                                       e.stopPropagation();
-                                       onPlayerClick(p);
-                                     }
-                                   }}
-                                >
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-white font-bold text-sm group-hover:text-primary transition-colors">{p.name}</p>
-                                            {/* Admin Badge for Self */}
-                                            {(p.isSelf || p.name === "나 (Me)") && isAdmin && (
-                                                <span className="bg-[#f4c025]/20 text-[#f4c025] text-[9px] px-1.5 py-0.5 rounded border border-[#f4c025]/30 font-bold">ADMIN</span>
-                                            )}
-                                        </div>
-                                        <p className={`text-[10px] font-bold uppercase tracking-wider ${p.color}`}>{p.tier}</p>
-                                    </div>
-                                    
-                                    {/* Default Arrow / Admin Kick Button / Self Leave Button */}
-                                    <div className="relative size-6 flex items-center justify-center">
-                                       <span className={`material-symbols-outlined text-[#393528] group-hover:text-primary transition-colors absolute inset-0 flex items-center justify-center ${(isAdmin || p.isSelf || p.name === "나 (Me)") ? 'group-hover:opacity-0' : ''}`}>
-                                          chevron_right
-                                       </span>
-                                       {(isAdmin || p.isSelf || p.name === "나 (Me)") && (
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const isSelf = p.isSelf || p.name === "나 (Me)";
-                                                    if (onKick) onKick(p, isSelf);
-                                                }}
-                                                className="absolute inset-0 flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 hover:scale-110 transition-all"
-                                                title={p.isSelf || p.name === "나 (Me)" ? "나가기" : "참가자 퇴장"}
-                                            >
-                                                <span className="material-symbols-outlined font-bold">close</span>
-                                            </button>
-                                       )}
-                                    </div>
-                                </div>
-                           )}
-                        </Draggable>
-                    ))}
-                    {provided.placeholder}
-                    
-                    {/* Crew 'Join' Card - 이미 참여한 포지션에는 표시 안 함, SPECTATOR 제외 */}
-                    {userRole === 'CREW' && !hasCurrentUser && droppableId !== 'pool-SPECTATOR' && (
-                        <div 
-                            onClick={() => onJoin && onJoin(droppableId.split('-')[1])}
-                            className="flex items-center gap-4 px-5 py-4 bg-[#0f0e0b]/50 hover:bg-primary/10 transition-all border-b border-[#393528] border-t-2 border-t-primary/20 group cursor-pointer mt-1"
-                        >
-                            <div className="flex-1 flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full border-2 border-primary/30 group-hover:border-primary flex items-center justify-center bg-black/40 transition-all group-hover:scale-110">
-                                    <span className="material-symbols-outlined text-primary text-xl font-bold">add</span>
-                                </div>
-                                <div>
-                                    <p className="text-[#bab29c] group-hover:text-primary font-bold text-sm transition-colors">이 포지션 참여하기</p>
-                                    <p className="text-[#666] text-[10px] font-bold uppercase tracking-wider">JOIN THIS ROLE</p>
-                                </div>
-                            </div>
-                            <span className="material-symbols-outlined text-[#393528] group-hover:text-primary transition-colors">chevron_right</span>
-                        </div>
-                    )}
-                </div>
-              )}
-            </Droppable>
-        </div>
-    )
 }

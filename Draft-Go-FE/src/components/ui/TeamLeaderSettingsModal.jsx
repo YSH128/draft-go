@@ -2,14 +2,14 @@
 import React, { useState } from "react";
 import Button from "../ui/Button";
 
-export default function TeamLeaderSettingsModal({ isOpen, onClose, captain, onSave, pool = [], defaultStartPoint = 1000 }) {
+export default function TeamLeaderSettingsModal({ isOpen, onClose, captain, onSave, pool = [] }) {
   const [selectedLeader, setSelectedLeader] = useState(captain?.name || "");
-  const [initialPoints, setInitialPoints] = useState(captain?.points || defaultStartPoint);
+  const [leaderPoint, setLeaderPoint] = useState(captain?.leaderPoint || 0);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
-    onSave && onSave(captain.id, { name: selectedLeader, points: initialPoints });
+    onSave && onSave(captain.id, { name: selectedLeader, point: leaderPoint });
     onClose();
   };
 
@@ -60,15 +60,15 @@ export default function TeamLeaderSettingsModal({ isOpen, onClose, captain, onSa
             {/* Field 2: Edit Points */}
             <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-300 ml-1">
-                    경매 포인트 수정
+                    팀장 포인트 수정
                 </label>
                 <div className="relative">
                     <input 
                         type="number"
-                        value={initialPoints}
-                        onChange={(e) => setInitialPoints(e.target.value)}
+                        value={leaderPoint}
+                        onChange={(e) => setLeaderPoint(e.target.value)}
                         className="w-full rounded-md py-3 px-4 text-gray-100 bg-[#091428] border border-[#3c3c41] focus:border-[#C89B3C] focus:shadow-[0_0_8px_rgba(200,155,60,0.3)] outline-none transition-all duration-300 placeholder-gray-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                        placeholder="포인트 입력" 
+                        placeholder="0" 
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-[#A09B8C] text-sm">
                         P

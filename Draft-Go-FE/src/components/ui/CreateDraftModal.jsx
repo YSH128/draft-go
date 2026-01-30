@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
-import { createDraftRoom, updateDraft, setLeaderPoint } from '../../api/draft';
+import { createDraftRoom, updateDraft } from '../../api/draft';
 import useAuthStore from '../../stores/useAuthStore';
 
 export default function CreateDraftModal({ 
@@ -12,8 +12,7 @@ export default function CreateDraftModal({
   initialData = null, 
   draftId = null,
   onUpdate = null,
-  activeCaptainCount = 0,
-  captainList = [] 
+  activeCaptainCount = 0 
 }) {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -105,32 +104,9 @@ export default function CreateDraftModal({
              await updateDraft(draftId, payload);
              console.log('[EditModal] 수정 성공');
 
-             // 시작 포인트가 변경된 경우 팀장 포인트 동기화
-             if (initialData && Number(formData.startPoint) !== Number(initialData.startPoint)) {
-                 console.log('[EditModal] Start Point Changed:', initialData.startPoint, '->', formData.startPoint);
-                 if (captainList && captainList.length > 0) {
-                     console.log('[EditModal] Triggering Point Sync for', captainList.length, 'captains:', captainList);
-                     try {
-                         const promises = captainList.map(captain => {
-                            console.log(' - Syncing point for captain:', captain.name, 'ID:', captain.id);
-                            return setLeaderPoint(draftId, { 
-                                leaderId: captain.id, // handleSaveSettings와 동일하게 ID 처리
-                                point: Number(formData.startPoint) 
-                            });
-                         });
-                         await Promise.all(promises);
-                         console.log('[EditModal] All points synced successfully.');
-                     } catch (e) {
-                         console.error("[EditModal] Failed to sync points:", e);
-                         // 포인트 동기화 실패해도 수정은 진행
-                     }
-                 } else {
-                     console.warn('[EditModal] No active captains found to sync points.');
-                 }
-             } else {
-                 console.log('[EditModal] Start Point unmatched or initialData missing. Skip sync.', initialData?.startPoint, formData.startPoint);
-             }
-
+             // [REMOVED] Point Sync Logic
+             // Start Point change no longer overwrites individual leader points.
+             
              alert("대회 정보가 수정되었습니다.");
              
              if (onUpdate) onUpdate(); // Refresh parent

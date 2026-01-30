@@ -81,6 +81,26 @@ export const joinDraftRoom = async (data) => {
 };
 
 /**
+ * 드래프트 방 삭제 (관리자 나가기 시)
+ * @param {number|string} draftId
+ */
+export const deleteDraft = async (draftId) => {
+    const response = await api.delete(`/drafts/${draftId}`);
+    return response.data;
+};
+
+/**
+ * 드래프트 방 폭파 (관리자 전용)
+ * 로비 상태의 드래프트를 강제 삭제하고 모든 참가자를 퇴장시킵니다.
+ * @param {number|string} draftId
+ */
+export const destroyDraft = async (draftId) => {
+    const response = await api.delete(`/drafts/${draftId}/lobby/destroy`);
+    return response.data;
+};
+
+
+/**
  * 로비 정보 조회 (초대 코드 포함 - 관리자만)
  * @param {number|string} draftId
  */

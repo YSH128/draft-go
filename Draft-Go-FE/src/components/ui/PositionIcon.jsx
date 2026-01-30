@@ -8,11 +8,16 @@ import supIcon from '../../assets/positions/sup.svg';
 
 /**
  * PositionIcon - 포지션별 이미지 아이콘을 표시하는 재사용 가능한 컴포넌트
- * @param {string} position - 포지션 이름 ('TOP', 'JNG', 'MID', 'ADC', 'SUP')
+ * @param {string} position - 포지션 이름 ('TOP', 'JNG', 'MID', 'ADC', 'SUP', 'SPECTATOR')
  * @param {string} className - 추가 CSS 클래스 (크기 조절 등)
  * @param {object} style - 추가 인라인 스타일
  */
 export default function PositionIcon({ position, className = "", style = {} }) {
+  // SPECTATOR position uses Material Icon instead of SVG
+  if (position === 'SPECTATOR' || position === 'OBSERVER') {
+    return <span className={`material-symbols-outlined ${className}`} style={style}>visibility</span>;
+  }
+
   const getIconSrc = () => {
     switch(position) {
       case 'TOP': return topIcon;
