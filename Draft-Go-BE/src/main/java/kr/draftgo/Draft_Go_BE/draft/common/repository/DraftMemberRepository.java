@@ -15,18 +15,35 @@ public interface DraftMemberRepository extends JpaRepository<DraftMember, Long> 
     // Helper for Auction
     Optional<DraftMember> findFirstByDraftIdAndStatusOrderByTurnOrderAsc(Long draftId, DraftMemberStatus status);
 
-    @Query("SELECT dm FROM DraftMember dm WHERE dm.draft.id = :draftId AND dm.status = 'WAITING' ORDER BY dm.turnOrder ASC LIMIT 1")
+    @Query("SELECT dm FROM DraftMember dm " +
+           "JOIN FETCH dm.member m " +
+           "JOIN FETCH m.memberStat " +
+           "WHERE dm.draft.id = :draftId AND dm.status = 'WAITING' " +
+           "ORDER BY dm.turnOrder ASC LIMIT 1")
     Optional<DraftMember> findNextWaiting(@Param("draftId") Long draftId);
 
-    @Query("SELECT dm FROM DraftMember dm WHERE dm.draft.id = :draftId AND dm.status = 'SKIPPED' ORDER BY dm.turnOrder ASC LIMIT 1")
+    @Query("SELECT dm FROM DraftMember dm " +
+           "JOIN FETCH dm.member m " +
+           "JOIN FETCH m.memberStat " +
+           "WHERE dm.draft.id = :draftId AND dm.status = 'SKIPPED' " +
+           "ORDER BY dm.turnOrder ASC LIMIT 1")
     Optional<DraftMember> findNextSkipped(@Param("draftId") Long draftId);
 
-    @Query("SELECT dm FROM DraftMember dm WHERE dm.draft.id = :draftId AND dm.status IN ('WAITING', 'SKIPPED') ORDER BY dm.turnOrder ASC LIMIT 1")
+    @Query("SELECT dm FROM DraftMember dm " +
+           "JOIN FETCH dm.member m " +
+           "JOIN FETCH m.memberStat " +
+           "WHERE dm.draft.id = :draftId AND dm.status IN ('WAITING', 'SKIPPED') " +
+           "ORDER BY dm.turnOrder ASC LIMIT 1")
     Optional<DraftMember> findNextUpcoming(@Param("draftId") Long draftId);
 
-    java.util.List<DraftMember> findAllByDraftIdOrderByTurnOrderAsc(Long draftId);
+    @Query("SELECT DISTINCT dm FROM DraftMember dm " +
+           "JOIN FETCH dm.member m " +
+           "JOIN FETCH m.memberStat " +
+           "WHERE dm.draft.id = :draftId " +
+           "ORDER BY dm.turnOrder ASC")
+    List<DraftMember> findAllByDraftIdOrderByTurnOrderAsc(@Param("draftId") Long draftId);
 
-    java.util.List<DraftMember> findAllByDraftIdAndStatus(Long draftId, DraftMemberStatus status);
+    List<DraftMember> findAllByDraftIdAndStatus(Long draftId, DraftMemberStatus status);
 
     default void complete(Long draftMemberId) {
         findById(draftMemberId).ifPresent(dm -> {

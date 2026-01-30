@@ -15,6 +15,7 @@ public class DraftMemberResponse {
     private Long id;
     private Long memberId;
     private String name;
+    private String profileImageUrl;
     private Position position;
     private DraftMemberStatus status;
     private Integer turnOrder;
@@ -22,11 +23,12 @@ public class DraftMemberResponse {
     private Division division;
     private Integer leaguePoints;
 
-    public static DraftMemberResponse from(DraftMember entity, MemberStat stat) {
+    public static DraftMemberResponse from(DraftMember entity, MemberStat stat, String profileImageUrl) {
         return DraftMemberResponse.builder()
                 .id(entity.getId())
                 .memberId(entity.getMember().getId())
                 .name(entity.getName())
+                .profileImageUrl(profileImageUrl)
                 .position(entity.getPosition())
                 .status(entity.getStatus())
                 .turnOrder(entity.getTurnOrder())

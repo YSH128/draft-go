@@ -1,5 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.lobby.service;
 
+import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionService;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
@@ -54,6 +55,7 @@ public class LobbyService {
     private final TeamRepository teamRepository;
     private final TeammateRepository teammateRepository;
     private final RedisLobbyRepository lobbyRedisRepository;
+    private final RedisAuctionRepository redisAuctionRepository;
     private final LobbyWebSocketService lobbyWebSocketService;
     private final ChatWebSocketController chatWebSocketController;
     private final AuctionService auctionService;
@@ -74,8 +76,8 @@ public class LobbyService {
                 .collect(Collectors.toList());
 
         // N+1 문제 방지: 한 번에 모든 MemberStat 조회
-        Map<Long, MemberStat> memberStatMap = memberStatRepository.findByMemberIdIn(memberIds).stream()
-                .collect(Collectors.toMap(MemberStat::getMemberId, stat -> stat));
+        Map<Long, MemberStat> memberStatMap = memberStatRepository.findByMember_IdIn(memberIds).stream()
+                .collect(Collectors.toMap(stat -> stat.getMember().getId(), stat -> stat));
 
         // Leaders: role이 "LEADER"인 참가자
         List<LeaderDetail> leaders = participants.stream()
@@ -155,7 +157,7 @@ public class LobbyService {
 
         // 관리자 권한 확인
         if (!draft.getOwner().getId().equals(adminId)) {
-            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 역할을 변경할 수 있습니다.");
+            throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 역할을 변경할 수 있습니다.");
         }
 
         // 팀장으로 변경 시 검증
@@ -224,9 +226,14 @@ public class LobbyService {
             throw new CustomException(ErrorType.DRAFT_NOT_IN_LOBBY, "로비 상태에서만 퇴장할 수 있습니다.");
         }
 
+        // 관리자(방장)는 방을 나갈 수 없음
+        if (draft.getOwner().getId().equals(targetUserId)) {
+            throw new CustomException(ErrorType.OWNER_CANNOT_EXIT, "관리자(방장)는 방을 나갈 수 없습니다.");
+        }
+
         // 자기 자신을 퇴장시키거나 관리자 권한 확인
         if (!targetUserId.equals(requesterId) && !draft.getOwner().getId().equals(requesterId)) {
-            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 다른 참가자를 퇴장시킬 수 있습니다.");
+            throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 다른 참가자를 퇴장시킬 수 있습니다.");
         }
 
         // 퇴장 전 참가자 정보 가져오기 (채팅 알림용)
@@ -252,7 +259,7 @@ public class LobbyService {
 
         // 관리자 권한 확인
         if (!draft.getOwner().getId().equals(adminId)) {
-            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 팀장 포인트를 설정할 수 있습니다.");
+            throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 팀장 포인트를 설정할 수 있습니다.");
         }
 
         lobbyRedisRepository.setLeaderPoint(draftId, leaderId, point);
@@ -271,7 +278,7 @@ public class LobbyService {
 
         // 관리자 권한 확인
         if (!draft.getOwner().getId().equals(adminId)) {
-            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 초대 코드를 리프레시할 수 있습니다.");
+            throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 초대 코드를 리프레시할 수 있습니다.");
         }
 
         // 코드 타입에 따라 적절한 메서드 호출
@@ -323,7 +330,7 @@ public class LobbyService {
 
         // 관리자 권한 확인
         if (!draft.getOwner().getId().equals(adminId)) {
-            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 드래프트를 시작할 수 있습니다.");
+            throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 드래프트를 시작할 수 있습니다.");
         }
 
         List<LobbyParticipant> participants = lobbyRedisRepository.getParticipants(draftId);
@@ -404,20 +411,30 @@ public class LobbyService {
             Member leaderMember = memberRepository.findById(leader.getMemberId())
                     .orElseThrow(() -> new CustomException(ErrorType.MEMBER_NOT_FOUND));
 
+            // 팀장 포인트 결정 (leaderPoint가 설정되어 있으면 사용, 아니면 0)
+            Integer leaderPoint = (leader.getLeaderPoint() != null && leader.getLeaderPoint() > 0)
+                    ? leader.getLeaderPoint()
+                    : 0;
+
+            // 팀의 실제 사용 가능한 포인트 = startPoint - leaderPoint
+            // (leaderPoint는 팀장이 차지하는 비용, startPoint는 팀이 공평하게 갖는 시작 포인트)
+            int teamPoint = draft.getStartPoint() - leaderPoint;
+
             Team team = Team.builder()
                     .teamName(leader.getGameName() + "팀")
                     .draft(draft)
+                    .point(teamPoint)  // 팀 포인트 = startPoint - leaderPoint
                     .build();
             teamRepository.save(team);
 
-            // 팀장을 teammate에 등록 (leaderPoint가 0보다 크면 사용, 아니면 draft.startPoint 사용)
-            Integer leaderPoint = (leader.getLeaderPoint() != null && leader.getLeaderPoint() > 0)
-                    ? leader.getLeaderPoint()
-                    : draft.getStartPoint();
+            // Redis에 팀 포인트 초기화 (경매에서 사용)
+            redisAuctionRepository.setTeamPoint(draftId, team.getId(), teamPoint);
+
+            // 팀장을 teammate에 등록 (팀장이 차지하는 비용 기록)
             Teammate leaderTeammate = Teammate.builder()
                     .team(team)
                     .member(leaderMember)
-                    .point(leaderPoint)
+                    .point(leaderPoint)  // 팀장이 차지하는 비용
                     .isLeader(true)
                     .position(leader.getPosition())
                     .build();
@@ -461,7 +478,7 @@ public class LobbyService {
 
         // 관리자 권한 확인
         if (!draft.getOwner().getId().equals(adminId)) {
-            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 방을 폭파할 수 있습니다.");
+            throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 방을 폭파할 수 있습니다.");
         }
 
         // 로비 상태가 아니면 폭파 불가

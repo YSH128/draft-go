@@ -68,7 +68,7 @@ public class DevDataInitializer {
                 Member savedUser1 = memberRepository.save(user1);
 
                 MemberStat stat1 = MemberStat.builder()
-                        .memberId(savedUser1.getId())
+                        .member(savedUser1)
                         .seasonId("1401")
                         .tier(Tier.DIAMOND)
                         .division(Division.II)
@@ -99,7 +99,7 @@ public class DevDataInitializer {
                 Member savedUser2 = memberRepository.save(user2);
 
                 MemberStat stat2 = MemberStat.builder()
-                        .memberId(savedUser2.getId())
+                        .member(savedUser2)
                         .seasonId("1401")
                         .tier(Tier.PLATINUM)
                         .division(Division.I)
@@ -129,7 +129,7 @@ public class DevDataInitializer {
                 Member savedUser3 = memberRepository.save(user3);
 
                 MemberStat stat3 = MemberStat.builder()
-                        .memberId(savedUser3.getId())
+                        .member(savedUser3)
                         .seasonId("1401")
                         .tier(Tier.GOLD)
                         .division(Division.II)
@@ -185,7 +185,7 @@ public class DevDataInitializer {
                     Member savedTestUser = memberRepository.save(testUser);
 
                     MemberStat testStat = MemberStat.builder()
-                            .memberId(savedTestUser.getId())
+                            .member(savedTestUser)
                             .seasonId("1401")
                             .tier(randomTier)
                             .division(randomDivision)

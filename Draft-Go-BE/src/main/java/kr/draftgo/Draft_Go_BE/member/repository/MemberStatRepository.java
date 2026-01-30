@@ -9,11 +9,11 @@ import java.util.Optional;
 
 @Repository
 public interface MemberStatRepository extends JpaRepository<MemberStat, Long> {
-    List<MemberStat> findByMemberIdIn(List<Long> memberIds);
+    List<MemberStat> findByMember_IdIn(List<Long> memberIds);
 
-    Optional<MemberStat> findByMemberId(Long memberId);
+    Optional<MemberStat> findByMember_Id(Long memberId);
 
-    Optional<MemberStat> findByMemberIdAndSeasonId(Long memberId, String seasonId);
+    Optional<MemberStat> findByMember_IdAndSeasonId(Long memberId, String seasonId);
 
-    boolean existsByMemberId(Long memberId);
+    boolean existsByMember_Id(Long memberId);
 }

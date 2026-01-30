@@ -26,7 +26,7 @@ public class RoundTerminateService {
     private final DraftMemberRepository draftMemberRepo;
     private final TeammateRepository teammateRepo;
     private final AuctionService auctionService;
-    private final AuctionEventPublisher publisher;
+    private final AuctionEventPublisher auctionEventPublisher;
 
     /**
      * 경매 라운드 종료 처리
@@ -43,14 +43,22 @@ public class RoundTerminateService {
         BidInfo bid = redisRepo.getBid(draftId);
 
         if (bid.exists()) {
-            // Redis에서 포인트 차감 (실시간 경매용)
+            // Redis에서 포인트 차감
             redisRepo.deductTeamPoint(draftId, bid.getTeamId(), bid.getPrice());
-            // [최적화] DB 포인트 차감은 경매 전체 종료 후 일괄 처리하므로 제거
-            // teamRepo.deductPoint(bid.getTeamId(), bid.getPrice());
 
-            // Teammate 추가 로직
+            // [수정] 라운드 완료 시마다 DB에 포인트 커밋
             Team team = teamRepo.findById(bid.getTeamId())
                     .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+
+            // Redis의 최신 포인트를 DB에 반영
+            Integer currentRedisPoint = redisRepo.getTeamPoint(draftId, team.getId());
+            if (currentRedisPoint != null) {
+                team.updatePoint(currentRedisPoint);
+                teamRepo.save(team);
+                log.info("Team {} point updated to {} in DB (draftId: {})", team.getId(), currentRedisPoint, draftId);
+            }
+
+            // Teammate 추가 로직
             DraftMember draftMember = draftMemberRepo.findById(state.getDraftMemberId())
                     .orElseThrow(() -> new IllegalArgumentException("DraftMember not found"));
 
@@ -73,12 +81,14 @@ public class RoundTerminateService {
         }
 
         redisRepo.clear(draftId);
-        publisher.timeOver(draftId, bid);
-
-        // [추가] 변경된 Queue와 Team 정보 브로드캐스팅
-        publisher.publishDraftQueue(draftId, auctionService.getDraftQueue(draftId));
-        publisher.publishTeamInfo(draftId, auctionService.getTeamInfos(draftId));
 
         auctionService.processNextRound(draftId); // 다음 경매 or 종료
+        // [추가] 변경된 Queue와 Team 정보 브로드캐스팅
+        auctionEventPublisher.timeOver(draftId, bid);
+        if (bid.exists()) {
+            auctionEventPublisher.publishTeamInfo(draftId, auctionService.getTeamInfos(draftId));
+        }
+        auctionEventPublisher.publishDraftQueue(draftId, auctionService.getDraftQueue(draftId));
+
     }
 }

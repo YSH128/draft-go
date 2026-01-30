@@ -21,6 +21,7 @@ import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeammateRepository;
 import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
 import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
+import kr.draftgo.Draft_Go_BE.match.service.DataDragonService;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
@@ -47,6 +48,7 @@ public class AuctionService {
     private final AuctionEventPublisher publisher;
     private final ChatWebSocketController chatWebSocketController;
     private final MemberStatRepository memberStatRepository;
+    private final DataDragonService dataDragonService;
 
     /**
      * 경매 시작 (관리자 권한 체크 포함)
@@ -60,7 +62,7 @@ public class AuctionService {
                 .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
 
         if (!draft.getOwner().getId().equals(admin.getId())) {
-            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 경매를 시작할 수 있습니다.");
+            throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 경매를 시작할 수 있습니다.");
         }
 
         // 실제 경매 시작 로직 호출
@@ -104,7 +106,12 @@ public class AuctionService {
 
     private void startAuctionForMember(Long draftId, DraftMember next) {
         // Redis에 경매 상태 설정 (DB 상태는 WAITING 유지)
-        RoundStatus state = RoundStatus.start(draftId, next.getId(), next.getName());
+        RoundStatus state = RoundStatus.start(draftId, next.getId(),
+                next.getName(),
+                dataDragonService.getProfileIconUrl(next.getMember().getProfileIconId()),
+                next.getMember().getMemberStat().getTier(),
+                next.getMember().getMemberStat().getDivision()
+                );
         redisRepo.setCurrent(draftId, state);
         redisRepo.startTimer(draftId, 30);
         publisher.newBidding(draftId, state);
@@ -117,16 +124,6 @@ public class AuctionService {
     private void finishAuction(Long draftId) {
         log.info("No more members to draft. Auction finished for draftId: {}", draftId);
 
-        // [최적화] 경매 종료 시 Redis에 있는 최종 팀 포인트를 DB에 일괄 반영
-        List<Team> teams = teamRepo.findAllByDraftId(draftId);
-        for (Team team : teams) {
-            Integer finalPoint = redisRepo.getTeamPoint(draftId, team.getId());
-            if (finalPoint != null) {
-                team.updatePoint(finalPoint);
-            }
-        }
-        teamRepo.saveAll(teams);
-        log.info("Final team points synchronized to DB for draftId: {}", draftId);
 
         // 채팅 시스템 메시지 - 경매 종료
         chatWebSocketController.sendSystemMessage(draftId, "🎉 모든 경매가 종료되었습니다!");
@@ -148,12 +145,12 @@ public class AuctionService {
         AuctionPhase auctionPhase = determineAuctionPhase(draftStatus, state);
 
         // 타이머 남은 시간 (진행 중일 때만 의미 있음)
-        Integer remainingTime = null;
+        Integer remainingSeconds = null;
         if (auctionPhase == AuctionPhase.IN_PROGRESS) {
-            remainingTime = redisRepo.getRemainingTime(draftId);
+            remainingSeconds = redisRepo.getRemainingSeconds(draftId);
         }
 
-        return AuctionStatusResponse.of(auctionPhase, remainingTime, state, bid, nextPlayerName);
+        return AuctionStatusResponse.of(auctionPhase, remainingSeconds, state, bid, nextPlayerName);
     }
 
     /**
@@ -188,13 +185,14 @@ public class AuctionService {
                 .distinct()
                 .collect(Collectors.toList());
 
-        Map<Long, MemberStat> memberStatMap = memberStatRepository.findByMemberIdIn(memberIds).stream()
-                .collect(Collectors.toMap(MemberStat::getMemberId, stat -> stat));
+        Map<Long, MemberStat> memberStatMap = memberStatRepository.findByMember_IdIn(memberIds).stream()
+                .collect(Collectors.toMap(stat -> stat.getMember().getId(), stat -> stat));
 
         return draftMembers.stream()
                 .map(dm -> {
                     MemberStat stat = memberStatMap.get(dm.getMember().getId());
-                    return DraftMemberResponse.from(dm, stat);
+                    return DraftMemberResponse.from(dm, stat,
+                        dataDragonService.getProfileIconUrl(dm.getMember().getProfileIconId()));
                 })
                 .collect(Collectors.toList());
     }
@@ -214,7 +212,9 @@ public class AuctionService {
 
             // Teammate -> TeammateResponse 변환
             List<TeammateResponse> memberResponses = teammates.stream()
-                    .map(TeammateResponse::from)
+                    .map(tm -> TeammateResponse.from(
+                            tm, dataDragonService.getProfileIconUrl(tm.getMember().getProfileIconId())
+                            ))
                     .collect(Collectors.toList());
 
             // TeamInfoResponse 직접 빌드 (Redis Point 반영)

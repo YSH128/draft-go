@@ -1,7 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.service;
 
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
-import kr.draftgo.Draft_Go_BE.draft.auction.dto.AuctionStatusResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
@@ -81,8 +80,8 @@ public class AuctionRecoveryService {
         }
         // Case 3: 정상 진행 중 (타이머도 있고 상태도 있음)
         else {
-            int remainingTime = redisRepo.getRemainingTime(draftId);
-            log.info("Auction for draftId: {} is running normally. Remaining time: {}s", draftId, remainingTime);
+            int remainingSeconds = redisRepo.getRemainingSeconds(draftId);
+            log.info("Auction for draftId: {} is running normally. Remaining time: {}s", draftId, remainingSeconds);
         }
     }
 

@@ -207,7 +207,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   "data": {
     "currentPlayerId": 456,
     "currentPlayerName": "Faker",
-    "remainingTime": 30,
+    "remainingSeconds": 30,
     "currentBid": {
       "teamId": 1,
       "price": 100

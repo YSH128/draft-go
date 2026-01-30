@@ -29,7 +29,7 @@ public enum ErrorType {
     DRAFT_NOT_IN_LOBBY(HttpStatus.BAD_REQUEST, "DRAFT_NOT_IN_LOBBY", "로비 상태에서만 퇴장할 수 있습니다"),
 
     // 권한 관련 에러
-    UNAUTHORIZED_ADMIN_ONLY(HttpStatus.FORBIDDEN, "UNAUTHORIZED_ADMIN_ONLY", "관리자만 수행할 수 있는 작업입니다"),
+    UNAUTHORIZED_OWNER_ONLY(HttpStatus.FORBIDDEN, "UNAUTHORIZED_ADMIN_ONLY", "관리자만 수행할 수 있는 작업입니다"),
     UNAUTHORIZED_POSITION_CHANGE(HttpStatus.FORBIDDEN, "UNAUTHORIZED_POSITION_CHANGE", "본인 또는 관리자만 포지션을 변경할 수 있습니다"),
     UNAUTHORIZED_LEADER_ONLY(HttpStatus.FORBIDDEN, "UNAUTHORIZED_LEADER_ONLY", "팀장만 수행할 수 있는 작업입니다"),
 
@@ -37,6 +37,7 @@ public enum ErrorType {
     PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "PARTICIPANT_NOT_FOUND", "드래프트에 참여하지 않은 사용자입니다"),
     LEADER_CANNOT_BE_OBSERVER(HttpStatus.BAD_REQUEST, "LEADER_CANNOT_BE_OBSERVER", "팀장은 관전자가 될 수 없습니다. 특정 포지션을 선택해주세요"),
     MAX_TEAM_COUNT_EXCEEDED(HttpStatus.BAD_REQUEST, "MAX_TEAM_COUNT_EXCEEDED", "최대 팀 수를 초과하여 팀장을 추가할 수 없습니다"),
+    OWNER_CANNOT_EXIT(HttpStatus.BAD_REQUEST, "OWNER_CANNOT_EXIT", "드래프트 생성자는 드래프트에서 나갈 수 없습니다"),
 
     // 드래프트 시작 검증 에러
     NO_LEADERS(HttpStatus.BAD_REQUEST, "NO_LEADERS", "팀장이 없습니다"),
@@ -44,6 +45,13 @@ public enum ErrorType {
     NO_PLAYING_PARTICIPANTS(HttpStatus.BAD_REQUEST, "NO_PLAYING_PARTICIPANTS", "드래프트에 참여하는 플레이어가 없습니다"),
     POSITION_MISSING(HttpStatus.BAD_REQUEST, "POSITION_MISSING", "필수 포지션 참가자가 없습니다"),
     POSITION_UNBALANCED(HttpStatus.BAD_REQUEST, "POSITION_UNBALANCED", "포지션별 참가자 수가 균일하지 않습니다"),
+
+    // 경매 관련 에러
+    AUCTION_NOT_IN_PROGRESS(HttpStatus.BAD_REQUEST, "AUCTION_NOT_IN_PROGRESS", "진행 중인 경매가 없습니다"),
+    POSITION_ALREADY_FILLED(HttpStatus.BAD_REQUEST, "POSITION_ALREADY_FILLED", "이미 해당 포지션의 선수를 보유하고 있습니다"),
+    DRAFT_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "DRAFT_MEMBER_NOT_FOUND", "경매 대상 선수를 찾을 수 없습니다"),
+    TEAM_LEADER_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_LEADER_NOT_FOUND", "팀장을 찾을 수 없습니다"),
+    BID_PRICE_TOO_LOW(HttpStatus.BAD_REQUEST, "BID_PRICE_TOO_LOW", "입찰가는 현재 최고가보다 커야 합니다"),
 
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "유효성 검사에 실패했습니다"),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다");

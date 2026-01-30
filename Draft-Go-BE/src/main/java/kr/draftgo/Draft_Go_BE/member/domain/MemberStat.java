@@ -21,8 +21,9 @@ public class MemberStat {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long memberId;
+    @OneToOne
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
 
     @Column(name = "season_id", nullable = false, length = 10)
     private String seasonId;

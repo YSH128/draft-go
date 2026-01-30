@@ -339,9 +339,9 @@ public class MatchService {
             List<MatchDocument> seasonMatches = entry.getValue();
 
             // 2. 해당 시즌(Season ID)에 맞는 MemberStat 조회 또는 생성
-            MemberStat stat = memberStatRepository.findByMemberIdAndSeasonId(memberId, season.getSeasonId())
-                    .orElse(MemberStat.builder()
-                            .memberId(memberId)
+            MemberStat stat = memberStatRepository.findByMember_IdAndSeasonId(memberId, season.getSeasonId())
+                    .orElseGet(() -> MemberStat.builder()
+                            .member(member)
                             .seasonId(season.getSeasonId())
                             .build());
 

@@ -60,7 +60,7 @@ public class DraftJoinService {
                 .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
 
         if (!draft.getOwner().getId().equals(member.getId())) {
-            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 방 ID로 참가할 수 있습니다.");
+            throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 방 ID로 참가할 수 있습니다.");
         }
 
         joinToLobby(draftId, draft, member, req, "MEMBER");

@@ -152,7 +152,11 @@ public class DataDragonService {
         return String.format("https://ddragon.leagueoflegends.com/cdn/%s/img/spell/%s", this.version, imageFile);
     }
 
-    public String getProfileIconUrl(int profileIconId) {
+    public String getProfileIconUrl(Integer profileIconId) {
+        // null인 경우 기본 프로필 아이콘 (아이콘 ID: 0)
+        if (profileIconId == null) {
+            profileIconId = 0;
+        }
         return String.format("https://ddragon.leagueoflegends.com/cdn/%s/img/profileicon/%d.png", this.version,
                 profileIconId);
     }

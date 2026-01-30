@@ -107,7 +107,7 @@ public class DraftManageService {
      */
     private void validateAdminPermission(Draft draft, Long adminId) {
         if (!draft.getOwner().getId().equals(adminId)) {
-            throw new CustomException(ErrorType.UNAUTHORIZED_ADMIN_ONLY, "관리자만 드래프트 정보를 수정할 수 있습니다.");
+            throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 드래프트 정보를 수정할 수 있습니다.");
         }
     }
 

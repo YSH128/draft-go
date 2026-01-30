@@ -5,6 +5,8 @@ import { TeamSidebarSection, AuctionSection, ChatSection } from "./sections";
 import { getAuctionState, getDraftQueue, getTeamInfos, placeBid, startAuction } from "../../api/draft";
 import { getMyProfile } from "../../api/auth";
 import { buildWsUrl, createStompClient } from "../../libs/stomp";
+import ToastContainer from "../../components/ToastContainer";
+import useToast from "../../hooks/useToast";
 
 const DEFAULT_TIER = "UNRANKED";
 const BID_INCREMENT = 20;
@@ -52,12 +54,7 @@ const MOCK_MESSAGES = [
   },
 ];
 
-const getTierFromRank = (rank) => {
-  if (!rank) return DEFAULT_TIER;
-  const raw = typeof rank === "string" ? rank : String(rank);
-  const base = raw.split("_")[0];
-  return base || DEFAULT_TIER;
-};
+
 
 const normalizeQueue = (queue) =>
   (queue || []).map((member) => ({
@@ -67,9 +64,10 @@ const normalizeQueue = (queue) =>
     position: member.position,
     status: member.status,
     turnOrder: member.turnOrder ?? 0,
-    tier: getTierFromRank(member.rank),
+    tier: member.tier || DEFAULT_TIER,
+    division: member.division || null,
     rank: member.rank ?? null,
-    imageUrl: null,
+    imageUrl: member.profileImageUrl || null,
   }));
 
 const buildRoster = (members = []) => {
@@ -78,7 +76,9 @@ const buildRoster = (members = []) => {
     if (!member.position) return;
     roster[member.position] = {
       name: member.name,
-      imageUrl: null,
+      imageUrl: member.profileImageUrl || null,
+      tier: member.tier || DEFAULT_TIER,
+      division: member.division || null,
     };
   });
   return roster;
@@ -142,6 +142,8 @@ export default function DraftPage() {
   const [isDraftEnded, setIsDraftEnded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+
+  const { toasts, showToast, removeToast } = useToast();
 
   const didStartAuction = useRef(false);
   const wsClientRef = useRef(null);
@@ -223,8 +225,9 @@ export default function DraftPage() {
     return {
       id: currentState.draftMemberId ? String(currentState.draftMemberId) : "current",
       name: member?.name || currentState.playerName || "Unknown",
-      imageUrl: null,
+      imageUrl: member?.imageUrl || null,
       tier: member?.tier || DEFAULT_TIER,
+      division: member?.division || null,
       positions: position ? [position] : [],
       mostChampions: [],
     };
@@ -391,19 +394,20 @@ export default function DraftPage() {
 
     if (!canBid) {
       if (bidDisabledReason) {
-        alert(bidDisabledReason);
+        showToast(bidDisabledReason, 'warning', 5000); // 경고는 5초
       }
       return;
     }
 
     try {
       await placeBid(draftId, Number(myTeamId), nextBidPrice);
+      showToast('입찰이 완료되었습니다!', 'success'); // 성공은 기본 3초
     } catch (error) {
       const serverMessage =
         error.response?.data?.message || "입찰에 실패했습니다. 다시 시도해주세요.";
-      alert(serverMessage);
+      showToast(serverMessage, 'error', 5000); // 에러는 5초
     }
-  }, [bidDisabledReason, canBid, draftId, isValidDraftId, myTeamId, nextBidPrice]);
+  }, [bidDisabledReason, canBid, draftId, isValidDraftId, myTeamId, nextBidPrice, showToast]);
 
   const handleSendMessage = useCallback((content) => {
     setMessages((prev) => [
@@ -588,6 +592,8 @@ export default function DraftPage() {
 
   return (
     <DraftLayout>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+
       <TeamSidebarSection teams={uiTeams} activeTeamId={activeTeamId} myTeamId={myTeamId} />
 
       <AuctionSection

@@ -123,7 +123,7 @@ public class RedisAuctionRepository {
      * 타이머 남은 시간 조회
      * @return 남은 시간 (초). 타이머가 없거나 만료된 경우 0 반환
      */
-    public Integer getRemainingTime(Long draftId) {
+    public Integer getRemainingSeconds(Long draftId) {
         Long ttl = redis.getExpire(AuctionKey.timer(draftId), TimeUnit.SECONDS);
 
         // ttl == null: 키가 존재하지 않음 (타이머 없음)

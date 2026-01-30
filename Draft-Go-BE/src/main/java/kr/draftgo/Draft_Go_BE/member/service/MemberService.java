@@ -156,7 +156,7 @@ public class MemberService {
         // MySQL에서 회원 통계 조회 (시즌별)
         MemberStat stat = null;
         if (seasonId != null) {
-            stat = memberStatRepository.findByMemberIdAndSeasonId(member.getId(), seasonId)
+            stat = memberStatRepository.findByMember_IdAndSeasonId(member.getId(), seasonId)
                     .orElse(null);
         }
 
