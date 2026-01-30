@@ -18,6 +18,8 @@ public class LobbyInfoRes {
     private Long draftId;
     private String title;
     private Integer maxTeamCount;
+    private Integer startPoint;
+    private Integer startPrice;
     private DraftStatus status;
     private List<LeaderDetail> leaders;
     private List<MemberDetail> members;

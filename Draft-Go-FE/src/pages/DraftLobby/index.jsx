@@ -160,6 +160,7 @@ export default function DraftLobby() {
   const [isKickedAlertOpen, setIsKickedAlertOpen] = useState(false);
   const [isLobbyClosedAlertOpen, setIsLobbyClosedAlertOpen] = useState(false);
   const [isDestroyConfirmOpen, setIsDestroyConfirmOpen] = useState(false);
+  const [isUpdateSuccessOpen, setIsUpdateSuccessOpen] = useState(false);
   const isSelfLeavingRef = useRef(false); // Track if user is leaving voluntarily
 
 
@@ -1449,7 +1450,10 @@ export default function DraftLobby() {
         isEditMode={true}
         draftId={draftId}
         initialData={data}
-        onUpdate={() => queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] })}
+        onUpdate={(isSuccess) => {
+             queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
+             if (isSuccess) setIsUpdateSuccessOpen(true);
+        }}
         activeCaptainCount={captains.filter(c => c.name).length}
         captainList={captains.filter(c => c.name)}
       />
@@ -1517,6 +1521,16 @@ export default function DraftLobby() {
         message={"정말로 로비를 닫으시겠습니까?\n\n모든 참가자가 퇴장되며, 드래프트 데이터가 완전히 삭제됩니다.\n\n이 작업은 되돌릴 수 없습니다."}
         variant="error"
         icon="warning"
+      />
+
+       {/* Update Success Notification Modal */}
+       <AlertModal
+        isOpen={isUpdateSuccessOpen}
+        onClose={() => setIsUpdateSuccessOpen(false)}
+        title="수정 완료"
+        message="대회 정보가 성공적으로 수정되었습니다."
+        variant="success"
+        icon="check_circle"
       />
     </div>
     </DragDropContext>

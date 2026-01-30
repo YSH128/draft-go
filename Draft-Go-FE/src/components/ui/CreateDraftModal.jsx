@@ -107,9 +107,9 @@ export default function CreateDraftModal({
              // [REMOVED] Point Sync Logic
              // Start Point change no longer overwrites individual leader points.
              
-             alert("대회 정보가 수정되었습니다.");
+             // alert("대회 정보가 수정되었습니다."); // Parent will handle notification
              
-             if (onUpdate) onUpdate(); // Refresh parent
+             if (onUpdate) onUpdate(true); // Call parent with success flag
              onClose();
              
         } else {

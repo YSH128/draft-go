@@ -138,6 +138,8 @@ public class LobbyService {
                 .draftId(draft.getId())
                 .title(draft.getTitle())
                 .maxTeamCount(draft.getMaxTeamCount())
+                .startPoint(draft.getStartPoint())
+                .startPrice(draft.getStartPrice())
                 .status(draft.getStatus())
                 .leaders(leaders)
                 .members(members)
