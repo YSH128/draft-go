@@ -76,9 +76,9 @@ public class LobbyService {
                             .name(p.getGameName())
                             .position(p.getPosition())
                             .isReady(p.isReady())
-                            .tier(stat.getTier())
-                            .division(stat.getDivision())
-                            .leaguePoints(stat.getLeaguePoint())
+                            .tier(stat != null ? stat.getTier() : null)
+                            .division(stat != null ? stat.getDivision() : null)
+                            .leaguePoints(stat != null ? stat.getLeaguePoint() : null)
                             .leaderPoint(p.getLeaderPoint())
                             .build();
                 })
@@ -93,9 +93,9 @@ public class LobbyService {
                             .id(p.getMemberId())
                             .name(p.getGameName())
                             .position(p.getPosition())
-                            .tier(stat.getTier())
-                            .division(stat.getDivision())
-                            .leaguePoints(stat.getLeaguePoint())
+                            .tier(stat != null ? stat.getTier() : null)
+                            .division(stat != null ? stat.getDivision() : null)
+                            .leaguePoints(stat != null ? stat.getLeaguePoint() : null)
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -372,8 +372,7 @@ public class LobbyService {
         Map<Position, Long> positionCount = playingParticipants.stream()
                 .collect(Collectors.groupingBy(
                         LobbyParticipant::getPosition,
-                        Collectors.counting()
-                ));
+                        Collectors.counting()));
 
         // 필수 포지션 목록 (TOP, JUNGLE, MID, BOT, SUP)
         List<Position> requiredPositions = List.of(
@@ -381,16 +380,14 @@ public class LobbyService {
                 Position.JUNGLE,
                 Position.MID,
                 Position.BOT,
-                Position.SUP
-        );
+                Position.SUP);
 
         // 모든 필수 포지션이 존재하는지 확인
         for (Position position : requiredPositions) {
             if (!positionCount.containsKey(position) || positionCount.get(position) == 0) {
                 throw new CustomException(
                         ErrorType.POSITION_MISSING,
-                        String.format("%s 포지션 참가자가 없습니다.", position.getDisplayName())
-                );
+                        String.format("%s 포지션 참가자가 없습니다.", position.getDisplayName()));
             }
         }
 
