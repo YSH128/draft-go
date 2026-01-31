@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatMessageRequest {
+public class ChatMessageReq {
 
     /**
      * 메시지 내용 (최대 500자)

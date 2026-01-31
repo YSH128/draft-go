@@ -1,5 +1,6 @@
 package kr.draftgo.Draft_Go_BE.global.config;
 
+import kr.draftgo.Draft_Go_BE.match.service.MatchService;
 import kr.draftgo.Draft_Go_BE.member.domain.*;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
@@ -30,6 +31,7 @@ public class DevDataInitializer {
     private final MemberStatRepository memberStatRepository;
     private final SeasonRepository seasonRepository;
     private final PasswordEncoder passwordEncoder;
+    private final MatchService matchService;
 
     @Bean
     public ApplicationRunner initializeDevData() {
@@ -39,6 +41,7 @@ public class DevDataInitializer {
             log.info("========================================");
 
             Random random = new Random();
+            int createdCount = 0;
 
             // 관리자 계정 creation
             if (memberRepository.findByUsername("admin").isEmpty()) {
@@ -49,113 +52,51 @@ public class DevDataInitializer {
                         .tagLine("ADMIN")
                         .role(Role.ADMIN)
                         .build();
+
+                // profileIconId 설정
+                admin.updateProfileIcon(50);
+
                 memberRepository.save(admin);
-                log.info("✓ 관리자 계정 생성: admin / admin1234 (ADMIN)");
-            } else {
-                log.info("⊙ 관리자 계정 이미 존재 - 스킵");
+                createdCount++;
             }
 
-            // 샘플 사용자 1
-            if (memberRepository.findByUsername("user1").isEmpty()) {
-                Member user1 = Member.builder()
-                        .username("user1")
-                        .password(passwordEncoder.encode("user1234"))
-                        .gameName("Player1")
-                        .tagLine("KR1")
-                        .mainPosition(Position.MID)
-                        .subPosition(Position.BOT)
-                        .build();
-                Member savedUser1 = memberRepository.save(user1);
-
-                MemberStat stat1 = MemberStat.builder()
-                        .member(savedUser1)
-                        .seasonId("1401")
-                        .tier(Tier.DIAMOND)
-                        .division(Division.II)
-                        .leaguePoint(75)
-                        .rankWinRate(new BigDecimal("52.50"))
-                        .rankWins(120)
-                        .rankLoseRate(110)
-                        .lastedWinRate(new BigDecimal("48.30"))
-                        .lastedWins(45)
-                        .lastedLosses(48)
-                        .build();
-                memberStatRepository.save(stat1);
-                log.info("✓ 샘플 사용자1 생성: user1 / user1234 (MID/BOT, 다이아2)");
-            } else {
-                log.info("⊙ user1 이미 존재 - 스킵");
-            }
-
-            // 샘플 사용자 2
-            if (memberRepository.findByUsername("user2").isEmpty()) {
-                Member user2 = Member.builder()
-                        .username("user2")
-                        .password(passwordEncoder.encode("user1234"))
-                        .gameName("Player2")
-                        .tagLine("KR2")
-                        .mainPosition(Position.TOP)
-                        .subPosition(Position.JUNGLE)
-                        .build();
-                Member savedUser2 = memberRepository.save(user2);
-
-                MemberStat stat2 = MemberStat.builder()
-                        .member(savedUser2)
-                        .seasonId("1401")
-                        .tier(Tier.PLATINUM)
-                        .division(Division.I)
-                        .leaguePoint(90)
-                        .rankWinRate(new BigDecimal("55.20"))
-                        .rankWins(95)
-                        .rankLoseRate(77)
-                        .lastedWinRate(new BigDecimal("51.40"))
-                        .lastedWins(36)
-                        .lastedLosses(34)
-                        .build();
-                memberStatRepository.save(stat2);
-                log.info("✓ 샘플 사용자2 생성: user2 / user1234 (TOP/정글, 플래1)");
-            } else {
-                log.info("⊙ user2 이미 존재 - 스킵");
-            }
-
-            // 샘플 사용자 3
-            if (memberRepository.findByUsername("user3").isEmpty()) {
-                Member user3 = Member.builder()
-                        .username("user3")
-                        .password(passwordEncoder.encode("user1234"))
-                        .gameName("Player3")
-                        .tagLine("KR3")
-                        .mainPosition(Position.BOT)
-                        .build();
-                Member savedUser3 = memberRepository.save(user3);
-
-                MemberStat stat3 = MemberStat.builder()
-                        .member(savedUser3)
-                        .seasonId("1401")
-                        .tier(Tier.GOLD)
-                        .division(Division.II)
-                        .leaguePoint(45)
-                        .rankWinRate(new BigDecimal("49.80"))
-                        .rankWins(62)
-                        .rankLoseRate(62)
-                        .lastedWinRate(new BigDecimal("45.60"))
-                        .lastedWins(23)
-                        .lastedLosses(27)
-                        .build();
-                memberStatRepository.save(stat3);
-                log.info("✓ 샘플 사용자3 생성: user3 / user1234 (ADC, 골드2)");
-            } else {
-                log.info("⊙ user3 이미 존재 - 스킵");
-            }
-
-            // test1 ~ test10 사용자 생성
+            // test1 ~ test30 사용자 생성
             Tier[] tiers = { Tier.IRON, Tier.BRONZE, Tier.SILVER, Tier.GOLD,
                     Tier.PLATINUM, Tier.EMERALD, Tier.DIAMOND };
             Division[] divisions = { Division.I, Division.II, Division.III, Division.IV };
             Position[] positions = { Position.TOP, Position.JUNGLE, Position.MID, Position.BOT, Position.SUP };
 
-            for (int i = 1; i <= 10; i++) {
+            // 실제 게임 닉네임 배열 (test1~test10)
+            String[][] realAccounts = {
+                {"무 잔", "하데스"},       // test1
+                {"Akaps", "KR1"},         // test2
+                {"상현 2 차식", "무한성"},  // test3
+                {"한남맛종욱", "KR1"},     // test4
+                {"마끼리", "5555"},       // test5
+                {"9DO DDaHyoNi", "1234"}, // test6
+                {"달 기", "102"},         // test7
+                {"멋 사", "KR1"},         // test8
+                {"임팡벌레", "바텀박사"},   // test9
+                {"샤프박", "super"}       // test10
+            };
+
+            for (int i = 1; i <= 30; i++) {
                 String username = "test" + i;
                 if (memberRepository.findByUsername(username).isEmpty()) {
+                    // 게임 닉네임 설정
+                    String gameName;
+                    String tagLine;
+
+                    if (i <= 10) {
+                        // test1~test10: 실제 계정
+                        gameName = realAccounts[i - 1][0];
+                        tagLine = realAccounts[i - 1][1];
+                    } else {
+                        // test11~test30: TestPlayer
+                        gameName = "TestPlayer" + i;
+                        tagLine = "KR1";
+                    }
+
                     // 랜덤 티어/디비전 선택
                     Tier randomTier = tiers[random.nextInt(tiers.length)];
                     Division randomDivision = divisions[random.nextInt(divisions.length)];
@@ -177,11 +118,15 @@ public class DevDataInitializer {
                     Member testUser = Member.builder()
                             .username(username)
                             .password(passwordEncoder.encode("user1234"))
-                            .gameName("TestPlayer" + i)
-                            .tagLine("KR1")
+                            .gameName(gameName)
+                            .tagLine(tagLine)
                             .mainPosition(mainPos)
                             .subPosition(subPos)
                             .build();
+
+                    // profileIconId 설정 (1~30)
+                    testUser.updateProfileIcon(i);
+
                     Member savedTestUser = memberRepository.save(testUser);
 
                     MemberStat testStat = MemberStat.builder()
@@ -198,16 +143,27 @@ public class DevDataInitializer {
                             .lastedLosses(recentLosses)
                             .build();
                     memberStatRepository.save(testStat);
+                    createdCount++;
 
-                    log.info("✓ 테스트 사용자{} 생성: {} / user1234 ({}/{}, {} {})",
-                            i, username, mainPos, subPos, randomTier.getDisplayName(), randomDivision.getDisplayName());
-                } else {
-                    log.info("⊙ {} 이미 존재 - 스킵", username);
+                    // test1~test10만 전적 갱신 시도 (실제 계정)
+                    if (i <= 10) {
+                        try {
+                            log.info("Attempting to refresh match data for {}: {}#{}", username, gameName, tagLine);
+                            matchService.refreshMemberData(savedTestUser.getId());
+                        } catch (Exception e) {
+                            log.warn("Failed to refresh match data for {}: {}", username, e.getMessage());
+                            // 전적 갱신 실패해도 계정 생성은 계속 진행
+                        }
+                    }
                 }
             }
 
             log.info("========================================");
-            log.info("개발 환경 초기 데이터 생성 완료");
+            log.info("✓ 총 {}개 계정 생성 완료 (admin: 1, test1~test30: {})", createdCount, createdCount - 1);
+            log.info("  - 계정 정보: 비밀번호 user1234 (admin: admin1234)");
+            log.info("  - ProfileIconId: admin=50, test1~test30=1~30");
+            log.info("  - test1~test10: 실제 라이엇 계정 (전적 갱신 시도)");
+            log.info("  - test11~test30: 더미 계정 (TestPlayer)");
             log.info("========================================");
         };
     }

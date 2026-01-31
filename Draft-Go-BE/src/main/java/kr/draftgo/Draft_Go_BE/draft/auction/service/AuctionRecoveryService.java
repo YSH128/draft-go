@@ -33,25 +33,29 @@ public class AuctionRecoveryService {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void recoverInterruptedAuctions() {
-        log.info("Checking for interrupted auctions on server startup...");
-
         // IN_DRAFT 상태인 모든 드래프트 조회
         List<Draft> inProgressDrafts = draftRepository.findAllByStatus(DraftStatus.IN_DRAFT);
 
         if (inProgressDrafts.isEmpty()) {
-            log.info("No interrupted auctions found.");
             return;
         }
 
-        log.info("Found {} drafts in IN_DRAFT status. Checking for interruptions...", inProgressDrafts.size());
+        log.info("[Auction Recovery] Found {} interrupted draft(s). Starting recovery...", inProgressDrafts.size());
+
+        int recovered = 0;
+        int failed = 0;
 
         for (Draft draft : inProgressDrafts) {
             try {
                 recoverDraftAuction(draft.getId());
+                recovered++;
             } catch (Exception e) {
-                log.error("Failed to recover auction for draftId: {}. Error: {}", draft.getId(), e.getMessage(), e);
+                log.error("[Auction Recovery] Failed to recover draftId: {}. Error: {}", draft.getId(), e.getMessage());
+                failed++;
             }
         }
+
+        log.info("[Auction Recovery] Complete - Recovered: {}, Failed: {}", recovered, failed);
     }
 
     /**
@@ -62,27 +66,25 @@ public class AuctionRecoveryService {
 
         // Case 1: Redis에 경매 상태가 있지만 타이머가 없는 경우 (서버 다운으로 타이머가 멈춤)
         if (currentRound != null && !redisRepo.hasTimer(draftId)) {
-            log.warn("Found interrupted auction for draftId: {}. Timer was lost. Terminating current round...", draftId);
-
-            // 현재 라운드를 강제 종료하고 다음 라운드 시작
-            roundTerminateService.terminateRound(draftId);
-
-            log.info("Successfully recovered auction for draftId: {}", draftId);
+            try {
+                // 현재 라운드를 강제 종료하고 다음 라운드 시작
+                roundTerminateService.terminateRound(draftId, true);
+                log.info("[Auction Recovery] DraftId: {} - Recovered by terminating round", draftId);
+            } catch (IllegalStateException e) {
+                // terminateRound 실패 → Redis 상태 불일치
+                redisRepo.clear(draftId);
+                auctionService.processNextRound(draftId);
+                log.info("[Auction Recovery] DraftId: {} - Recovered by starting new round", draftId);
+            }
         }
         // Case 2: Redis에 경매 상태도 없는 경우 (완전히 중단됨)
         else if (currentRound == null) {
-            log.warn("Found draft in IN_DRAFT status but no auction state in Redis for draftId: {}. Starting new round...", draftId);
-
             // 새로운 경매 라운드 시작
             auctionService.processNextRound(draftId);
-
-            log.info("Successfully restarted auction for draftId: {}", draftId);
+            log.info("[Auction Recovery] DraftId: {} - Restarted auction", draftId);
         }
         // Case 3: 정상 진행 중 (타이머도 있고 상태도 있음)
-        else {
-            int remainingSeconds = redisRepo.getRemainingSeconds(draftId);
-            log.info("Auction for draftId: {} is running normally. Remaining time: {}s", draftId, remainingSeconds);
-        }
+            // 정상 진행 중이므로 로그 없음
     }
 
     /**
@@ -90,8 +92,6 @@ public class AuctionRecoveryService {
      */
     @Transactional
     public void manualRecovery(Long draftId) {
-        log.info("Manual recovery requested for draftId: {}", draftId);
-
         Draft draft = draftRepository.findById(draftId)
                 .orElseThrow(() -> new IllegalArgumentException("Draft not found: " + draftId));
 
@@ -99,6 +99,7 @@ public class AuctionRecoveryService {
             throw new IllegalStateException("Draft is not in IN_DRAFT status. Current status: " + draft.getStatus());
         }
 
+        log.info("[Manual Recovery] DraftId: {} - Starting manual recovery", draftId);
         recoverDraftAuction(draftId);
     }
 }

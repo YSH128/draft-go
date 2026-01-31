@@ -52,6 +52,7 @@ public enum ErrorType {
     DRAFT_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "DRAFT_MEMBER_NOT_FOUND", "경매 대상 선수를 찾을 수 없습니다"),
     TEAM_LEADER_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_LEADER_NOT_FOUND", "팀장을 찾을 수 없습니다"),
     BID_PRICE_TOO_LOW(HttpStatus.BAD_REQUEST, "BID_PRICE_TOO_LOW", "입찰가는 현재 최고가보다 커야 합니다"),
+    INSUFFICIENT_POINT(HttpStatus.BAD_REQUEST, "INSUFFICIENT_POINT", "보유 포인트가 부족합니다"),
 
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "유효성 검사에 실패했습니다"),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다");

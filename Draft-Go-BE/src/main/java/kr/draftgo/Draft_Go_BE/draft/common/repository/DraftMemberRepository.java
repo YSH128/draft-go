@@ -12,33 +12,26 @@ import java.util.Optional;
 public interface DraftMemberRepository extends JpaRepository<DraftMember, Long> {
     Optional<DraftMember> findByDraftIdAndMemberId(Long draftId, Long memberId);
 
-    // Helper for Auction
-    Optional<DraftMember> findFirstByDraftIdAndStatusOrderByTurnOrderAsc(Long draftId, DraftMemberStatus status);
-
     @Query("SELECT dm FROM DraftMember dm " +
            "JOIN FETCH dm.member m " +
-           "JOIN FETCH m.memberStat " +
-           "WHERE dm.draft.id = :draftId AND dm.status = 'WAITING' " +
+           "WHERE dm.draft.id = :draftId AND dm.status = 'WAITING' AND dm.turnOrder IS NOT NULL " +
            "ORDER BY dm.turnOrder ASC LIMIT 1")
     Optional<DraftMember> findNextWaiting(@Param("draftId") Long draftId);
 
     @Query("SELECT dm FROM DraftMember dm " +
            "JOIN FETCH dm.member m " +
-           "JOIN FETCH m.memberStat " +
-           "WHERE dm.draft.id = :draftId AND dm.status = 'SKIPPED' " +
+           "WHERE dm.draft.id = :draftId AND dm.status = 'SKIPPED' AND dm.turnOrder IS NOT NULL " +
            "ORDER BY dm.turnOrder ASC LIMIT 1")
     Optional<DraftMember> findNextSkipped(@Param("draftId") Long draftId);
 
     @Query("SELECT dm FROM DraftMember dm " +
            "JOIN FETCH dm.member m " +
-           "JOIN FETCH m.memberStat " +
-           "WHERE dm.draft.id = :draftId AND dm.status IN ('WAITING', 'SKIPPED') " +
+           "WHERE dm.draft.id = :draftId AND dm.status IN ('WAITING', 'SKIPPED') AND dm.turnOrder IS NOT NULL " +
            "ORDER BY dm.turnOrder ASC LIMIT 1")
     Optional<DraftMember> findNextUpcoming(@Param("draftId") Long draftId);
 
     @Query("SELECT DISTINCT dm FROM DraftMember dm " +
            "JOIN FETCH dm.member m " +
-           "JOIN FETCH m.memberStat " +
            "WHERE dm.draft.id = :draftId " +
            "ORDER BY dm.turnOrder ASC")
     List<DraftMember> findAllByDraftIdOrderByTurnOrderAsc(@Param("draftId") Long draftId);

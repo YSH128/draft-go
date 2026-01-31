@@ -17,10 +17,11 @@ public class AuctionEventPublisher {
 
     private final SimpMessagingTemplate template;
 
-    public void newBidding(Long draftId, RoundStatus state) {
+    public void roundStart(Long draftId, RoundStatus state) {
+        // 라운드 시작을 알리며, 현재 플레이어 정보, 종료 여부 등을 전달합니다.
         template.convertAndSend(
                 "/ws/auction/" + draftId,
-                AuctionEvent.newBidding(state));
+                AuctionEvent.roundStart(state));
     }
 
     public void bidUpdated(Long draftId, Long teamId, int price, Integer remainingSeconds) {
@@ -29,10 +30,10 @@ public class AuctionEventPublisher {
                 AuctionEvent.bid(teamId, price, remainingSeconds));
     }
 
-    public void timeOver(Long draftId, BidInfo bid) {
+    public void roundEnded(Long draftId, BidInfo bid) {
         template.convertAndSend(
                 "/ws/auction/" + draftId,
-                AuctionEvent.timeOver(bid));
+                AuctionEvent.roundEnded(bid));
     }
 
     public void publishDraftQueue(Long draftId, List<DraftMemberResponse> queue) {

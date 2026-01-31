@@ -91,6 +91,23 @@ public class MatchService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        // 0. PUUID Check & Fetch if missing
+        if (member.getPuuid() == null || member.getPuuid().isEmpty()) {
+            log.info("PUUID is missing for {}. Fetching from Riot API...", member.getUsername());
+            try {
+                String puuid = riotApiService.getPuuid(member.getGameName(), member.getTagLine());
+                if (puuid == null || puuid.isEmpty()) {
+                    throw new IllegalArgumentException("Riot API에서 PUUID를 찾을 수 없습니다. 게임 닉네임을 확인해주세요.");
+                }
+                member.updatePuuid(puuid);
+                memberRepository.save(member);
+                log.info("PUUID fetched and saved for {}: {}", member.getUsername(), puuid);
+            } catch (Exception e) {
+                log.error("Failed to fetch PUUID for {}: {}", member.getUsername(), e.getMessage());
+                throw new RuntimeException("PUUID 조회 실패: " + e.getMessage(), e);
+            }
+        }
+
         // 1. Cooldown Check
         if (member.getUpdatedAt() != null) {
             long diff = Duration.between(member.getUpdatedAt(), java.time.LocalDateTime.now()).toSeconds();

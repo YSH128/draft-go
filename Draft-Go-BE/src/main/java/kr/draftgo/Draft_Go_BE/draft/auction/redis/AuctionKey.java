@@ -17,4 +17,12 @@ public class AuctionKey {
     public static String teamPoint(Long draftId, Long teamId) {
         return "draft:" + draftId + ":team:" + teamId + ":point";
     }
+
+    public static String teamLeader(Long draftId, Long teamId) {
+        return "draft:" + draftId + ":team:" + teamId + ":leader";
+    }
+
+    public static String teamPositions(Long draftId, Long teamId) {
+        return "draft:" + draftId + ":team:" + teamId + ":positions";
+    }
 }

@@ -45,12 +45,13 @@ public class AdminController {
                 .collect(Collectors.toList());
     }
 
-    @Operation(summary = "테스트 멤버 로비 입장", description = "특정 드래프트에 test1~test10 멤버를 로비에 입장시킵니다. 이미 참가 중인 멤버는 건너뜁니다.")
+    @Operation(summary = "테스트 멤버 로비 입장", description = "특정 드래프트에 test 멤버를 로비에 입장시킵니다. count 파라미터로 개수 지정 가능 (1~30, 기본값 10). 포지션은 5개씩 순환 배정됩니다.")
     @PostMapping("/drafts/{draftId}/add-test-members")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AddTestMembersRes> addTestMembersToLobby(
-            @Parameter(description = "드래프트 ID") @PathVariable Long draftId) {
-        List<String> addedMembers = adminService.addTestMembersToLobby(draftId);
+            @Parameter(description = "드래프트 ID") @PathVariable Long draftId,
+            @Parameter(description = "추가할 멤버 수 (1~30, 기본값 10)") @RequestParam(required = false) Integer count) {
+        List<String> addedMembers = adminService.addTestMembersToLobby(draftId, count);
 
         AddTestMembersRes response = AddTestMembersRes.builder()
                 .draftId(draftId)
@@ -72,5 +73,18 @@ public class AdminController {
         return ResponseEntity.ok(Map.of(
                 "draftId", draftId.toString(),
                 "message", "경매가 복구되었습니다."));
+    }
+
+    @Operation(summary = "모든 팀장 준비 완료 처리", description = "드래프트의 모든 팀장을 준비 완료 상태로 변경합니다. (관리자 전용)")
+    @PostMapping("/drafts/{draftId}/ready-all-leaders")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> setAllLeadersReady(
+            @Parameter(description = "드래프트 ID") @PathVariable Long draftId) {
+        int readyCount = adminService.setAllLeadersReady(draftId);
+
+        return ResponseEntity.ok(Map.of(
+                "draftId", draftId,
+                "readyCount", readyCount,
+                "message", readyCount + "명의 팀장이 준비 완료 상태로 변경되었습니다."));
     }
 }

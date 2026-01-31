@@ -10,7 +10,7 @@ import { POSITIONS } from "../../../constants/riot";
  * @param {string} player.position - 주 포지션
  */
 export default function PlayerQueueCard({ player }) {
-  const { name, imageUrl, tier, position } = player;
+  const { name, imageUrl, tier, division, position } = player;
   const tierLower = tier?.toLowerCase() || "gold";
 
   const positionIcon =
@@ -43,7 +43,7 @@ export default function PlayerQueueCard({ player }) {
 
           {/* 티어 배지 */}
           <div className="flex justify-center gap-1">
-            <TierTag tier={tierLower} />
+            <TierTag tier={tierLower} division={division} />
           </div>
         </div>
       </div>
@@ -54,7 +54,7 @@ export default function PlayerQueueCard({ player }) {
 /**
  * 티어 태그 (작은 버전)
  */
-function TierTag({ tier }) {
+function TierTag({ tier, division }) {
   const tierStyles = {
     challenger: "bg-tier-challenger-bg text-black",
     grandmaster: "bg-tier-grandmaster-bg text-white",
@@ -71,11 +71,20 @@ function TierTag({ tier }) {
   const style = tierStyles[tier] || tierStyles.gold;
   const displayName = tier.charAt(0).toUpperCase() + tier.slice(1);
 
+  // Division 추가
+  const divisionMap = {
+    I: "I",
+    II: "II",
+    III: "III",
+    IV: "IV",
+  };
+  const divisionText = division && divisionMap[division] ? ` ${divisionMap[division]}` : "";
+
   return (
     <span
       className={`inline-block rounded-sm px-1.5 py-0.5 text-[9px] font-bold uppercase leading-tight shadow-sm ${style}`}
     >
-      {displayName}
+      {displayName}{divisionText}
     </span>
   );
 }

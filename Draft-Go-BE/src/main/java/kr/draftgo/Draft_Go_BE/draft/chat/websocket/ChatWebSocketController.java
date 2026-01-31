@@ -1,9 +1,7 @@
 package kr.draftgo.Draft_Go_BE.draft.chat.websocket;
 
-import kr.draftgo.Draft_Go_BE.draft.chat.dto.request.ChatMessageRequest;
+import kr.draftgo.Draft_Go_BE.draft.chat.dto.request.ChatMessageReq;
 import kr.draftgo.Draft_Go_BE.draft.chat.service.ChatService;
-import kr.draftgo.Draft_Go_BE.global.auth.CurrentMember;
-import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -36,7 +34,7 @@ public class ChatWebSocketController {
     @MessageMapping("/chat/{draftId}")
     public void sendMessage(
             @DestinationVariable Long draftId,
-            @Payload ChatMessageRequest request,
+            @Payload ChatMessageReq request,
             SimpMessageHeaderAccessor headerAccessor) {
 
         // 세션 속성에서 Member 정보 추출

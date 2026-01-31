@@ -2,27 +2,24 @@ package kr.draftgo.Draft_Go_BE.draft.common.repository;
 
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Team;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import jakarta.persistence.LockModeType;
+
+import java.util.List;
+import java.util.Optional;
+
 public interface TeamRepository extends JpaRepository<Team, Long> {
 
-    // Check if team has enough points (Assuming Teammate point is what we check?
-    // Wait, point is stored in Teammate?
-    // Schema: teammate.point. Usually points are distributed or held by leader?
-    // User said Teammate has point.
-    // If team has one leader, we check leader's point or sum?
-    // Usually Draft points are per Team. Schema puts it on Teammate.
-    // I'll assume Leader's Teammate entry holds the budget? Or Sum?
-    // For now, I'll implement a helper that assumes Leader holds points or checks
-    // Sum.
+    /**
+     * 비관적 락을 적용하여 Team 조회
+     * 동시성 제어를 위해 SELECT ... FOR UPDATE 실행
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Team t WHERE t.id = :id")
+    Optional<Team> findByIdWithLock(@Param("id") Long id);
 
-    @org.springframework.data.jpa.repository.Modifying
-    @Query("UPDATE Team t SET t.point = t.point - :price WHERE t.id = :teamId")
-    void deductPoint(@Param("teamId") Long teamId, @Param("price") int price);
-
-    @Query("SELECT CASE WHEN SUM(tm.point) >= :price THEN true ELSE false END FROM Teammate tm WHERE tm.team.id = :teamId")
-    boolean hasEnoughPoint(@Param("teamId") Long teamId, @Param("price") int price);
-
-    java.util.List<Team> findAllByDraftId(Long draftId);
+    List<Team> findAllByDraftId(Long draftId);
 }

@@ -51,8 +51,8 @@ public class Member {
     @Column(nullable = false, length = 10)
     private Role role;
 
-    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
-    private MemberStat memberStat;
+    // MemberStat과의 관계는 1:N이므로 직접 참조하지 않음
+    // MemberStatRepository를 통해 필요한 시즌의 stat을 조회할 것
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -91,6 +91,13 @@ public class Member {
             this.profileIconId = profileIconId;
         }
     }
+
+    public void updatePuuid(String puuid) {
+        if (puuid != null && !puuid.isEmpty()) {
+            this.puuid = puuid;
+        }
+    }
+
     public void refreshUpdatedAt() {
         this.updatedAt = LocalDateTime.now();
     }

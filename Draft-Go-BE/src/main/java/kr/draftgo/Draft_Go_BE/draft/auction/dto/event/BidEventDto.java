@@ -1,4 +1,4 @@
-package kr.draftgo.Draft_Go_BE.draft.auction.dto;
+package kr.draftgo.Draft_Go_BE.draft.auction.dto.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * WebSocket 이벤트에서 입찰 정보를 전달하기 위한 DTO
- * REST API의 BidInfo와 달리 remainingSeconds 필드를 포함합니다.
+ * remainingSeconds 필드를 포함합니다.
  */
 @Getter
 @Builder

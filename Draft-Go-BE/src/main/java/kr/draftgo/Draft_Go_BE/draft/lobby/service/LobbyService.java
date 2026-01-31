@@ -1,12 +1,8 @@
 package kr.draftgo.Draft_Go_BE.draft.lobby.service;
 
-import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionService;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.Team;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.Teammate;
 import kr.draftgo.Draft_Go_BE.draft.common.dto.CodeInfo;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.LobbyParticipant;
 import kr.draftgo.Draft_Go_BE.draft.common.dto.LeaderDetail;
@@ -21,16 +17,12 @@ import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyWebSocketService;
 import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
-import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
-import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
-import kr.draftgo.Draft_Go_BE.draft.common.repository.TeammateRepository;
 import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
 import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
-import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
-import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
-import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
+import kr.draftgo.Draft_Go_BE.member.service.MemberStatService;
+import kr.draftgo.Draft_Go_BE.member.service.SeasonService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,14 +41,10 @@ import java.util.stream.Collectors;
 public class LobbyService {
 
     private final DraftRepository draftRepository;
-    private final MemberRepository memberRepository;
-    private final MemberStatRepository memberStatRepository;
-    private final DraftMemberRepository draftMemberRepository;
-    private final TeamRepository teamRepository;
-    private final TeammateRepository teammateRepository;
+    private final MemberStatService memberStatService;
     private final RedisLobbyRepository lobbyRedisRepository;
-    private final RedisAuctionRepository redisAuctionRepository;
     private final LobbyWebSocketService lobbyWebSocketService;
+    private final DraftInitializationService draftInitializationService;
     private final ChatWebSocketController chatWebSocketController;
     private final AuctionService auctionService;
 
@@ -75,9 +63,8 @@ public class LobbyService {
                 .distinct()
                 .collect(Collectors.toList());
 
-        // N+1 문제 방지: 한 번에 모든 MemberStat 조회
-        Map<Long, MemberStat> memberStatMap = memberStatRepository.findByMember_IdIn(memberIds).stream()
-                .collect(Collectors.toMap(stat -> stat.getMember().getId(), stat -> stat));
+        // N+1 문제 방지: 한 번에 모든 MemberStat 조회 (활성 시즌 기준)
+        var memberStatMap = memberStatService.getMemberStatsForCurrentSeason(memberIds);
 
         // Leaders: role이 "LEADER"인 참가자
         List<LeaderDetail> leaders = participants.stream()
@@ -337,6 +324,27 @@ public class LobbyService {
 
         List<LobbyParticipant> participants = lobbyRedisRepository.getParticipants(draftId);
 
+        // 1. 시작 전 검증
+        validateDraftStart(draft, participants);
+
+        // 2. 드래프트 상태를 IN_DRAFT로 변경
+        draft.startDraft();
+        draftRepository.save(draft);
+
+        // 3. 팀 및 멤버 초기화 (DraftInitializationService로 위임)
+        draftInitializationService.initializeDraft(draft, participants);
+
+        // 4. WebSocket 브로드캐스트 - 드래프트 시작
+        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.DRAFT_STARTED);
+
+        // 5. 경매 자동 시작
+        auctionService.processNextRound(draftId);
+    }
+
+    /**
+     * 드래프트 시작 전 검증
+     */
+    private void validateDraftStart(Draft draft, List<LobbyParticipant> participants) {
         // 모든 팀장이 준비 완료 상태인지 확인
         List<LobbyParticipant> leaders = participants.stream()
                 .filter(p -> "LEADER".equals(p.getRole()))
@@ -401,72 +409,6 @@ public class LobbyService {
             message.append(")");
             throw new CustomException(ErrorType.POSITION_UNBALANCED, message.toString());
         }
-
-        // 드래프트 상태를 IN_DRAFT로 변경
-        draft.startDraft();
-        draftRepository.save(draft);
-
-        // RDB에 세션 데이터 저장
-        // 1. 팀장별로 팀 생성 및 팀장을 teammate에 등록 (이미 선언된 leaders 변수 사용)
-        for (LobbyParticipant leader : leaders) {
-            // 팀 생성
-            Member leaderMember = memberRepository.findById(leader.getMemberId())
-                    .orElseThrow(() -> new CustomException(ErrorType.MEMBER_NOT_FOUND));
-
-            // 팀장 포인트 결정 (leaderPoint가 설정되어 있으면 사용, 아니면 0)
-            Integer leaderPoint = (leader.getLeaderPoint() != null && leader.getLeaderPoint() > 0)
-                    ? leader.getLeaderPoint()
-                    : 0;
-
-            // 팀의 실제 사용 가능한 포인트 = startPoint - leaderPoint
-            // (leaderPoint는 팀장이 차지하는 비용, startPoint는 팀이 공평하게 갖는 시작 포인트)
-            int teamPoint = draft.getStartPoint() - leaderPoint;
-
-            Team team = Team.builder()
-                    .teamName(leader.getGameName() + "팀")
-                    .draft(draft)
-                    .point(teamPoint)  // 팀 포인트 = startPoint - leaderPoint
-                    .build();
-            teamRepository.save(team);
-
-            // Redis에 팀 포인트 초기화 (경매에서 사용)
-            redisAuctionRepository.setTeamPoint(draftId, team.getId(), teamPoint);
-
-            // 팀장을 teammate에 등록 (팀장이 차지하는 비용 기록)
-            Teammate leaderTeammate = Teammate.builder()
-                    .team(team)
-                    .member(leaderMember)
-                    .point(leaderPoint)  // 팀장이 차지하는 비용
-                    .isLeader(true)
-                    .position(leader.getPosition())
-                    .build();
-            teammateRepository.save(leaderTeammate);
-        }
-
-        // 2. 팀원들을 DraftMember로 등록 (OBSERVER 제외)
-        List<LobbyParticipant> members = participants.stream()
-                .filter(p -> "MEMBER".equals(p.getRole()) && p.getPosition() != Position.OBSERVER)
-                .toList();
-
-        for (LobbyParticipant memberParticipant : members) {
-            Member member = memberRepository.findById(memberParticipant.getMemberId())
-                    .orElseThrow(() -> new CustomException(ErrorType.MEMBER_NOT_FOUND));
-
-            DraftMember draftMember = DraftMember.builder()
-                    .draft(draft)
-                    .member(member)
-                    .position(memberParticipant.getPosition())
-                    .build();
-            draftMemberRepository.save(draftMember);
-        }
-
-        // 관전자는 RDB에 저장하지 않지만 세션(Redis)에는 유지됨
-
-        // WebSocket 브로드캐스트 - 드래프트 시작
-        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.DRAFT_STARTED);
-
-        // 경매 자동 시작
-        auctionService.processNextRound(draftId);
     }
 
     /**

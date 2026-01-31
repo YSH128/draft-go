@@ -8,7 +8,7 @@ import TimerCircle from "./TimerCircle";
 export default function AuctionStage({ player, currentBid, timeLeft }) {
   if (!player) return null;
 
-  const { name, imageUrl, tier, positions = [], mostChampions = [] } = player;
+  const { name, imageUrl, tier, division, positions = [], mainPosition, subPosition, mostChampions = [] } = player;
   const positionIcons = positions
     .map((pos) => POSITIONS.find((item) => item.id === String(pos || "").toUpperCase())?.icon)
     .filter(Boolean);
@@ -36,7 +36,7 @@ export default function AuctionStage({ player, currentBid, timeLeft }) {
             </h2>
 
             <div className="flex items-center gap-3">
-              <TierBadge tier={tier} />
+              <TierBadge tier={tier} division={division} />
               <span className="text-primary/30">/</span>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
@@ -55,18 +55,60 @@ export default function AuctionStage({ player, currentBid, timeLeft }) {
               </div>
             </div>
 
-            {mostChampions.length > 0 && (
-              <div className="mt-1 flex gap-2">
-                {mostChampions.map((champ, idx) => (
-                  <div
-                    key={idx}
-                    className="size-10 rounded border border-primary/30 bg-black/40 bg-cover bg-center"
-                    style={{ backgroundImage: `url('${champ.imageUrl}')` }}
-                    title={champ.name}
-                  />
-                ))}
-              </div>
-            )}
+            {/* 참고 정보: 선호 포지션 */}
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-primary/50">
+                선호 포지션:
+              </span>
+              {mainPosition || subPosition ? (
+                <div className="flex items-center gap-1.5">
+                  {mainPosition && (
+                    <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary-bright">
+                      주: {mainPosition}
+                    </span>
+                  )}
+                  {subPosition && (
+                    <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary/70">
+                      부: {subPosition}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-[10px] italic text-primary/30">정보 없음</span>
+              )}
+            </div>
+
+            {/* 참고 정보: 모스트 챔피언 */}
+            <div className="mt-1.5 flex items-start gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-primary/50">
+                모스트:
+              </span>
+              {mostChampions.length > 0 ? (
+                <div className="flex gap-1.5">
+                  {mostChampions.map((champName, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-1 rounded bg-black/40 px-1.5 py-0.5"
+                      title={champName}
+                    >
+                      <img
+                        src={`https://ddragon.leagueoflegends.com/cdn/14.1.1/img/champion/${champName}.png`}
+                        alt={champName}
+                        className="h-4 w-4 rounded-sm"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                      <span className="text-[10px] font-medium text-white/80">
+                        {champName}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-[10px] italic text-primary/30">정보 없음</span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -91,7 +133,7 @@ export default function AuctionStage({ player, currentBid, timeLeft }) {
   );
 }
 
-function TierBadge({ tier }) {
+function TierBadge({ tier, division }) {
   const tierLower = tier?.toLowerCase() || "gold";
 
   const tierStyles = {
@@ -110,11 +152,20 @@ function TierBadge({ tier }) {
 
   const style = tierStyles[tierLower] || tierStyles.gold;
 
+  // Division을 로마 숫자로 변환
+  const divisionMap = {
+    I: "I",
+    II: "II",
+    III: "III",
+    IV: "IV",
+  };
+  const divisionText = division && divisionMap[division] ? ` ${divisionMap[division]}` : "";
+
   return (
     <span
       className={`rounded border px-3 py-1 text-xs font-black uppercase text-white ${style}`}
     >
-      {tier}
+      {tier}{divisionText}
     </span>
   );
 }

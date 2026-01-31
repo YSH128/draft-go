@@ -3,6 +3,7 @@ package kr.draftgo.Draft_Go_BE.member.service;
 import jakarta.annotation.PostConstruct;
 import kr.draftgo.Draft_Go_BE.member.domain.SeasonDocument;
 import kr.draftgo.Draft_Go_BE.member.repository.SeasonRepository;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class SeasonService {
     private final Map<String, SeasonDocument> seasonCache = new ConcurrentHashMap<>();
 
     // 현재 활성화된 시즌 (Active Season)
+    @Getter
     private volatile SeasonDocument activeSeason;
 
     @PostConstruct
@@ -158,10 +160,6 @@ public class SeasonService {
                 return n1 - n2;
         }
         return 0;
-    }
-
-    public SeasonDocument getActiveSeason() {
-        return activeSeason;
     }
 
     /**

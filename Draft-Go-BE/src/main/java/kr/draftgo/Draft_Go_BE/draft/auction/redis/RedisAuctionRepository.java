@@ -3,13 +3,14 @@ package kr.draftgo.Draft_Go_BE.draft.auction.redis;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.CurrentMemberStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
+import kr.draftgo.Draft_Go_BE.member.domain.Division;
+import kr.draftgo.Draft_Go_BE.member.domain.Position;
+import kr.draftgo.Draft_Go_BE.member.domain.Tier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -21,10 +22,7 @@ public class RedisAuctionRepository {
     private final RedisTemplate<String, Object> redis;
     private final StringRedisTemplate stringRedis;
 
-    public void setCurrent(Long draftId, RoundStatus state) {
-        redis.opsForValue().set(AuctionKey.current(draftId), state);
-    }
-
+    // setCurrent, setTimer 등은 RoundLuaExecutor 에서 처리
     public RoundStatus getCurrent(Long draftId) {
         Object result = redis.opsForValue().get(AuctionKey.current(draftId));
 
@@ -42,6 +40,7 @@ public class RedisAuctionRepository {
                     : null;
 
                 String playerName = (String) map.get("playerName");
+                String playerProfileImageUrl = (String) map.get("playerProfileImageUrl");
 
                 Long draftMemberId = map.get("draftMemberId") instanceof Number
                     ? ((Number) map.get("draftMemberId")).longValue()
@@ -56,23 +55,42 @@ public class RedisAuctionRepository {
                     ? CurrentMemberStatus.valueOf(statusStr)
                     : null;
 
-                // Parse LocalDateTime
-                LocalDateTime startedAt = null;
-                Object startedAtObj = map.get("startedAt");
-                if (startedAtObj instanceof String) {
-                    startedAt = LocalDateTime.parse((String) startedAtObj,
-                        DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-                } else if (startedAtObj instanceof LocalDateTime) {
-                    startedAt = (LocalDateTime) startedAtObj;
-                }
+                // Tier 역직렬화
+                String tierStr = (String) map.get("tier");
+                Tier tier = tierStr != null ? Tier.valueOf(tierStr) : null;
+
+                // Division 역직렬화
+                String divisionStr = (String) map.get("division");
+                Division division = divisionStr != null ? Division.valueOf(divisionStr) : null;
+
+                // Position 역직렬화
+                String positionStr = (String) map.get("position");
+                Position position = positionStr != null ? Position.valueOf(positionStr) : null;
+
+                // Main Position 역직렬화
+                String mainPositionStr = (String) map.get("mainPosition");
+                Position mainPosition = mainPositionStr != null ? Position.valueOf(mainPositionStr) : null;
+
+                // Sub Position 역직렬화
+                String subPositionStr = (String) map.get("subPosition");
+                Position subPosition = subPositionStr != null ? Position.valueOf(subPositionStr) : null;
+
+                // Most Champions 역직렬화
+                List<String> mostChampions = (List<String>) map.get("mostChampions");
 
                 return RoundStatus.builder()
                     .draftId(draftIdValue)
                     .playerName(playerName)
+                    .playerProfileImageUrl(playerProfileImageUrl)
+                    .tier(tier)
+                    .division(division)
+                    .position(position)
+                    .mainPosition(mainPosition)
+                    .subPosition(subPosition)
+                    .mostChampions(mostChampions)
                     .draftMemberId(draftMemberId)
                     .turnOrder(turnOrder)
                     .currentMemberStatus(currentMemberStatus)
-                    .startedAt(startedAt)
                     .build();
 
             } catch (Exception e) {
@@ -114,11 +132,6 @@ public class RedisAuctionRepository {
         }
     }
 
-    public void startTimer(Long draftId, int seconds) {
-        redis.opsForValue().set(AuctionKey.timer(draftId), "RUN");
-        redis.expire(AuctionKey.timer(draftId), seconds, TimeUnit.SECONDS);
-    }
-
     /**
      * 타이머 남은 시간 조회
      * @return 남은 시간 (초). 타이머가 없거나 만료된 경우 0 반환
@@ -146,19 +159,63 @@ public class RedisAuctionRepository {
         return exists != null && exists;
     }
 
+    public Integer getTeamPoint(Long draftId, Long teamId) {
+        Object val = redis.opsForValue().get(AuctionKey.teamPoint(draftId, teamId));
+        if (val == null)
+            return null;  // Redis에 값이 없으면 null 반환 (DB 값 사용)
+        return (Integer) val;
+    }
+
     public void setTeamPoint(Long draftId, Long teamId, int point) {
         redis.opsForValue().set(AuctionKey.teamPoint(draftId, teamId), point);
     }
 
-    public Integer getTeamPoint(Long draftId, Long teamId) {
-        Object val = redis.opsForValue().get(AuctionKey.teamPoint(draftId, teamId));
-        if (val == null)
-            return 0;
-        return (Integer) val;
-    }
-
     public void deductTeamPoint(Long draftId, Long teamId, int price) {
         redis.opsForValue().decrement(AuctionKey.teamPoint(draftId, teamId), price);
+    }
+
+    public void restoreTeamPoint(Long draftId, Long teamId, int price) {
+        redis.opsForValue().increment(AuctionKey.teamPoint(draftId, teamId), price);
+    }
+
+    /**
+     * 팀장 멤버 ID 저장
+     */
+    public void setTeamLeader(Long draftId, Long teamId, Long leaderMemberId) {
+        redis.opsForValue().set(AuctionKey.teamLeader(draftId, teamId), leaderMemberId);
+    }
+
+    /**
+     * 팀장 멤버 ID 조회
+     */
+    public Long getTeamLeader(Long draftId, Long teamId) {
+        Object val = redis.opsForValue().get(AuctionKey.teamLeader(draftId, teamId));
+        if (val == null) {
+            return null;
+        }
+        return val instanceof Number ? ((Number) val).longValue() : null;
+    }
+
+    /**
+     * 팀이 보유한 포지션 추가
+     */
+    public void addTeamPosition(Long draftId, Long teamId, String position) {
+        redis.opsForSet().add(AuctionKey.teamPositions(draftId, teamId), position);
+    }
+
+    /**
+     * 팀이 특정 포지션을 보유하고 있는지 확인
+     */
+    public boolean hasTeamPosition(Long draftId, Long teamId, String position) {
+        Boolean result = redis.opsForSet().isMember(AuctionKey.teamPositions(draftId, teamId), position);
+        return result != null && result;
+    }
+
+    /**
+     * 팀의 모든 포지션 삭제 (동기화를 위해)
+     */
+    public void clearTeamPositions(Long draftId, Long teamId) {
+        redis.delete(AuctionKey.teamPositions(draftId, teamId));
     }
 
     public void clear(Long draftId) {
