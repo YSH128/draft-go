@@ -2,23 +2,24 @@
 <configuration>
     <include resource="org/springframework/boot/logging/logback/base.xml"/>
 
-    <!-- 서버에서만 ENABLE_ELK=true 환경변수 설정 -->
-    <if condition='property("ENABLE_ELK").equals("true")'>
-        <then>
-            <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-                <destination>localhost:5000</destination>
-                <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
-            </appender>
-            
-            <root level="INFO">
-                <appender-ref ref="LOGSTASH" />
-                <appender-ref ref="CONSOLE" />
-            </root>
-        </then>
-        <else>
-            <root level="INFO">
-                <appender-ref ref="CONSOLE" />
-            </root>
-        </else>
-    </if>
+    <!-- Logback internal 경고 메시지 숨김 (ERROR만 표시) -->
+    <statusListener class="ch.qos.logback.core.status.OnErrorConsoleStatusListener" />
+
+    <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+        <destination>localhost:5000</destination>
+        
+        <!-- 재연결 설정: 서버 재배포 후 자동 재연결 -->
+        <reconnectionDelay>10 second</reconnectionDelay>
+        <connectionTimeout>5 second</connectionTimeout>
+        <keepAliveDuration>5 minutes</keepAliveDuration>
+        
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeCallerData>false</includeCallerData>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="LOGSTASH" />
+        <appender-ref ref="CONSOLE" />
+    </root>
 </configuration>

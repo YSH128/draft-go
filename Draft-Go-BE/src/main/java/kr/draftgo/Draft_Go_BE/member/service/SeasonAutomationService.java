@@ -59,6 +59,7 @@ public class SeasonAutomationService {
      */
     @Scheduled(cron = "0 */10 * * * *") // 매 10분마다
     public void checkSeasonUpdate() {
+        log.info("[Automation] 시즌 체크 스케줄러 실행");
         try {
             String currentVersion = dataDragonService.getVersion(); // e.g., "16.2.1"
             SeasonDocument activeSeason = seasonService.getActiveSeason();

@@ -165,7 +165,7 @@ public class SeasonServiceIntegrationTest {
         matchService.updateMemberStats(testMember.getId());
 
         // Then: MemberStat should exist for 1602
-        MemberStat stat1602 = memberStatRepository.findByMemberIdAndSeasonId(testMember.getId(), "1602").orElse(null);
+        MemberStat stat1602 = memberStatRepository.findByMember_IdAndSeasonId(testMember.getId(), "1602").orElse(null);
         assertThat(stat1602).isNotNull();
         assertThat(stat1602.getRankWins()).isEqualTo(1);
 
@@ -191,7 +191,7 @@ public class SeasonServiceIntegrationTest {
         matchService.updateMemberStats(testMember.getId());
 
         // Assert 1601: 2 Wins
-        MemberStat s1 = memberStatRepository.findByMemberIdAndSeasonId(testMember.getId(), "1601").orElseThrow();
+        MemberStat s1 = memberStatRepository.findByMember_IdAndSeasonId(testMember.getId(), "1601").orElseThrow();
         assertThat(s1.getRankWins()).isEqualTo(2);
 
         // [Step 2] 16.9 Rank Reset -> Season 1602
@@ -205,11 +205,11 @@ public class SeasonServiceIntegrationTest {
         matchService.updateMemberStats(testMember.getId());
 
         // Assert 1602: 1 Win
-        MemberStat s2 = memberStatRepository.findByMemberIdAndSeasonId(testMember.getId(), "1602").orElseThrow();
+        MemberStat s2 = memberStatRepository.findByMember_IdAndSeasonId(testMember.getId(), "1602").orElseThrow();
         assertThat(s2.getRankWins()).isEqualTo(1);
 
         // Assert 1601: Still 2 Wins (Unchanged)
-        MemberStat s1_check = memberStatRepository.findByMemberIdAndSeasonId(testMember.getId(), "1601").orElseThrow();
+        MemberStat s1_check = memberStatRepository.findByMember_IdAndSeasonId(testMember.getId(), "1601").orElseThrow();
         assertThat(s1_check.getRankWins()).isEqualTo(2);
 
         // Check Active Season ID Logic (Increment)
