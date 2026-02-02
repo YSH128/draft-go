@@ -13,7 +13,7 @@
       queryKey: ['lobbyData', Number(draftId)],
       queryFn: () => getDraftLobby(draftId),
       enabled: !!draftId,
-      staleTime: 0, // 항상 최신 데이터 유지
+      staleTime: Infinity, // 소켓으로만 데이터 갱신 (자동 refetch 방지)
       gcTime: 1000 * 60 * 5, // 5분간 캐시 유지 (v5에서 cacheTime → gcTime)
     });
   };

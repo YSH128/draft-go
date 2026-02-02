@@ -61,12 +61,12 @@ export const useLobbySocket = (draftId, onLobbyEnded) => {
           break;
 
         default:
-          console.warn('⚠️ [LobbySocket] Unknown event type:', eventType);
+          break;
       }
     } catch (error) {
-      console.error('[LobbySocket] Message parsing error:', error);
+      console.error('❌ [LobbySocket] Message handling error:', error);
     }
-  }, [queryClient, navigate, draftId, onLobbyEnded]);
+  }, [draftId, navigate, onLobbyEnded, queryClient]);
 
   useEffect(() => {
     if (!draftId) return;

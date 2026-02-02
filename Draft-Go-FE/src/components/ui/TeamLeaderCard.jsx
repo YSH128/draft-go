@@ -21,6 +21,8 @@ export default function TeamLeaderCard({
   onCardClick = null, // 카드 클릭 (CAPTAIN/CREW)
   mostChampions = [], // 모스트 챔피언 (최대 3개)
   onKick = null, // 퇴장 버튼 클릭 (ADMIN only)
+  isDragging = false,
+  isOwner = false, // [Admin UI]
 }) {
   const resolvedTier = tier || "challenger";
   const tierLower = resolvedTier.toLowerCase();
@@ -43,14 +45,17 @@ export default function TeamLeaderCard({
   // - 준비 완료: 준비 완료 상태 표시
   // - 그 외(타인 미준비 등): 대기 중 상태 표시
 
+  /* CSS Interference Fix: Disable transitions while dragging */
+  const transitionStyle = (isDragging || isCurrentUser) ? { transition: 'none !important' } : {};
+
   return (
     <div
-      className={`group relative flex min-h-[460px] w-full max-w-[340px] flex-col items-center overflow-hidden rounded-2xl border bg-panel-dark pt-10 pb-6 transition-transform duration-300 hover:scale-[1.02] ${onCardClick ? 'cursor-pointer' : ''} ${
+      className={`group relative flex min-h-[460px] w-full max-w-[340px] flex-col items-center overflow-hidden rounded-2xl border bg-panel-dark pt-10 pb-6 hover:scale-[1.02] ${onCardClick ? 'cursor-pointer' : ''} ${
         isCurrentUser 
           ? 'shadow-[0_0_20px_rgba(10,200,185,0.6),0_0_40px_rgba(10,200,185,0.3)]' 
           : 'shadow-[0_0_20px_rgba(0,0,0,0.5)]'
-      }`}
-      style={{ borderColor: tierColor }}
+      } ${!isDragging && !isCurrentUser ? 'transition-transform duration-300' : ''}`}
+      style={{ borderColor: tierColor, ...transitionStyle }}
       onClick={onCardClick || undefined}
     >
       {/* 관리자 기능 (우상단) - 팀 설정 */}
@@ -67,8 +72,17 @@ export default function TeamLeaderCard({
         </button>
       )}
 
-      {/* 관리자 기능 (좌상단) - 강퇴/나가기 */}
-      {(isAdmin || isCurrentUser) && (
+      {/* [Admin UI] ADMIN Badge (For Non-Admin Viewers seeing Owner) */}
+      {(!isAdmin && isOwner) && (
+        <div className="absolute top-4 right-4 z-20">
+            <span className="bg-[#f4c025]/20 text-[#f4c025] text-[10px] px-1.5 py-0.5 rounded border border-[#f4c025]/30 font-bold tracking-wider">
+                ADMIN
+            </span>
+        </div>
+      )}
+
+      {/* 관리자 기능 (좌상단) - 강퇴/나가기 (관리자는 나갈 수 없음) */}
+      {(isAdmin || isCurrentUser) && !isOwner && (
         <button 
             onClick={(e) => {
                 e.stopPropagation();

@@ -165,6 +165,7 @@ public class LobbyService {
 
         return LobbyInfoRes.builder()
                 .draftId(draft.getId())
+                .ownerId(draft.getOwner().getId())
                 .title(draft.getTitle())
                 .maxTeamCount(draft.getMaxTeamCount())
                 .startPoint(draft.getStartPoint())

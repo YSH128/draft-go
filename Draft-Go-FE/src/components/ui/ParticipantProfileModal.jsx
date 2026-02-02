@@ -86,6 +86,16 @@ export default function ParticipantProfileModal({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const formatPosition = (pos) => {
+    if (!pos) return '';
+    const upper = pos.toUpperCase();
+    if (upper === 'JUNGLE') return 'JNG';
+    if (upper === 'BOT' || upper === 'BOTTOM') return 'ADC';
+    if (upper === 'OBSERVER') return 'SPECTATOR';
+    if (upper === 'UTILITY') return 'SUP'; // Just in case
+    return upper;
+  };
+
   if (!isOpen || !data) return null;
 
   return (
@@ -195,7 +205,7 @@ export default function ParticipantProfileModal({
                   <div className="relative z-10 text-left">
                     <p className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-0.5">주포지션</p>
                     <p className="text-white font-bold text-sm leading-none">
-                      {['BOT', 'BOTTOM'].includes(data.mainPosition) ? 'ADC' : data.mainPosition}
+                      {formatPosition(data.mainPosition)}
                     </p>
                   </div>
                 </div>
@@ -209,7 +219,7 @@ export default function ParticipantProfileModal({
                   <div className="relative z-10 text-left">
                     <p className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-0.5">부포지션</p>
                     <p className="text-white font-bold text-sm leading-none">
-                      {['BOT', 'BOTTOM'].includes(data.subPosition) ? 'ADC' : data.subPosition}
+                      {formatPosition(data.subPosition)}
                     </p>
                   </div>
                 </div>

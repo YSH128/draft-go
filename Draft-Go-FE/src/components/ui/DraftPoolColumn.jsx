@@ -71,8 +71,8 @@ export default function DraftPoolColumn({
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2">
                                             <p className="text-white font-bold text-sm group-hover:text-primary transition-colors">{p.name}</p>
-                                            {/* Admin Badge for Self */}
-                                            {(p.isSelf || p.name === "나 (Me)") && isAdmin && (
+                                            {/* [Admin UI] ADMIN Badge (Visible to All) */}
+                                            {p.isOwner && (
                                                 <span className="bg-[#f4c025]/20 text-[#f4c025] text-[9px] px-1.5 py-0.5 rounded border border-[#f4c025]/30 font-bold">ADMIN</span>
                                             )}
                                         </div>
