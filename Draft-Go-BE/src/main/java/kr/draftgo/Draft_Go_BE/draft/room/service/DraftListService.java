@@ -135,7 +135,7 @@ public class DraftListService {
         }
 
         // 1. DB에서 DraftMember 확인 (드래프트가 시작된 경우)
-        boolean isInDb = draftMemberRepository.findByDraftIdAndMemberId(draft.getId(), memberId).isPresent();
+        boolean isInDb = draftMemberRepository.findByDraft_IdAndMember_Id(draft.getId(), memberId).isPresent();
         if (isInDb) {
             return true;
         }

@@ -46,7 +46,7 @@ public class RoundStartService {
 
     private final RoundLuaExecutor roundLuaExecutor;
     private final DraftMemberRepository draftMemberRepo;
-    private final DraftRepository draftRepository;
+    private final AuctionFinishService auctionFinishService;
     private final TeamRepository teamRepo;
     private final TeammateRepository teammateRepo;
     private final AuctionEventPublisher publisher;
@@ -54,7 +54,6 @@ public class RoundStartService {
     private final DataDragonService dataDragonService;
     private final ObjectMapper objectMapper;
     private final RedisAuctionRepository redisRepo;
-    private final RedisTemplate<String, Object> redisTemplate;
     private final MostChampionStatRepository mostChampionStatRepository;
     private final MemberStatRepository memberStatRepository;
     private final SeasonService seasonService;
@@ -63,7 +62,7 @@ public class RoundStartService {
      * 다음 라운드 시작
      * DB 조회와 Lazy 로딩이 필요하므로 트랜잭션 내에서 실행
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public void startNextRound(Long draftId) {
         // 0. Redis에 팀 캐싱 데이터(포인트, 팀장, 보유 포지션)가 없으면 DB에서 조회하여 초기화
         initializeTeamDataIfNeeded(draftId);
@@ -75,8 +74,8 @@ public class RoundStartService {
             nextMember = draftMemberRepo.findNextSkipped(draftId);
 
             if (nextMember.isEmpty()) {
-                // 경매 종료
-                finishAuction(draftId);
+                // 경매 종료 - 별도 서비스로 위임
+                auctionFinishService.finishAuction(draftId);
                 return;
             }
 
@@ -188,52 +187,5 @@ public class RoundStartService {
                         draftId, team.getId(), positionName, teammate.getIsLeader());
             }
         }
-    }
-
-    /**
-     * 경매 종료 처리
-     * - Draft 상태를 COMPLETED로 변경
-     * - 최종 팀 포인트를 DB에 커밋
-     * - 모든 Redis 데이터 정리
-     */
-    @Transactional
-    public void finishAuction(Long draftId) {
-        log.info("[Auction Finish] Starting finalization for draftId: {}", draftId);
-
-        // 1. Draft 상태를 COMPLETED로 변경
-        Draft draft = draftRepository.findById(draftId)
-                .orElseThrow(() -> new IllegalArgumentException("Draft not found: " + draftId));
-        draft.updateStatus(DraftStatus.COMPLETED);
-        draftRepository.save(draft);
-
-        List<Team> teams = teamRepo.findAllByDraftId(draftId);
-
-        // 2. 모든 Redis 데이터 정리
-        clearAllRedisData(draftId, teams);
-
-        // 3. 채팅 시스템 메시지 - 경매 종료
-        chatWebSocketController.sendSystemMessage(draftId, "🎉 모든 경매가 종료되었습니다!");
-
-        log.info("[Auction Finish] Completed for draftId: {}. Status changed to COMPLETED", draftId);
-    }
-
-    /**
-     * Draft의 모든 Redis 데이터 정리
-     * - current, bid, timer (경매 상태)
-     * - teamPoint, teamLeader, teamPositions (팀 데이터)
-     */
-    private void clearAllRedisData(Long draftId, List<Team> teams) {
-        // 경매 관련 키 삭제
-        redisRepo.clear(draftId);
-
-        // 각 팀의 데이터 삭제
-        for (Team team : teams) {
-            redisRepo.clearTeamPositions(draftId, team.getId());
-            // teamPoint와 teamLeader도 삭제
-            redisTemplate.delete(AuctionKey.teamPoint(draftId, team.getId()));
-            redisTemplate.delete(AuctionKey.teamLeader(draftId, team.getId()));
-        }
-
-        log.info("[Auction Finish] All Redis data cleared for draftId: {}", draftId);
     }
 }

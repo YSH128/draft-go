@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface DraftMemberRepository extends JpaRepository<DraftMember, Long> {
-    Optional<DraftMember> findByDraftIdAndMemberId(Long draftId, Long memberId);
+    Optional<DraftMember> findByDraft_IdAndMember_Id(Long draftId, Long memberId);
 
     @Query("SELECT dm FROM DraftMember dm " +
            "JOIN FETCH dm.member m " +
