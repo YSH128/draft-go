@@ -302,7 +302,7 @@ export default function DraftLobby() {
         tier: leader.tier,
         division: leader.division,
         teamNumber: index + 1,
-        image: leader.profileIcon || "",
+        image: leader.profileIconUrl || "",
         ready: leader.isReady,
         selectedRole: mapPositionToUI(leader.position),
         isSelf: Number(leader.id) === Number(myId),
@@ -313,7 +313,13 @@ export default function DraftLobby() {
         role: 'MID',
         mainPosition: leader.mainPosition,
         subPosition: leader.subPosition,
-        mostChampions: leader.mostChampions,
+        mostChampions: (leader.mostChampions || []).map(c => ({
+            name: c.championName,
+            games: c.totalGames,
+            winRate: c.winRate,
+            kda: c.kda,
+            imageUrl: c.imageUrl || `https://ddragon.leagueoflegends.com/cdn/14.16.1/img/champion/${c.championName}.png`
+        })),
         lp: leader.leaguePoints,
         gameName: leader.gameName,
         tagLine: leader.tagLine,
