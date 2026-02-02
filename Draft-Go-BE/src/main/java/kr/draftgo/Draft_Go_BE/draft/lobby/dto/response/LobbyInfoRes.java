@@ -14,7 +14,6 @@ import java.util.List;
  */
 @Getter
 @Builder
-@Builder
 public class LobbyInfoRes {
     private Long draftId;
     private Long ownerId; // 방장 ID (Admin 식별용)
