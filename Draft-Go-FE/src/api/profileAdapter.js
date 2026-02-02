@@ -30,6 +30,6 @@ export const adaptProfile = (raw) => {
 
     // UI 호환성 매핑
     avatarUrl: raw.profileIconUrl,
-    username: raw.gameName || raw.username,
+    username: raw.username,  // 로그인 아이디 (gameName과 별개)
   };
 };

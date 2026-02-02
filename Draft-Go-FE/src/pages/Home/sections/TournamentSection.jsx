@@ -15,13 +15,15 @@ const LOAD_MORE_COUNT = 8;
 /**
  * TournamentSection 컴포넌트
  * @param {Object} props
- * @param {Array} props.drafts - 드래프트 목록 (isParticipating 플래그 포함)
+ * @param {Array} props.drafts - 드래프트 목록 (서버에서 필터링된 결과)
  * @param {boolean} props.isLoading - 로딩 상태
  * @param {boolean} props.isError - 에러 상태
  * @param {Error} props.error - 에러 객체
  * @param {Function} props.refetch - 데이터 재조회 함수
  * @param {Function} props.onCardAction - 카드 클릭 핸들러
  * @param {boolean} props.isLoggedIn - 로그인 여부
+ * @param {string} props.activeFilter - 현재 선택된 필터
+ * @param {Function} props.onFilterChange - 필터 변경 핸들러
  */
 export default function TournamentSection({
   drafts = [],
@@ -31,8 +33,9 @@ export default function TournamentSection({
   refetch = () => {},
   onCardAction = () => {},
   isLoggedIn = false,
+  activeFilter = "all",
+  onFilterChange = () => {},
 }) {
-  const [activeFilter, setActiveFilter] = useState("all");
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
 
   // 필터 옵션 (로그인 시에만 "나의 참여" 표시)
@@ -53,18 +56,9 @@ export default function TournamentSection({
     setVisibleCount(INITIAL_VISIBLE_COUNT);
   }, [activeFilter]);
 
-  // 클라이언트 사이드 필터링
-  const filteredDrafts = useMemo(() => {
-    if (!activeFilter || activeFilter === "all") return drafts;
-    if (activeFilter === "my") {
-      return drafts.filter((draft) => draft.isParticipating);
-    }
-    return drafts.filter((draft) => draft.status === activeFilter);
-  }, [drafts, activeFilter]);
-
-  // 현재 보여줄 카드 목록
-  const visibleDrafts = filteredDrafts.slice(0, visibleCount);
-  const hasMoreDrafts = filteredDrafts.length > visibleCount;
+  // 현재 보여줄 카드 목록 (서버에서 이미 필터링됨)
+  const visibleDrafts = drafts.slice(0, visibleCount);
+  const hasMoreDrafts = drafts.length > visibleCount;
 
   const handleLoadMore = () => {
     setVisibleCount((prev) => prev + LOAD_MORE_COUNT);
@@ -95,7 +89,7 @@ export default function TournamentSection({
             <FilterButton
               key={filter.id}
               active={activeFilter === filter.id}
-              onClick={() => setActiveFilter(filter.id)}
+              onClick={() => onFilterChange(filter.id)}
             >
               {filter.label}
             </FilterButton>
@@ -134,7 +128,7 @@ export default function TournamentSection({
           )}
 
           {/* 데이터 없음 상태 */}
-          {!isLoading && !isError && filteredDrafts.length === 0 && (
+          {!isLoading && !isError && drafts.length === 0 && (
             <div className="col-span-full flex flex-col items-center justify-center gap-4 py-16">
               <div className="flex size-16 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
                 <Icon name="inbox" className="text-3xl text-primary" />
@@ -189,7 +183,7 @@ export default function TournamentSection({
         )}
 
         {/* 모두 표시됨 */}
-        {!isLoading && !isError && filteredDrafts.length > 0 && !hasMoreDrafts && visibleCount > INITIAL_VISIBLE_COUNT && (
+        {!isLoading && !isError && drafts.length > 0 && !hasMoreDrafts && visibleCount > INITIAL_VISIBLE_COUNT && (
           <div className="mt-12 flex justify-center pb-8">
             <span className="text-sm text-gray-500">모든 대회를 표시했습니다</span>
           </div>

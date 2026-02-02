@@ -26,7 +26,7 @@ const getProfileIconUrl = (profileIconId) => {
     : "https://ddragon.leagueoflegends.com/cdn/14.2.1/img/profileicon/1.png";
 };
 
-export default function MyProfile({ data, onProfileUpdate, onRefreshMatches }) {
+export default function MyProfile({ data, recentStats, onProfileUpdate, onRefreshMatches }) {
   if (!data) return null;
 
   // --- 상태 관리 (편집 기능용) ---
@@ -298,26 +298,32 @@ export default function MyProfile({ data, onProfileUpdate, onRefreshMatches }) {
            </div>
 
            {/* ----------------- [2. 전적 통계 Row] ----------------- */}
-           {data.stats && (
+           {(recentStats?.totalGames > 0 || data.stats) && (
               <div className="flex flex-col flex-1 min-h-0">
-                 <h4 className="text-sm font-bold text-white mb-3 shrink-0">랭크 전적 통계</h4>
+                 <h4 className="text-sm font-bold text-white mb-3 shrink-0">
+                    최근 {recentStats?.totalGames || 0}게임 통계
+                 </h4>
                  <div className="w-full bg-[#13161f] border border-gray-800 rounded-lg p-5 mb-6">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                        <div className="text-center">
                           <p className="text-xs text-gray-500 mb-1">승률</p>
-                          <p className="text-lg font-bold text-[#c8aa6e]">{data.stats.winRate || 0}%</p>
+                          <p className="text-lg font-bold text-[#c8aa6e]">{recentStats?.winRate || 0}%</p>
                        </div>
                        <div className="text-center">
                           <p className="text-xs text-gray-500 mb-1">승리</p>
-                          <p className="text-lg font-bold text-blue-400">{data.stats.wins || 0}</p>
+                          <p className="text-lg font-bold text-blue-400">{recentStats?.wins || 0}</p>
                        </div>
                        <div className="text-center">
                           <p className="text-xs text-gray-500 mb-1">패배</p>
-                          <p className="text-lg font-bold text-red-400">{data.stats.losses || 0}</p>
+                          <p className="text-lg font-bold text-red-400">{recentStats?.losses || 0}</p>
+                       </div>
+                       <div className="text-center">
+                          <p className="text-xs text-gray-500 mb-1">평균 KDA</p>
+                          <p className="text-lg font-bold text-green-400">{recentStats?.avgKda || 0}</p>
                        </div>
                        <div className="text-center">
                           <p className="text-xs text-gray-500 mb-1">LP</p>
-                          <p className="text-lg font-bold text-white">{data.stats.leaguePoints || 0}</p>
+                          <p className="text-lg font-bold text-white">{data.stats?.leaguePoints || 0}</p>
                        </div>
                     </div>
                  </div>

@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import DraftLayout from "./components/DraftLayout";
 import { TeamSidebarSection, AuctionSection, ChatSection } from "./sections";
-import { getAuctionState, getDraftQueue, getTeamInfos, placeBid, startAuction } from "../../api/draft";
+import {
+  getAuctionState,
+  getDraftQueue,
+  getTeamInfos,
+  placeBid,
+  startAuction,
+} from "../../api/draft";
 import { getMyProfile } from "../../api/auth";
 import { buildWsUrl, createStompClient } from "../../libs/stomp";
 import ToastContainer from "../../components/ToastContainer";
@@ -11,6 +17,23 @@ import useToast from "../../hooks/useToast";
 const DEFAULT_TIER = "UNRANKED";
 const BID_INCREMENT = 20;
 const ROUND_SECONDS = 30;
+
+/**
+ * 서버의 startedAt으로부터 남은 시간(초)을 계산
+ * @param {string} startedAt - ISO 8601 형식의 시작 시간
+ * @returns {number} 남은 초 (0 이상)
+ */
+const calculateRemainingSeconds = (startedAt) => {
+  if (!startedAt) return ROUND_SECONDS;
+  try {
+    const startTime = new Date(startedAt).getTime();
+    const now = Date.now();
+    const elapsed = Math.floor((now - startTime) / 1000);
+    return Math.max(0, ROUND_SECONDS - elapsed);
+  } catch {
+    return ROUND_SECONDS;
+  }
+};
 
 const MOCK_MESSAGES = [
   {
@@ -37,9 +60,13 @@ const MOCK_MESSAGES = [
   },
 ];
 
+const getTierFromRank = (rank) => {
+  if (!rank) return DEFAULT_TIER;
+  const raw = typeof rank === "string" ? rank : String(rank);
+  const base = raw.split("_")[0];
+  return base || DEFAULT_TIER;
+};
 
-
-// 백엔드에서 받은 queue 데이터를 UI용으로 변환
 const normalizeQueue = (queue) =>
   (queue || []).map((member) => ({
     id: String(member.id),
@@ -48,12 +75,11 @@ const normalizeQueue = (queue) =>
     position: member.position,
     status: member.status,
     turnOrder: member.turnOrder ?? 0,
-    tier: member.tier || DEFAULT_TIER,
-    division: member.division,
+    tier: getTierFromRank(member.rank),
+    rank: member.rank ?? null,
     imageUrl: member.profileImageUrl,
   }));
 
-// 팀 멤버로부터 포지션별 roster 구성
 const buildRoster = (members = []) => {
   const roster = {};
   members.forEach((member) => {
@@ -68,20 +94,43 @@ const buildRoster = (members = []) => {
   return roster;
 };
 
-// 팀장 여부 확인
-const isLeader = (member) => {
+const isLeaderMember = (member) => {
   if (!member) return false;
-  return member.isLeader === true || member.leader === true;
+  if (member.isLeader === true || member.leader === true) return true;
+  const role = typeof member.role === "string" ? member.role.toUpperCase() : "";
+  return role === "LEADER" || role === "CAPTAIN";
 };
 
-// 백엔드 teams 데이터를 UI용으로 변환
+const normalizeMemberId = (member) => {
+  const raw = member?.memberId ?? member?.id ?? member?.userId ?? null;
+  return raw === null || raw === undefined ? null : String(raw);
+};
+
+const normalizeId = (value) => {
+  if (value === null || value === undefined) return null;
+  return String(value);
+};
+
+const getNextActiveQueueId = (queueList = []) => {
+  const nextPlayer = queueList
+    .filter((player) => {
+      const status = String(player?.status || "").toUpperCase();
+      return status !== "SKIPPED" && status !== "COMPLETED";
+    })
+    .sort((a, b) => (a.turnOrder ?? 0) - (b.turnOrder ?? 0))[0];
+
+  return normalizeId(
+    nextPlayer?.id ?? nextPlayer?.memberId ?? nextPlayer?.draftMemberId,
+  );
+};
+
 const mapTeams = (teams) =>
   (teams || []).map((team) => {
-    const leader = team.members?.find((m) => isLeader(m));
+    const leader = team.members?.find((member) => isLeaderMember(member));
     return {
       id: String(team.teamId),
       name: team.teamName,
-      captain: leader?.name || "알 수 없음",
+      captain: leader?.name || "??",
       points: team.currentPoint ?? 0,
       roster: buildRoster(team.members || []),
     };
@@ -110,17 +159,26 @@ export default function DraftPage() {
 
   const didStartAuction = useRef(false);
   const wsClientRef = useRef(null);
+  const currentStateRef = useRef(null);
+  const isDraftEndedRef = useRef(false);
+  const timerStartRef = useRef(null);
 
-  const wsUrl = useMemo(() => buildWsUrl(import.meta.env.VITE_API_BASE_URL), []);
+  const wsUrl = useMemo(
+    () => buildWsUrl(import.meta.env.VITE_API_BASE_URL),
+    [],
+  );
 
   const queuePlayers = useMemo(() => normalizeQueue(queue), [queue]);
 
   const activeQueue = useMemo(
     () =>
       queuePlayers
-        .filter((player) => player.status !== "SKIPPED" && player.status !== "COMPLETED")
+        .filter(
+          (player) =>
+            player.status !== "SKIPPED" && player.status !== "COMPLETED",
+        )
         .sort((a, b) => (a.turnOrder ?? 0) - (b.turnOrder ?? 0)),
-    [queuePlayers]
+    [queuePlayers],
   );
 
   const passedQueue = useMemo(
@@ -128,158 +186,207 @@ export default function DraftPage() {
       queuePlayers
         .filter((player) => player.status === "SKIPPED")
         .sort((a, b) => (a.turnOrder ?? 0) - (b.turnOrder ?? 0)),
-    [queuePlayers]
+    [queuePlayers],
   );
 
   const uiTeams = useMemo(() => mapTeams(teams), [teams]);
 
-  // 내 팀 정보 찾기
-  const myTeamInfo = useMemo(() => {
-    if (!myMemberId) return null;
+  const profileTeamId = useMemo(
+    () =>
+      normalizeId(
+        myProfile?.teamId ?? myProfile?.team?.teamId ?? myProfile?.team?.id,
+      ),
+    [myProfile],
+  );
 
-    for (const team of teams) {
-      const myMember = team.members?.find((m) => m.memberId === myMemberId);
-      if (myMember) {
+  const profileIsLeader = useMemo(() => isLeaderMember(myProfile), [myProfile]);
+
+  // 내 팀 찾기
+  const myTeamInfo = useMemo(() => {
+    if (!myMemberId && !profileTeamId) return null;
+
+    if (teams.length === 0) {
+      return profileTeamId
+        ? { teamId: profileTeamId, isLeader: profileIsLeader }
+        : null;
+    }
+
+    const teamMemberPairs = teams.flatMap((team) =>
+      (team.members || []).map((member) => ({ team, member })),
+    );
+
+    const normalizedMyMemberId = myMemberId ? String(myMemberId) : null;
+    if (normalizedMyMemberId) {
+      const match = teamMemberPairs.find(
+        (pair) => normalizeMemberId(pair.member) === normalizedMyMemberId,
+      );
+      if (match) {
         return {
-          teamId: String(team.teamId),
-          isLeader: isLeader(myMember),
+          teamId: String(match.team.teamId),
+          isLeader: isLeaderMember(match.member) || profileIsLeader,
         };
       }
     }
-    return null;
-  }, [myMemberId, teams]);
+
+    return profileTeamId
+      ? { teamId: profileTeamId, isLeader: profileIsLeader }
+      : null;
+  }, [myMemberId, profileIsLeader, profileTeamId, teams]);
 
   const myTeamId = myTeamInfo?.teamId ?? null;
-  const isMyLeader = myTeamInfo?.isLeader ?? false;
+  const isLeader = myTeamInfo?.isLeader ?? false;
   const myTeam = useMemo(
-    () => uiTeams.find((team) => team.id === myTeamId),
-    [myTeamId, uiTeams]
+    () => uiTeams.find((team) => String(team.id) === String(myTeamId)),
+    [myTeamId, uiTeams],
   );
   const myTeamRoster = myTeam?.roster || {};
 
-  // 현재 경매 진행 중인 선수 정보
   const currentPlayer = useMemo(() => {
     if (!currentState) return null;
-    // 백엔드에서 제공하는 포지션 정보 우선 사용
-    const position = currentState.position;
-    const mainPosition = currentState.mainPosition;
-    const subPosition = currentState.subPosition;
-    const mostChampions = currentState.mostChampions || [];
-
+    const member = queuePlayers.find(
+      (player) => player.id === String(currentState.draftMemberId),
+    );
+    const position = member?.position;
     return {
-      id: String(currentState.draftMemberId),
-      name: currentState.playerName,
-      imageUrl: currentState.playerProfileImageUrl,
-      tier: currentState.tier || DEFAULT_TIER,
-      division: currentState.division,
+      id: currentState.draftMemberId
+        ? String(currentState.draftMemberId)
+        : "current",
+      name: member?.name || currentState.playerName || "Unknown",
+      imageUrl: member?.imageUrl || currentState.playerProfileImageUrl || null,
+      tier: member?.tier || DEFAULT_TIER,
       positions: position ? [position] : [],
-      mainPosition,
-      subPosition,
-      mostChampions,
+      mostChampions: [],
     };
-  }, [currentState]);
+  }, [currentState, queuePlayers]);
 
-  // 현재 선수의 포지션이 내 팀에 이미 있는지 확인
   const isPositionTaken = useMemo(() => {
-    if (!currentState) return false;
-    const position = currentState.position;
-    return position ? Boolean(myTeamRoster[position]?.name) : false;
-  }, [currentState, myTeamRoster]);
+    if (!currentPlayer?.positions || currentPlayer.positions.length === 0)
+      return false;
+    return currentPlayer.positions.some((pos) => {
+      const key = String(pos || "").toUpperCase();
+      return Boolean(myTeamRoster[key]?.name);
+    });
+  }, [currentPlayer?.positions, myTeamRoster]);
 
-  // 초기 데이터 또는 수동 새로고침 시 상태 적용
-  const applyInitialData = useCallback((data) => {
-    setCurrentState(data.currentRound);
-    setCurrentBid(data.currentBid);
-    setTimeLeft(data.remainingSeconds ?? ROUND_SECONDS);
-    setActiveTeamId(data.currentBid?.teamId ? String(data.currentBid.teamId) : null);
-    setQueue(data.queue || []);
-    setTeams(data.teams || []);
+  const applyAuctionState = useCallback((stateData) => {
+    const state = stateData?.state || null;
+    setCurrentState(state);
+    setCurrentBid(stateData?.currentBid || null);
+
+    if (typeof stateData?.remainingSeconds === "number") {
+      setTimeLeft(Math.max(0, stateData.remainingSeconds));
+    } else if (state?.startedAt) {
+      setTimeLeft(calculateRemainingSeconds(state.startedAt));
+    } else {
+      setTimeLeft(ROUND_SECONDS);
+    }
+
+    setActiveTeamId(
+      stateData?.currentBid?.teamId
+        ? String(stateData.currentBid.teamId)
+        : null,
+    );
   }, []);
 
   const refreshAuctionState = useCallback(async () => {
     if (!isValidDraftId) return;
     try {
-      const data = await getAuctionState(draftId);
-      applyInitialData(data);
+      const stateData = await getAuctionState(draftId);
+      applyAuctionState(stateData);
     } catch (error) {
-      console.error("경매 상태 새로고침 실패:", error);
+      console.error(error);
     }
-  }, [applyInitialData, draftId, isValidDraftId]);
+  }, [applyAuctionState, draftId, isValidDraftId]);
 
-  const handleQueueUpdate = useCallback((body) => {
-    try {
-      const queue = JSON.parse(body);
-      setQueue(queue || []);
-    } catch (error) {
-      console.error("Queue 업데이트 실패:", error);
-    }
-  }, []);
+  const handleQueueUpdate = useCallback(
+    (body) => {
+      try {
+        const parsed = JSON.parse(body);
+        setQueue(parsed || []);
+
+        if (isDraftEndedRef.current) return;
+        const nextActiveId = getNextActiveQueueId(parsed || []);
+        const currentActiveId = currentStateRef.current?.draftMemberId
+          ? String(currentStateRef.current.draftMemberId)
+          : null;
+        if (nextActiveId && nextActiveId !== currentActiveId) {
+          refreshAuctionState();
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    [refreshAuctionState],
+  );
 
   const handleTeamsUpdate = useCallback((body) => {
     try {
-      const teams = JSON.parse(body);
-      setTeams(teams || []);
+      const parsed = JSON.parse(body);
+      setTeams(parsed || []);
     } catch (error) {
-      console.error("Teams 업데이트 실패:", error);
+      console.error(error);
     }
   }, []);
 
-  // WebSocket 이벤트 핸들러 - 백엔드 이벤트 타입에 맞춰 처리
-  const handleAuctionEvent = useCallback((body) => {
-    try {
-      const event = JSON.parse(body);
-
-      switch (event.type) {
-        case "ROUND_START":
-          // 새로운 라운드 시작 (RoundStartEventDto)
-          setCurrentState(event.data);
+  const handleAuctionEvent = useCallback(
+    (body) => {
+      try {
+        const event = JSON.parse(body);
+        const eventType = String(event.type || "").toUpperCase();
+        if (eventType === "NEW_BIDDING") {
+          const state = event.data || event.state || null;
+          setCurrentState(state);
           setCurrentBid(null);
           setActiveTeamId(null);
-          setTimeLeft(ROUND_SECONDS);
-          break;
-
-        case "BID":
-          // 입찰 발생 (BidEventDto)
-          setCurrentBid({ teamId: event.data.teamId, price: event.data.price });
-          setActiveTeamId(String(event.data.teamId));
-          if (typeof event.data.remainingSeconds === "number") {
-            setTimeLeft(event.data.remainingSeconds);
+          // 서버의 startedAt 기반으로 남은 시간 계산
+          const remaining = calculateRemainingSeconds(state?.startedAt);
+          setTimeLeft(remaining);
+          if (state?.startedAt) {
+            timerStartRef.current = state.startedAt;
           }
-          break;
-
-        case "ROUND_ENDED":
-          // 라운드 종료 (RoundEndedEventDto)
-          // isSuccessful: 낙찰 여부, teamId/price: 낙찰 정보 (유찰 시 null)
+        } else if (eventType === "BID") {
+          setCurrentBid(event.data || null);
+          setActiveTeamId(
+            event.data?.teamId ? String(event.data.teamId) : null,
+          );
+          if (typeof event.data?.remainingSeconds === "number") {
+            const nextRemaining = Math.max(0, event.data.remainingSeconds);
+            setTimeLeft(nextRemaining);
+            const elapsed = Math.max(0, ROUND_SECONDS - nextRemaining);
+            timerStartRef.current = new Date(
+              Date.now() - elapsed * 1000,
+            ).toISOString();
+          } else {
+            refreshAuctionState();
+          }
+        } else if (eventType === "TIME_OVER") {
+          // 해당 선수 경매 종료 (유찰 또는 낙찰 완료)
           setCurrentState(null);
           setCurrentBid(null);
           setActiveTeamId(null);
           setTimeLeft(0);
-          // 향후 낙찰/유찰 효과 추가 시 event.data.isSuccessful 활용 가능
-          break;
-
-        default:
-          console.warn("알 수 없는 경매 이벤트:", event.type);
+          timerStartRef.current = null;
+          refreshAuctionState();
+        }
+      } catch (error) {
+        console.error(error);
       }
-    } catch (error) {
-      console.error("경매 이벤트 처리 실패:", error);
-    }
-  }, []);
+    },
+    [refreshAuctionState],
+  );
 
-  // 현재 내 팀의 보유 포인트
   const myTeamPoints = useMemo(() => {
     if (!myTeamId) return 0;
     const team = teams.find((t) => String(t.teamId) === myTeamId);
     return team?.currentPoint ?? 0;
   }, [myTeamId, teams]);
 
-  // 다음 입찰가
   const nextBidPrice = useMemo(() => {
     return (currentBid?.price ?? 0) + BID_INCREMENT;
   }, [currentBid]);
 
-  // 입찰 가능 여부 검증
   const canBid = useMemo(() => {
-    if (!isMyLeader) return false;
+    if (!isLeader) return false;
     if (!myTeamId) return false;
     if (isPositionTaken) return false;
     if (timeLeft <= 0) return false;
@@ -288,7 +395,7 @@ export default function DraftPage() {
     if (!currentState) return false;
     return true;
   }, [
-    isMyLeader,
+    isLeader,
     isPositionTaken,
     myTeamId,
     timeLeft,
@@ -298,12 +405,11 @@ export default function DraftPage() {
     currentState,
   ]);
 
-  // 입찰 불가 사유
   const bidDisabledReason = useMemo(() => {
     if (isDraftEnded) return "드래프트가 종료되었습니다";
     if (!currentState) return "경매 대기 중입니다";
     if (!myTeamId) return "팀에 소속되어 있지 않습니다";
-    if (!isMyLeader) return "팀장만 입찰할 수 있습니다";
+    if (!isLeader) return "팀장만 입찰할 수 있습니다";
     if (isPositionTaken) return "이미 해당 포지션 선수가 있습니다";
     if (timeLeft <= 0) return "입찰 시간이 종료되었습니다";
     if (nextBidPrice > myTeamPoints) return "포인트가 부족합니다";
@@ -312,7 +418,7 @@ export default function DraftPage() {
     isDraftEnded,
     currentState,
     myTeamId,
-    isMyLeader,
+    isLeader,
     isPositionTaken,
     timeLeft,
     nextBidPrice,
@@ -324,20 +430,29 @@ export default function DraftPage() {
 
     if (!canBid) {
       if (bidDisabledReason) {
-        showToast(bidDisabledReason, 'warning', 5000); // 경고는 5초
+        showToast(bidDisabledReason, "warning", 5000);
       }
       return;
     }
 
     try {
       await placeBid(draftId, Number(myTeamId), nextBidPrice);
-      showToast('입찰이 완료되었습니다!', 'success'); // 성공은 기본 3초
+      showToast("입찰이 완료되었습니다!", "success");
     } catch (error) {
       const serverMessage =
-        error.response?.data?.message || "입찰에 실패했습니다. 다시 시도해주세요.";
-      showToast(serverMessage, 'error', 5000); // 에러는 5초
+        error.response?.data?.message ||
+        "입찰에 실패했습니다. 다시 시도해주세요.";
+      showToast(serverMessage, "error", 5000);
     }
-  }, [bidDisabledReason, canBid, draftId, isValidDraftId, myTeamId, nextBidPrice, showToast]);
+  }, [
+    bidDisabledReason,
+    canBid,
+    draftId,
+    isValidDraftId,
+    myTeamId,
+    nextBidPrice,
+    showToast,
+  ]);
 
   const handleSendMessage = useCallback((content) => {
     setMessages((prev) => [
@@ -351,26 +466,37 @@ export default function DraftPage() {
     ]);
   }, []);
 
-  // 초기 데이터 로딩 - 통합 엔드포인트 사용
   useEffect(() => {
     if (!isValidDraftId) return;
 
     const loadInitialData = async () => {
       try {
-        const [initialData, myProfileData] = await Promise.all([
-          getAuctionState(draftId),  // 통합 API: queue, teams, currentRound 등 모두 포함
-          getMyProfile().catch(() => null),
-        ]);
+        const [stateData, queueData, teamData, myProfileData] =
+          await Promise.all([
+            getAuctionState(draftId),
+            getDraftQueue(draftId),
+            getTeamInfos(draftId),
+            getMyProfile().catch(() => null),
+          ]);
 
-        // 초기 데이터 적용
-        applyInitialData(initialData);
+        const state = stateData?.state || null;
+        applyAuctionState(stateData);
+        setQueue(queueData || []);
+        setTeams(teamData || []);
         setMyMemberId(myProfileData?.memberId ?? null);
         setMyProfile(myProfileData ?? null);
 
-        // 첫 경매 시작이 필요한 경우
-        if (!initialData.currentRound && !didStartAuction.current) {
+        const userIsLeader = isLeaderMember(myProfileData);
+        if (!state && !didStartAuction.current && userIsLeader) {
           didStartAuction.current = true;
-          await startAuction(draftId);
+          try {
+            await startAuction(draftId);
+          } catch (err) {
+            console.warn(
+              "startAuction failed:",
+              err?.response?.status || err.message,
+            );
+          }
         }
 
         setIsLoading(false);
@@ -382,9 +508,8 @@ export default function DraftPage() {
     };
 
     loadInitialData();
-  }, [applyInitialData, draftId, isValidDraftId]);
+  }, [applyAuctionState, draftId, isValidDraftId]);
 
-  // WebSocket 연결 및 구독
   useEffect(() => {
     if (!isValidDraftId || !wsUrl) return;
 
@@ -407,9 +532,24 @@ export default function DraftPage() {
       wsClientRef.current?.disconnect();
       wsClientRef.current = null;
     };
-  }, [draftId, handleAuctionEvent, handleQueueUpdate, handleTeamsUpdate, isValidDraftId, refreshAuctionState, wsUrl]);
+  }, [
+    draftId,
+    handleAuctionEvent,
+    handleQueueUpdate,
+    handleTeamsUpdate,
+    isValidDraftId,
+    refreshAuctionState,
+    wsUrl,
+  ]);
 
-  // 페이지 포커스 시 상태 새로고침
+  useEffect(() => {
+    currentStateRef.current = currentState;
+  }, [currentState]);
+
+  useEffect(() => {
+    isDraftEndedRef.current = isDraftEnded;
+  }, [isDraftEnded]);
+
   useEffect(() => {
     if (!isValidDraftId) return;
 
@@ -431,25 +571,29 @@ export default function DraftPage() {
     };
   }, [isValidDraftId, refreshAuctionState]);
 
-  // 타이머 카운트다운
+  // currentState 변경 시 타이머 시작 시점 기록
   useEffect(() => {
-    if (!currentState || isDraftEnded) return;
+    if (currentState?.startedAt) {
+      timerStartRef.current = currentState.startedAt;
+    }
+  }, [currentState]);
+
+  // 타이머 카운트다운 - 1초마다 서버 시간 기준으로 계산
+  useEffect(() => {
+    if (!currentState || isDraftEnded) return undefined;
 
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        const next = prev - 1;
-        if (next <= 0) {
-          clearInterval(timer);
-          return 0;
-        }
-        return next;
-      });
+      const remaining = calculateRemainingSeconds(timerStartRef.current);
+      setTimeLeft(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(timer);
+      }
     }, 1000);
 
     return () => clearInterval(timer);
   }, [currentState, isDraftEnded]);
 
-  // 'B' 키로 빠른 입찰
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "b" || e.key === "B") {
@@ -467,7 +611,7 @@ export default function DraftPage() {
   if (!isValidDraftId) {
     return (
       <DraftLayout>
-        <div className="flex w-full items-center justify-center text-sm text-primary/80">
+        <div className="text-primary/80 flex w-full items-center justify-center text-sm">
           draftId가 필요합니다. /draft?draftId=1 형식으로 접속해주세요.
         </div>
       </DraftLayout>
@@ -478,8 +622,10 @@ export default function DraftPage() {
     return (
       <DraftLayout>
         <div className="flex w-full flex-col items-center justify-center gap-4">
-          <h2 className="text-3xl font-bold text-primary">드래프트 종료</h2>
-          <p className="text-primary-bright/70">모든 선수의 경매가 완료되었습니다.</p>
+          <h2 className="text-primary text-3xl font-bold">드래프트 종료</h2>
+          <p className="text-primary-bright/70">
+            모든 선수의 경매가 완료되었습니다.
+          </p>
         </div>
       </DraftLayout>
     );
@@ -500,8 +646,10 @@ export default function DraftPage() {
       <DraftLayout>
         <div className="flex w-full items-center justify-center">
           <div className="flex flex-col items-center gap-4">
-            <div className="size-12 animate-spin rounded-full border-4 border-primary/30 border-t-primary" />
-            <p className="text-sm text-primary/70">드래프트 정보를 불러오는 중...</p>
+            <div className="border-primary/30 border-t-primary size-12 animate-spin rounded-full border-4" />
+            <p className="text-primary/70 text-sm">
+              드래프트 정보를 불러오는 중...
+            </p>
           </div>
         </div>
       </DraftLayout>
@@ -512,7 +660,11 @@ export default function DraftPage() {
     <DraftLayout>
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-      <TeamSidebarSection teams={uiTeams} activeTeamId={activeTeamId} myTeamId={myTeamId} />
+      <TeamSidebarSection
+        teams={uiTeams}
+        activeTeamId={activeTeamId}
+        myTeamId={myTeamId}
+      />
 
       <AuctionSection
         player={currentPlayer}

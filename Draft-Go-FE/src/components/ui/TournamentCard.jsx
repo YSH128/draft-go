@@ -1,41 +1,17 @@
 import { useState } from "react";
 import Icon from "./Icon";
 import StatusBadge from "./StatusBadge";
+import { UI_DRAFT_STATUS, STATUS_BUTTON_CONFIG } from "../../constants/draft";
 
 // 기본 썸네일 이미지 (이미지 로드 실패 시 폴백)
 const DEFAULT_THUMBNAIL = "https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Lux_0.jpg";
-
-// 상태별 버튼 설정
-const buttonConfig = {
-  recruiting: {
-    label: "참가하기",
-    variant: "primary",
-    handler: "onJoin",
-  },
-  "in-progress": {
-    label: "관전하기",
-    variant: "secondary",
-    handler: "onSpectate",
-  },
-  scheduled: {
-    label: "알림받기",
-    variant: "secondary",
-    handler: "onNotify",
-  },
-  completed: {
-    label: "결과보기",
-    variant: "ghost",
-    handler: "onJoin",
-  },
-};
 
 export default function TournamentCard({
   title,
   host,
   hostProfileImage,
   imageUrl,
-  status = "recruiting",
-  current,
+  status = UI_DRAFT_STATUS.RECRUITING,
   total,
   startsIn,
   isParticipating = false,
@@ -46,28 +22,27 @@ export default function TournamentCard({
   const [imgError, setImgError] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
-  const isRecruiting = status === "recruiting";
-  const isInProgress = status === "in-progress";
-  const isScheduled = status === "scheduled";
-  const isFull = isRecruiting && current >= total;
+  // 상태 플래그 (UI 렌더링용)
+  const isRecruiting = status === UI_DRAFT_STATUS.RECRUITING;
+  const isInProgress = status === UI_DRAFT_STATUS.IN_PROGRESS;
+  const isScheduled = status === UI_DRAFT_STATUS.SCHEDULED;
 
   // 썸네일 URL 결정 (에러 시 폴백)
   const thumbnailUrl = imgError || !imageUrl ? DEFAULT_THUMBNAIL : imageUrl;
 
-  // 버튼 설정 가져오기
-  const btnConfig = buttonConfig[status] || buttonConfig.recruiting;
+  // 버튼 설정 가져오기 (상수 기반)
+  const btnConfig = STATUS_BUTTON_CONFIG[status] || STATUS_BUTTON_CONFIG[UI_DRAFT_STATUS.RECRUITING];
   const handlers = { onJoin, onSpectate, onNotify };
 
-  // 참여 중인 경우 버튼 텍스트 변경
+  // 상태 기반 버튼 텍스트 결정 (참여 중이면 "입장하기")
   const getButtonLabel = () => {
     if (isParticipating) return "입장하기";
-    if (isFull) return "모집완료";
     return btnConfig.label;
   };
 
+  // 상태 기반 버튼 스타일 결정
   const getButtonVariant = () => {
     if (isParticipating) return "primary";
-    if (isFull) return "disabled";
     return btnConfig.variant;
   };
 
@@ -152,11 +127,10 @@ export default function TournamentCard({
             )}
           </div>
 
-          {/* 액션 버튼 */}
+          {/* 액션 버튼 - 상태 기반 (접근 차단 없음) */}
           <CardButton
             variant={getButtonVariant()}
             onClick={handlers[btnConfig.handler]}
-            disabled={isFull && !isParticipating}
           >
             {getButtonLabel()}
           </CardButton>

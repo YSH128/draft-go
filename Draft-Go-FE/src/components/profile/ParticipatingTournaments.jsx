@@ -1,87 +1,82 @@
 import { useNavigate } from "react-router-dom";
+import {
+  UI_DRAFT_STATUS,
+  STATUS_API_TO_UI,
+  STATUS_ROUTES,
+  STATUS_LABELS,
+} from "../../constants/draft";
 
-
-// 대회 상태에 따른 스타일 설정 (draftAdapter 상태값 호환)
-const STATUS_CONFIG = {
-  // 기존 형식 호환
-  ONGOING: {
-    label: "진행중",
-    borderColor: "border-green-500",
-    bgColor: "bg-[#1e3a2f]",
-    textClass: "text-green-400",
-  },
-  FINISHED: {
-    label: "종료",
-    borderColor: "border-gray-500",
-    bgColor: "bg-[#374151]",
-    textClass: "text-gray-400",
-  },
-  RECRUITING: {
-    label: "모집중",
+// 상태별 스타일 설정 (UI 상태값 기준)
+const STATUS_STYLES = {
+  [UI_DRAFT_STATUS.RECRUITING]: {
     borderColor: "border-yellow-500",
     bgColor: "bg-[#3d3a1e]",
     textClass: "text-yellow-400",
+    actionLabel: "대기방 입장",
+    actionColor: "text-yellow-500",
   },
-  // draftAdapter 상태값 호환
-  "recruiting": {
-    label: "모집중",
-    borderColor: "border-yellow-500",
-    bgColor: "bg-[#3d3a1e]",
-    textClass: "text-yellow-400",
-  },
-  "in-progress": {
-    label: "진행중",
+  [UI_DRAFT_STATUS.IN_PROGRESS]: {
     borderColor: "border-green-500",
     bgColor: "bg-[#1e3a2f]",
     textClass: "text-green-400",
+    actionLabel: "경매장 입장",
+    actionColor: "text-green-400",
   },
-  "completed": {
-    label: "종료",
+  [UI_DRAFT_STATUS.SCHEDULED]: {
+    borderColor: "border-blue-500",
+    bgColor: "bg-[#1e2a3f]",
+    textClass: "text-blue-400",
+    actionLabel: "대기방 입장",
+    actionColor: "text-blue-400",
+  },
+  [UI_DRAFT_STATUS.COMPLETED]: {
     borderColor: "border-gray-500",
     bgColor: "bg-[#374151]",
     textClass: "text-gray-400",
+    actionLabel: "결과 보기",
+    actionColor: "text-gray-400",
   },
+};
+
+// 기본 스타일 (폴백용)
+const DEFAULT_STYLE = STATUS_STYLES[UI_DRAFT_STATUS.COMPLETED];
+
+/**
+ * API 상태값 또는 UI 상태값을 UI 상태값으로 정규화
+ * @param {string} status - API 또는 UI 상태값
+ * @returns {string} UI 상태값
+ */
+const normalizeStatus = (status) => {
+  if (!status) return UI_DRAFT_STATUS.COMPLETED;
+  // 이미 UI 상태값이면 그대로 반환
+  if (Object.values(UI_DRAFT_STATUS).includes(status)) {
+    return status;
+  }
+  // API 상태값이면 UI 상태값으로 변환
+  return STATUS_API_TO_UI[status] || UI_DRAFT_STATUS.COMPLETED;
 };
 
 export default function ParticipatingTournaments({ tournaments = [] }) {
   const navigate = useNavigate();
 
   const handleAction = (draftId, status) => {
-    // 상태에 따른 이동 로직
-    if (status === 'recruiting' || status === 'RECRUITING' || status === 'LOBBY') {
-      navigate(`/draft/room/${draftId}`);
-    } else if (status === 'in-progress' || status === 'IN_DRAFT' || status === 'AUCTION' || status === 'ONGOING') {
-      navigate(`/draft/room/${draftId}`);
-    } else if (status === 'completed' || status === 'COMPLETED' || status === 'FINISHED') {
-       // 결과 페이지가 있다면 이동, 없으면 알림 등 (현재는 결과 페이지 가정)
-       // TODO: 결과 페이지 라우트 확인 필요, 우선은 draft room으로 보내거나 알림
-       // navigate(`/draft/result/${draftId}`);
-       alert("종료된 대회입니다."); // 임시 처리
+    const uiStatus = normalizeStatus(status);
+    const getRoute = STATUS_ROUTES[uiStatus];
+
+    if (getRoute) {
+      navigate(getRoute(draftId));
     }
   };
 
-  const getActionText = (draftId, status) => {
-     let label = "입장하기";
-     let colorClass = "text-blue-400"; // default
+  const getActionText = (status) => {
+    const uiStatus = normalizeStatus(status);
+    const style = STATUS_STYLES[uiStatus] || DEFAULT_STYLE;
 
-     const s = String(status).toLowerCase();
-     
-     if (s === 'recruiting' || s === 'lobby') {
-        label = "대기방 입장";
-        colorClass = "text-yellow-500"; 
-     } else if (s === 'in-progress' || s === 'in_draft' || s === 'auction' || s === 'ongoing') {
-        label = "경매장 입장";
-        colorClass = "text-green-400";
-     } else if (s === 'completed' || s === 'finished') {
-        label = "결과 보기";
-        colorClass = "text-gray-400";
-     }
-
-     return (
-        <div className={`text-sm font-bold ${colorClass}`}>
-          {label}
-        </div>
-     );
+    return (
+      <div className={`text-sm font-bold ${style.actionColor}`}>
+        {style.actionLabel}
+      </div>
+    );
   };
 
 
@@ -89,7 +84,9 @@ export default function ParticipatingTournaments({ tournaments = [] }) {
     <div className="flex flex-col gap-2 h-full">
       {tournaments.length > 0 ? (
         tournaments.map((tournament) => {
-          const statusStyle = STATUS_CONFIG[tournament.status] || STATUS_CONFIG.completed;
+          const uiStatus = normalizeStatus(tournament.status);
+          const statusStyle = STATUS_STYLES[uiStatus] || DEFAULT_STYLE;
+          const statusLabel = STATUS_LABELS[uiStatus] || "완료";
 
           // draftAdapter 데이터 또는 기존 tournament 데이터 호환
           const name = tournament.title || tournament.name || "대회";
@@ -107,7 +104,7 @@ export default function ParticipatingTournaments({ tournaments = [] }) {
               {/* 1. 대회 정보 (좌측) */}
               <div className="w-[110px] shrink-0 flex flex-col items-center justify-center px-3 border-r border-white/5">
                 <div className={`text-sm font-bold ${statusStyle.textClass}`}>
-                  {statusStyle.label}
+                  {statusLabel}
                 </div>
                 <div className="text-[10px] text-gray-500 mt-1">{date}</div>
               </div>
@@ -144,9 +141,9 @@ export default function ParticipatingTournaments({ tournaments = [] }) {
                 </div>
               </div>
 
-              {/* 3. 액션 버튼 (우측) - 기존 참가자 수 대체 */}
+              {/* 3. 액션 버튼 (우측) */}
               <div className="shrink-0 flex flex-col items-center justify-center px-4 border-l border-white/5">
-                 {getActionText(draftId, tournament.status)}
+                {getActionText(tournament.status)}
               </div>
             </div>
           );

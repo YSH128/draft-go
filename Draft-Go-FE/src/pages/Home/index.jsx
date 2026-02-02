@@ -8,16 +8,18 @@ import AlertModal from "../../components/ui/AlertModal";
 import useAuthStore from "../../stores/useAuthStore";
 import FadeInUp from "../../components/ui/FadeInUp";
 import { fetchDrafts } from "../../api/draft";
+import { UI_DRAFT_STATUS, STATUS_ROUTES, FILTER_STATUS, buildFilterParams } from "../../constants/draft";
 
 export default function HomePage() {
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [selectedDraftId, setSelectedDraftId] = useState(null);
+  const [activeFilter, setActiveFilter] = useState(FILTER_STATUS.ALL);
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  // 드래프트 목록 조회 (백엔드가 isParticipating 필드 제공)
+  // 드래프트 목록 조회 (서버 사이드 필터링)
   const {
     data: drafts = [],
     isLoading,
@@ -25,27 +27,36 @@ export default function HomePage() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["drafts"],
-    queryFn: () => fetchDrafts(),
+    queryKey: ["drafts", activeFilter],
+    queryFn: () => fetchDrafts(buildFilterParams(activeFilter)),
     staleTime: 30000,
     refetchOnWindowFocus: true,
   });
 
-  // 카드 액션 핸들러 (Smart Join)
+  // 필터 변경 핸들러
+  const handleFilterChange = useCallback((filter) => {
+    setActiveFilter(filter);
+  }, []);
+
+  // 카드 액션 핸들러 (상태 기반 네비게이션)
   const handleCardAction = useCallback((draft) => {
     if (!user) {
       setIsAlertOpen(true);
       return;
     }
 
-    if (draft.isParticipating) {
-      // 이미 참여 중 → 대기방으로 바로 이동
-      navigate(`/draft/room/${draft.id}`);
-    } else {
-      // 미참여 → 참여 코드 입력 모달
-      setSelectedDraftId(draft.id);
+    const { status, id, isParticipating } = draft;
+
+    // 모집중 상태에서 미참여자는 참가 모달 표시
+    if (status === UI_DRAFT_STATUS.RECRUITING && !isParticipating) {
+      setSelectedDraftId(id);
       setIsJoinModalOpen(true);
+      return;
     }
+
+    // 상태별 라우트로 이동 (상수 매핑 사용)
+    const getRoute = STATUS_ROUTES[status] || STATUS_ROUTES[UI_DRAFT_STATUS.RECRUITING];
+    navigate(getRoute(id));
   }, [user, navigate]);
 
   const handleCreateTournament = () => {
@@ -90,6 +101,8 @@ export default function HomePage() {
             refetch={refetch}
             onCardAction={handleCardAction}
             isLoggedIn={!!user}
+            activeFilter={activeFilter}
+            onFilterChange={handleFilterChange}
           />
         </FadeInUp>
         <CTASection

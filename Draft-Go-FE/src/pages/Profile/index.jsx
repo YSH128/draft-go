@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import MyProfile from "../../components/profile/MyProfile";
 import RecentMatches from "../../components/profile/RecentMatches";
 import ParticipatingTournaments from "../../components/profile/ParticipatingTournaments";
@@ -12,6 +12,38 @@ import {
 } from "../../api/profileApi";
 import { fetchDrafts } from "../../api/draft";
 import { adaptProfile } from "../../api/profileAdapter";
+
+/**
+ * 최근 N게임 기준 통계 계산
+ * @param {Array} matches - 매치 히스토리 배열
+ * @returns {Object} { wins, losses, winRate, avgKda, totalGames }
+ */
+const calculateRecentStats = (matches) => {
+  if (!matches || matches.length === 0) {
+    return { wins: 0, losses: 0, winRate: 0, avgKda: 0, totalGames: 0 };
+  }
+
+  const wins = matches.filter((m) => m.win).length;
+  const losses = matches.length - wins;
+  const winRate = Math.round((wins / matches.length) * 100);
+
+  // 평균 KDA 계산
+  const totalKills = matches.reduce((sum, m) => sum + (m.kills || 0), 0);
+  const totalDeaths = matches.reduce((sum, m) => sum + (m.deaths || 0), 0);
+  const totalAssists = matches.reduce((sum, m) => sum + (m.assists || 0), 0);
+  const avgKda =
+    totalDeaths === 0
+      ? (totalKills + totalAssists).toFixed(2)
+      : ((totalKills + totalAssists) / totalDeaths).toFixed(2);
+
+  return {
+    wins,
+    losses,
+    winRate,
+    avgKda,
+    totalGames: matches.length,
+  };
+};
 
 export default function ProfilePage() {
   const [profileData, setProfileData] = useState(null);
@@ -33,25 +65,29 @@ export default function ProfilePage() {
       // 매치 히스토리도 함께 로드
       if (data?.memberId) {
         const matches = await getMatchHistory(data.memberId);
-        
+
         // 페이징 객체({ content: [...] }) 또는 배열 대응
         const modList = matches.content || matches || [];
         const validList = Array.isArray(modList) ? modList : [];
 
-
-
         // 데이터가 로드된 시점에는 profileData 상태가 아직 업데이트되지 않았을 수 있으므로
         // data(로컬 변수)를 직접 활용하여 매핑 로직 수행 필요.
-        const transformedList = validList.map((raw) => formatMatchData(raw, data));
+        const transformedList = validList.map((raw) =>
+          formatMatchData(raw, data),
+        );
 
-        // 1. 최근 10개만 유지
-        const recentTen = transformedList.slice(0, 10);
-        setMatchHistory(recentTen);
+        // 최근 20개 유지 (API 기본값과 일치)
+        const recentTwenty = transformedList.slice(0, 20);
+        setMatchHistory(recentTwenty);
       }
 
       // 참가한 대회 목록 로드
       try {
-        const drafts = await fetchDrafts({ my_participation: true });
+        const drafts = await fetchDrafts({
+          my_participation: true,
+          size: 100,
+          status: "ALL",
+        });
         setParticipatingDrafts(drafts || []);
       } catch (draftErr) {
         console.error("참가 대회 로드 실패:", draftErr);
@@ -83,9 +119,14 @@ export default function ProfilePage() {
   const handleRefreshMatches = async (memberId, username) => {
     try {
       const status = await getRefreshStatus(username);
-      if (status.refreshing) return { success: false, error: "이미 갱신 중입니다." };
-      if (status.remainingCooldownSeconds > 0) return { success: false, error: `${status.remainingCooldownSeconds}초 후에 다시 시도해주세요.` };
-      
+      if (status.refreshing)
+        return { success: false, error: "이미 갱신 중입니다." };
+      if (status.remainingCooldownSeconds > 0)
+        return {
+          success: false,
+          error: `${status.remainingCooldownSeconds}초 후에 다시 시도해주세요.`,
+        };
+
       await refreshMatches(memberId);
       await fetchProfileData();
       return { success: true };
@@ -99,18 +140,24 @@ export default function ProfilePage() {
     fetchProfileData();
   }, [fetchProfileData]);
 
+  // 최근 20게임 기준 통계 계산 (Hooks 규칙: 조건문/early return 전에 호출)
+  const recentStats = useMemo(
+    () => calculateRecentStats(matchHistory),
+    [matchHistory],
+  );
+
   if (loading) {
     return (
-      <div className="bg-background-dark min-h-screen p-4 text-white md:p-10 flex items-center justify-center">
+      <div className="bg-background-dark flex min-h-screen items-center justify-center p-4 text-white md:p-10">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-t-2 border-b-2"></div>
           <p className="text-gray-400">프로필을 불러오는 중...</p>
         </div>
       </div>
     );
   }
 
-  // 프로필 데이터가 없으면 기본값 사용 (백엔드 stats 데이터 신뢰)
+  // 프로필 데이터가 없으면 기본값 사용
   const displayData = profileData || {
     memberId: null,
     username: "-",
@@ -132,7 +179,7 @@ export default function ProfilePage() {
             <p className="text-sm text-red-400">{error}</p>
             <button
               onClick={fetchProfileData}
-              className="ml-4 rounded bg-red-500/20 px-3 py-1 text-xs font-bold text-red-400 hover:bg-red-500/30 transition-colors"
+              className="ml-4 rounded bg-red-500/20 px-3 py-1 text-xs font-bold text-red-400 transition-colors hover:bg-red-500/30"
             >
               다시 시도
             </button>
@@ -151,31 +198,34 @@ export default function ProfilePage() {
         <div className="mb-12">
           <MyProfile
             data={displayData}
+            recentStats={recentStats}
             onProfileUpdate={profileData ? handleProfileUpdate : null}
             onRefreshMatches={profileData ? handleRefreshMatches : null}
           />
         </div>
 
         {/* 하단 섹션: 좌우 분할 (최근 전적 / 참가 대회) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           {/* 왼쪽: 최근 전적 */}
           <div>
-            <h2 className="text-xl font-bold text-white mb-4">최근 전적</h2>
+            <div className="mb-4 flex items-baseline gap-2">
+              <h2 className="text-xl font-bold text-white">최근 전적</h2>
+              <span className="text-xs font-normal text-gray-500">
+                최근 개인/2인 랭크 및 자유 랭크 20게임 전적입니다.
+              </span>
+            </div>
             <RecentMatches matches={matchHistory} />
           </div>
 
           {/* 오른쪽: 참가한 대회 */}
-          <div className="flex flex-col h-full">
-            <h2 className="text-xl font-bold text-white mb-4">참가한 대회</h2>
+          <div className="flex h-full flex-col">
+            <h2 className="mb-4 text-xl font-bold text-white">참가한 대회</h2>
             <div className="flex-1">
-              <ParticipatingTournaments
-                tournaments={participatingDrafts}
-              />
+              <ParticipatingTournaments tournaments={participatingDrafts} />
             </div>
           </div>
         </div>
       </div>
-
     </div>
   );
 }

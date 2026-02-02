@@ -5,6 +5,16 @@
  */
 
 import { formatRelativeTime } from '../utils/dateFormatter';
+import {
+  UI_DRAFT_STATUS,
+  STATUS_API_TO_UI,
+  STATUS_LABELS,
+  FILTER_STATUS,
+  UI_FILTER_TO_API_STATUS,
+} from '../constants/draft';
+
+// Re-export constants for backward compatibility
+export { STATUS_LABELS, FILTER_STATUS, UI_FILTER_TO_API_STATUS };
 
 // 기본 썸네일 이미지 (Riot CDN - LoL 고퀄리티 배경)
 const DEFAULT_THUMBNAILS = [
@@ -43,57 +53,6 @@ const getDeterministicThumbnail = (apiUrl, draftId) => {
   const numericId = typeof draftId === 'number' ? draftId : parseInt(draftId, 10) || 0;
   const index = Math.abs(numericId) % DEFAULT_THUMBNAILS.length;
   return DEFAULT_THUMBNAILS[index];
-};
-
-// API 상태값 → UI 상태값 매핑 (TournamentCard/StatusBadge 호환)
-const STATUS_MAP = {
-  LOBBY: 'recruiting',
-  RECRUITING: 'recruiting',
-  IN_PROGRESS: 'in-progress',
-  IN_DRAFT: 'in-progress', // Swagger 스펙: IN_DRAFT
-  AUCTION: 'in-progress',
-  SCHEDULED: 'scheduled',
-  COMPLETED: 'completed',
-  CANCELLED: 'completed',
-};
-
-// 상태별 한글 라벨
-export const STATUS_LABELS = {
-  recruiting: '모집중',
-  'in-progress': '진행중',
-  scheduled: '예정',
-  completed: '완료',
-};
-
-// 필터 탭용 상태 상수 (UI용)
-export const FILTER_STATUS = {
-  ALL: 'all',
-  RECRUITING: 'recruiting',
-  IN_PROGRESS: 'in-progress',
-  MY: 'my',
-};
-
-// UI 필터값 → API status 파라미터 변환
-export const UI_FILTER_TO_API_STATUS = {
-  all: 'ALL',
-  recruiting: 'LOBBY',
-  'in-progress': 'IN_DRAFT',
-};
-
-/**
- * 해시 기반 랜덤 인덱스 생성 (일관된 결과를 위해)
- * @param {string|number} seed
- * @param {number} max
- * @returns {number}
- */
-const getHashIndex = (seed, max) => {
-  const str = String(seed);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash) % max;
 };
 
 /**
@@ -141,7 +100,7 @@ export const adaptDraft = (raw) => {
 
   // 상태값 정규화 (UI 컴포넌트 호환 형식: lowercase + hyphen)
   const rawStatus = (raw.status || 'LOBBY').toUpperCase();
-  const status = STATUS_MAP[rawStatus] || 'recruiting';
+  const status = STATUS_API_TO_UI[rawStatus] || UI_DRAFT_STATUS.RECRUITING;
 
   // 참가자 수 계산
   const currentParticipants =

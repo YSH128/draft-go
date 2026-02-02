@@ -54,7 +54,6 @@ function MatchCard({ match }) {
   const kdaRatio = match.kda?.toFixed(2) || match.kdaRatio || "-";
 
   // 게임 정보
-  const gameType = match.gameMode || match.gameType || "-";
   const gameDate = match.gameCreation
     ? formatRelativeTime(match.gameCreation)
     : match.gameDate || "-";
@@ -74,16 +73,12 @@ function MatchCard({ match }) {
         isWin ? "border-blue-500 bg-[#28344e]" : "border-red-500 bg-[#59343b]"
       }`}
     >
-      {/* 1. 게임 정보 (좌측) */}
-      <div className="w-[100px] shrink-0 flex flex-col items-center justify-center px-2 border-r border-white/5">
-        <div className="text-[11px] font-medium text-gray-300 whitespace-nowrap mb-1 truncate max-w-[90px]">
-          {gameType}
-        </div>
-        <div className="text-[10px] text-gray-500 mb-1">{gameDate}</div>
-        <div className="w-6 h-[1px] bg-gray-600/50 my-1" />
-        <div className={`text-sm font-bold ${isWin ? "text-blue-400" : "text-red-400"}`}>
+      {/* 1. 게임 정보 (좌측) - 승패/일자/시간 */}
+      <div className="w-[90px] shrink-0 flex flex-col items-center justify-center gap-1 px-3 border-r border-white/5">
+        <div className={`text-base font-bold ${isWin ? "text-blue-400" : "text-red-400"}`}>
           {isWin ? "승리" : "패배"}
         </div>
+        <div className="text-[10px] text-gray-500">{gameDate}</div>
         <div className="text-[10px] text-gray-500">{gameDuration}</div>
       </div>
 
