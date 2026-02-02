@@ -138,19 +138,31 @@ export default function DraftLobby() {
   // 서버 데이터 가져오기 (실시간 동기화)
   const { data: rawData, isLoading, isFetching, isError } = useLobbyData(draftId);
 
-  // DEBUG: Check raw data structure
-  useEffect(() => {
-    if (rawData) console.log('🔍 [DraftLobby] RAW DATA:', rawData);
-  }, [rawData]);
   
-  // WebSocket 연결 및 이벤트 리스닝
   // WebSocket 연결 및 이벤트 리스닝
   const handleLobbyEnded = useCallback(() => {
       console.warn('Draft deleted by host. Showing alert.');
       setIsLobbyClosedAlertOpen(true);
   }, []);
 
-  useLobbySocket(draftId, handleLobbyEnded);
+  // 채팅 메시지 수신 핸들러
+  const handleChatMessage = useCallback((message) => {
+    setMessages((prev) => {
+      const newMsg = {
+        id: Date.now(),
+        sender: message.senderNickname || "알 수 없음",
+        message: message.content,
+        variant: message.senderId === user?.id ? "me" : "other",
+        timestamp: message.timestamp
+          ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: message.type,
+      };
+      return [...prev, newMsg];
+    });
+  }, [user?.id]);
+
+  const { sendChatMessage } = useLobbySocket(draftId, handleLobbyEnded, handleChatMessage);
   
   // ========== Local State (UI only) ==========
   const [isEditDraftModalOpen, setIsEditDraftModalOpen] = useState(false);
@@ -1118,13 +1130,13 @@ export default function DraftLobby() {
         }
     };
 
-  // Chat Handler
-  const handleSendMessage = (text) => {
-    if (!text.trim()) return;
-    const now = new Date();
-    const timestamp = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setMessages(prev => [...prev, { id: Date.now(), sender: "나 (Me)", message: text, variant: "me", timestamp }]);
-  };
+  // Chat Handler - WebSocket으로 전송
+  const handleSendMessage = useCallback((text) => {
+    if (!text.trim()) {
+      return;
+    }
+    sendChatMessage(text.trim());
+  }, [sendChatMessage]);
 
   // ========== Loading & Error States ==========
   if (isLoading) {

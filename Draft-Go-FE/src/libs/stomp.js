@@ -1,4 +1,5 @@
 import SockJS from "sockjs-client";
+import useAuthStore from "../stores/useAuthStore";
 
 const OPEN_STATE = typeof WebSocket !== "undefined" ? WebSocket.OPEN : 1;
 
@@ -67,10 +68,22 @@ export const createStompClient = ({ url, onConnect, onError }) => {
   };
 
   addListener(socket, "open", () => {
-    sendFrame("CONNECT", {
+    // JWT 토큰 가져오기 (axios.js와 동일한 패턴)
+    const { accessToken } = useAuthStore.getState();
+    const headers = {
       "accept-version": "1.2",
       "heart-beat": "0,0",
-    });
+    };
+
+    // Authorization 헤더 추가 (토큰이 있을 경우에만)
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+      console.log("[STOMP] Connecting with JWT token");
+    } else {
+      console.warn("[STOMP] Connecting without JWT token - chat may not work");
+    }
+
+    sendFrame("CONNECT", headers);
   });
 
   addListener(socket, "message", (event) => {
@@ -117,7 +130,24 @@ export const createStompClient = ({ url, onConnect, onError }) => {
     subscriptions.clear();
   };
 
-  return { subscribe, unsubscribe, disconnect };
+  const send = (destination, headers = {}, body = "") => {
+    if (!connected) {
+      return false;
+    }
+    if (socket.readyState !== OPEN_STATE) {
+      return false;
+    }
+    try {
+      const payload = typeof body === "string" ? body : JSON.stringify(body);
+      sendFrame("SEND", { destination, ...headers }, payload);
+      return true;
+    } catch (error) {
+      console.error("[STOMP] Send error:", error);
+      return false;
+    }
+  };
+
+  return { subscribe, unsubscribe, disconnect, send };
 };
 
 export const buildWsUrl = (baseUrl) => {

@@ -8,16 +8,32 @@ import ChatMessage from "./ChatMessage";
  * @param {Array} messages - 채팅 메시지 목록
  * @param {number} viewerCount - 시청자 수
  * @param {Function} onSendMessage - 메시지 전송 핸들러
+ * @param {number} myMemberId - 현재 로그인 사용자 ID
  */
-export default function ChatSidebar({ messages = [], viewerCount = 0, onSendMessage }) {
+export default function ChatSidebar({ messages = [], viewerCount = 0, onSendMessage, myMemberId }) {
   const [inputValue, setInputValue] = useState("");
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const sendMessage = () => {
     if (inputValue.trim() && onSendMessage) {
       onSendMessage(inputValue.trim());
       setInputValue("");
     }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    sendMessage();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  const handleButtonClick = () => {
+    sendMessage();
   };
 
   const formatViewerCount = (count) => {
@@ -48,7 +64,7 @@ export default function ChatSidebar({ messages = [], viewerCount = 0, onSendMess
       {/* 메시지 목록 */}
       <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">
         {messages.map((message, index) => (
-          <ChatMessage key={index} message={message} />
+          <ChatMessage key={index} message={message} myMemberId={myMemberId} />
         ))}
       </div>
 
@@ -59,11 +75,13 @@ export default function ChatSidebar({ messages = [], viewerCount = 0, onSendMess
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="메시지 보내기..."
             className="w-full rounded border border-primary/30 bg-white/5 px-4 py-2.5 text-xs text-white placeholder-primary/20 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
           <button
-            type="submit"
+            type="button"
+            onClick={handleButtonClick}
             className="absolute right-2 top-2 text-primary transition-colors hover:text-hextech-gold-bright"
           >
             <Icon name="send" className="text-lg" />

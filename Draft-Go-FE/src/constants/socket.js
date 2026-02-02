@@ -17,3 +17,15 @@ export const LOBBY_SOCKET_EVENTS = {
 
 // Topic Path Constructor
 export const getLobbyTopic = (draftId) => `/topic/lobby/${draftId}`;
+
+// Chat Message Types
+export const CHAT_MESSAGE_TYPES = {
+  CHAT: "CHAT",
+  JOIN: "JOIN",
+  LEAVE: "LEAVE",
+  SYSTEM: "SYSTEM",
+};
+
+// Chat Topic Generator Functions
+export const getChatTopic = (draftId) => `/topic/chat/${draftId}`;
+export const getChatPublishPath = (draftId) => `/app/chat/${draftId}`;
