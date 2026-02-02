@@ -2,17 +2,29 @@
 <configuration>
     <include resource="org/springframework/boot/logging/logback/base.xml"/>
 
+    <!-- 타임스탬프 패턴을 Asia/Seoul 타임존으로 설정 -->
+    <timestamp key="byDate" datePattern="yyyy-MM-dd HH:mm:ss" timeZone="Asia/Seoul"/>
+
+    <!-- 콘솔 출력 패턴 -->
+    <property name="CONSOLE_LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS, Asia/Seoul} [%thread] %-5level %logger{36} - %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
     <!-- Logback internal 경고 메시지 숨김 (ERROR만 표시) -->
     <statusListener class="ch.qos.logback.core.status.OnErrorConsoleStatusListener" />
 
     <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
         <destination>localhost:5000</destination>
-        
+
         <!-- 재연결 설정: 서버 재배포 후 자동 재연결 -->
         <reconnectionDelay>10 second</reconnectionDelay>
         <connectionTimeout>5 second</connectionTimeout>
         <keepAliveDuration>5 minutes</keepAliveDuration>
-        
+
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <includeCallerData>false</includeCallerData>
         </encoder>

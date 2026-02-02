@@ -19,14 +19,19 @@ import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
 import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
+import kr.draftgo.Draft_Go_BE.match.dto.MostChampionRes;
+import kr.draftgo.Draft_Go_BE.match.repository.MostChampionStatRepository;
+import kr.draftgo.Draft_Go_BE.match.service.DataDragonService;
+import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
+import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import kr.draftgo.Draft_Go_BE.member.service.MemberStatService;
-import kr.draftgo.Draft_Go_BE.member.service.SeasonService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,7 +46,10 @@ import java.util.stream.Collectors;
 public class LobbyService {
 
     private final DraftRepository draftRepository;
+    private final MemberRepository memberRepository;
     private final MemberStatService memberStatService;
+    private final MostChampionStatRepository mostChampionStatRepository;
+    private final DataDragonService dataDragonService;
     private final RedisLobbyRepository lobbyRedisRepository;
     private final LobbyWebSocketService lobbyWebSocketService;
     private final DraftInitializationService draftInitializationService;
@@ -66,11 +74,43 @@ public class LobbyService {
         // N+1 문제 방지: 한 번에 모든 MemberStat 조회 (활성 시즌 기준)
         var memberStatMap = memberStatService.getMemberStatsForCurrentSeason(memberIds);
 
+        // 팀장의 Member 정보 조회 (프로필 아이콘용)
+        List<Long> leaderIds = participants.stream()
+                .filter(p -> "LEADER".equals(p.getRole()))
+                .map(LobbyParticipant::getMemberId)
+                .collect(Collectors.toList());
+
+        Map<Long, Member> leaderMemberMap = memberRepository.findAllById(leaderIds).stream()
+                .collect(Collectors.toMap(Member::getId, m -> m));
+
+        // 팀장의 모스트 챔피언 정보 조회
+        Map<Long, List<MostChampionRes>> leaderMostChampionsMap = leaderIds.stream()
+                .collect(Collectors.toMap(
+                        memberId -> memberId,
+                        memberId -> mostChampionStatRepository.findByMemberId(memberId)
+                                .map(mostStat -> mostStat.getMostChampions().stream()
+                                        .map(MostChampionRes::from)
+                                        .collect(Collectors.toList()))
+                                .orElse(Collections.emptyList())
+                ));
+
         // Leaders: role이 "LEADER"인 참가자
         List<LeaderDetail> leaders = participants.stream()
                 .filter(p -> "LEADER".equals(p.getRole()))
                 .map(p -> {
                     MemberStat stat = memberStatMap.get(p.getMemberId());
+                    Member member = leaderMemberMap.get(p.getMemberId());
+
+                    // 프로필 아이콘 URL 생성
+                    String profileIconUrl = null;
+                    if (member != null && member.getProfileIconId() != null) {
+                        profileIconUrl = dataDragonService.getProfileIconUrl(member.getProfileIconId());
+                    }
+
+                    // 모스트 챔피언 정보
+                    List<MostChampionRes> mostChampions = leaderMostChampionsMap.getOrDefault(
+                            p.getMemberId(), Collections.emptyList());
+
                     return LeaderDetail.builder()
                             .id(p.getMemberId())
                             .name(p.getGameName())
@@ -80,6 +120,8 @@ public class LobbyService {
                             .division(stat != null ? stat.getDivision() : null)
                             .leaguePoints(stat != null ? stat.getLeaguePoint() : null)
                             .leaderPoint(p.getLeaderPoint())
+                            .profileIconUrl(profileIconUrl)
+                            .mostChampions(mostChampions)
                             .build();
                 })
                 .collect(Collectors.toList());

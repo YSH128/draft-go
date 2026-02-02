@@ -29,6 +29,8 @@ services:
       MYSQL_DATABASE: draft_go_db
       MYSQL_CHARACTER_SET_SERVER: utf8mb4
       MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+      TZ: Asia/Seoul
+    command: --default-time-zone=+09:00
     ports:
       - "3306:3306"
     volumes:

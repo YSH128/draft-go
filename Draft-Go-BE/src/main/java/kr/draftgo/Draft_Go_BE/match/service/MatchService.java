@@ -1,5 +1,12 @@
 package kr.draftgo.Draft_Go_BE.match.service;
 
+import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
+import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
+import kr.draftgo.Draft_Go_BE.draft.lobby.dto.LobbyParticipant;
+import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
+import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
+import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyWebSocketService;
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import kr.draftgo.Draft_Go_BE.match.domain.MostChampionStat;
 import kr.draftgo.Draft_Go_BE.match.domain.MostChampionStat.MostChampion;
@@ -46,6 +53,9 @@ public class MatchService {
     private final StringRedisTemplate redisTemplate;
     private final DataDragonService dataDragonService;
     private final kr.draftgo.Draft_Go_BE.member.service.SeasonService seasonService;
+    private final DraftRepository draftRepository;
+    private final RedisLobbyRepository redisLobbyRepository;
+    private final LobbyWebSocketService lobbyWebSocketService;
 
     @Transactional(readOnly = true)
     public List<MatchDetailRes> getMatchHistory(Long memberId, Pageable pageable) {
@@ -137,6 +147,9 @@ public class MatchService {
             updateMemberStats(member.getId());
             updateMostChampions(member); // Feature: Most Champion Calculation
 
+            // Notify lobby if participating
+            notifyLobbyIfParticipating(member.getId());
+
             return "전적 갱신이 완료되었습니다.";
 
         } catch (Exception e) {
@@ -145,6 +158,33 @@ public class MatchService {
         } finally {
             // 6. Release Lock
             redisTemplate.delete(lockKey);
+        }
+    }
+
+    /**
+     * 회원이 로비에 참여 중이면 해당 로비에 회원 정보 갱신 이벤트 발행
+     */
+    private void notifyLobbyIfParticipating(Long memberId) {
+        try {
+            // 1. 회원이 참여 중인 LOBBY 상태의 드래프트 찾기
+            List<Draft> lobbyDrafts = draftRepository.findAll().stream()
+                    .filter(draft -> draft.getStatus() == DraftStatus.LOBBY)
+                    .collect(Collectors.toList());
+
+            // 2. 각 로비에서 해당 회원이 참여 중인지 확인
+            for (Draft draft : lobbyDrafts) {
+                List<LobbyParticipant> participants = redisLobbyRepository.getParticipants(draft.getId());
+                boolean isParticipating = participants.stream()
+                        .anyMatch(p -> p.getMemberId().equals(memberId));
+
+                if (isParticipating) {
+                    log.info("회원 {}의 정보 갱신 완료. 로비 {}에 이벤트 발행", memberId, draft.getId());
+                    lobbyWebSocketService.broadcastLobbyUpdate(draft.getId(), LobbyEventType.MEMBER_INFO_UPDATED);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("로비 이벤트 발행 실패 (회원 정보 갱신): {}", e.getMessage());
+            // 이벤트 발행 실패해도 전적 갱신 자체는 성공으로 간주
         }
     }
 

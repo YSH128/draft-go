@@ -31,6 +31,9 @@ public class RedisConfig {
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .build();
 
+        // 타임존을 Asia/Seoul로 설정
+        mapper.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+
         // Use field names directly instead of getter/setter inference
         // This fixes the "isReady" -> "ready" issue with boolean fields
         mapper.setVisibility(com.fasterxml.jackson.annotation.PropertyAccessor.ALL,

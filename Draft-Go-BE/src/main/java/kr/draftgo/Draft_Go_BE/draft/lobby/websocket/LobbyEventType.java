@@ -52,5 +52,10 @@ public enum LobbyEventType {
     /**
      * 전체 로비 새로고침 필요 (버전 불일치 시)
      */
-    REFRESH_REQUIRED
+    REFRESH_REQUIRED,
+
+    /**
+     * 회원 정보 갱신 완료 (티어, 통계, 모스트 챔피언 등)
+     */
+    MEMBER_INFO_UPDATED
 }
