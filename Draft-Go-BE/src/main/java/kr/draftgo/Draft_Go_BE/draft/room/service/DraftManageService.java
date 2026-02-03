@@ -5,9 +5,9 @@ import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.LobbyParticipant;
+import kr.draftgo.Draft_Go_BE.draft.lobby.event.LobbyUpdateEvent;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
-import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyWebSocketService;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateReq;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomCreateRes;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.UpdateDraftInfoReq;
@@ -16,6 +16,7 @@ import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +30,7 @@ public class DraftManageService {
 
     private final DraftRepository draftRepository;
     private final RedisLobbyRepository lobbyRedisRepository;
-    private final LobbyWebSocketService lobbyWebSocketService;
+    private final ApplicationEventPublisher eventPublisher;
     private final ChatWebSocketController chatWebSocketController;
 
     /**
@@ -186,8 +187,8 @@ public class DraftManageService {
      * 드래프트 정보 변경 알림
      */
     private void notifyDraftInfoChanged(Long draftId, String changedFieldsMessage) {
-        // WebSocket 브로드캐스트 - 드래프트 정보 변경 알림
-        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.REFRESH_REQUIRED);
+        // WebSocket 브로드캐스트 - 드래프트 정보 변경 알림 (트랜잭션 커밋 후)
+        eventPublisher.publishEvent(new LobbyUpdateEvent(draftId, LobbyEventType.REFRESH_REQUIRED));
 
         // 채팅 시스템 메시지 - 변경된 정보 상세 표시
         if (!changedFieldsMessage.isEmpty()) {

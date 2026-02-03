@@ -3,9 +3,9 @@ package kr.draftgo.Draft_Go_BE.draft.room.service;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.LobbyParticipant;
+import kr.draftgo.Draft_Go_BE.draft.lobby.event.LobbyUpdateEvent;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
-import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyWebSocketService;
 import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.room.dto.RoomJoinReq;
@@ -14,6 +14,7 @@ import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +30,7 @@ public class DraftJoinService {
 
     private final DraftRepository draftRepository;
     private final RedisLobbyRepository lobbyRedisRepository;
-    private final LobbyWebSocketService lobbyWebSocketService;
+    private final ApplicationEventPublisher eventPublisher;
     private final ChatWebSocketController chatWebSocketController;
 
     /**
@@ -131,8 +132,8 @@ public class DraftJoinService {
 
         lobbyRedisRepository.join(draftId, participant);
 
-        // WebSocket 브로드캐스트
-        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.PARTICIPANT_JOINED);
+        // WebSocket 브로드캐스트 (트랜잭션 커밋 후)
+        eventPublisher.publishEvent(new LobbyUpdateEvent(draftId, LobbyEventType.PARTICIPANT_JOINED));
 
         // 채팅 입장 알림
         chatWebSocketController.sendJoinMessage(draftId, member.getNickname());

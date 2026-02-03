@@ -27,6 +27,7 @@ export default function AuctionSection({
         <AuctionStage
           player={player}
           currentBid={currentBid}
+          hasCurrentBid={hasCurrentBid}
           minBidPrice={minBidPrice}
           timeLeft={timeLeft}
         />

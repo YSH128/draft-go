@@ -5,9 +5,9 @@ import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.LobbyParticipant;
+import kr.draftgo.Draft_Go_BE.draft.lobby.event.LobbyUpdateEvent;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
-import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyWebSocketService;
 import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
 import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
@@ -15,6 +15,7 @@ import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +33,7 @@ public class AdminService {
     private final MemberRepository memberRepository;
     private final DraftRepository draftRepository;
     private final RedisLobbyRepository lobbyRedisRepository;
-    private final LobbyWebSocketService lobbyWebSocketService;
+    private final ApplicationEventPublisher eventPublisher;
     private final ChatWebSocketController chatWebSocketController;
 
     /**
@@ -105,9 +106,9 @@ public class AdminService {
             log.info("Added member {} to draft {} with position {}", username, draftId, position);
         }
 
-        // WebSocket 브로드캐스트 - 로비 업데이트
+        // WebSocket 브로드캐스트 - 로비 업데이트 (트랜잭션 커밋 후)
         if (!addedMembers.isEmpty()) {
-            lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.PARTICIPANT_JOINED);
+            eventPublisher.publishEvent(new LobbyUpdateEvent(draftId, LobbyEventType.PARTICIPANT_JOINED));
 
             // 채팅 시스템 메시지
             chatWebSocketController.sendSystemMessage(draftId,
@@ -160,9 +161,9 @@ public class AdminService {
             }
         }
 
-        // WebSocket 브로드캐스트
+        // WebSocket 브로드캐스트 (트랜잭션 커밋 후)
         if (readyCount > 0) {
-            lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.READY_STATUS_CHANGED);
+            eventPublisher.publishEvent(new LobbyUpdateEvent(draftId, LobbyEventType.READY_STATUS_CHANGED));
 
             // 채팅 시스템 메시지
             chatWebSocketController.sendSystemMessage(draftId,

@@ -163,7 +163,17 @@ export default function DraftPage() {
 
   // 최소 입찰가 (currentState에서 직접 추출)
   const minBidPrice = useMemo(() => {
-    return currentState?.minBidPrice ?? 0;
+    if (!currentState) return 0;
+
+    const minPrice = currentState.minBidPrice;
+
+    // minBidPrice는 서버에서 항상 제공되어야 함 (null이면 에러)
+    if (minPrice === null || minPrice === undefined) {
+      console.error("❌ minBidPrice가 null입니다. 서버 응답 확인 필요:", currentState);
+      return 0;
+    }
+
+    return minPrice;
   }, [currentState]);
 
   // 현재 선수의 포지션이 내 팀에 이미 있는지 확인
@@ -175,6 +185,7 @@ export default function DraftPage() {
 
   // 초기 데이터 또는 수동 새로고침 시 상태 적용
   const applyInitialData = useCallback((data) => {
+    console.log("초기 데이터 수신:", data);
     setCurrentState(data.currentRound);
     setCurrentBid(data.currentBid);
     setTimeLeft(data.remainingSeconds ?? ROUND_SECONDS);
@@ -246,7 +257,8 @@ export default function DraftPage() {
       switch (event.type) {
         case "ROUND_START":
           // 새로운 라운드 시작 (RoundStartEventDto)
-          setCurrentState(event.data);
+          console.log("라운드 시작 이벤트 수신:", event.data);
+          setCurrentState(event.data.roundStatus);
           setCurrentBid(null);
           setActiveTeamId(null);
           setTimeLeft(ROUND_SECONDS);
@@ -254,6 +266,7 @@ export default function DraftPage() {
 
         case "BID":
           // 입찰 발생 (BidEventDto)
+          console.log("입찰 이벤트 수신:", event.data);
           setCurrentBid({ teamId: event.data.teamId, price: event.data.price });
           setActiveTeamId(String(event.data.teamId));
           if (typeof event.data.remainingSeconds === "number") {
@@ -264,6 +277,7 @@ export default function DraftPage() {
         case "ROUND_ENDED":
           // 라운드 종료 (RoundEndedEventDto)
           // isSuccessful: 낙찰 여부, teamId/price: 낙찰 정보 (유찰 시 null)
+          console.log("라운드 종료 이벤트 수신:", event.data);
           setCurrentState(null);
           setCurrentBid(null);
           setActiveTeamId(null);

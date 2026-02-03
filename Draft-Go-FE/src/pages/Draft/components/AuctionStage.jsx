@@ -5,7 +5,7 @@ import TimerCircle from "./TimerCircle";
  * 경매 스테이지
  * - 현재 경매 중인 선수 정보를 표시
  */
-export default function AuctionStage({ player, currentBid, minBidPrice = 0, timeLeft }) {
+export default function AuctionStage({ player, currentBid, hasCurrentBid = false, minBidPrice = 0, timeLeft }) {
   if (!player) return null;
 
   const { name, imageUrl, tier, division, positions = [], mainPosition, subPosition, mostChampions = [] } = player;
@@ -126,12 +126,22 @@ export default function AuctionStage({ player, currentBid, minBidPrice = 0, time
             <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-primary/60">
               현재 입찰가
             </p>
-            <div className="flex items-baseline gap-1.5">
-              <span className="gold-gradient-text text-5xl font-black leading-none tracking-tighter drop-shadow-[0_0_10px_rgba(200,155,60,0.3)]">
-                {currentBid}
-              </span>
-              <span className="text-lg font-bold uppercase text-primary/60">P</span>
-            </div>
+
+            {/* 입찰가 있음/없음 구분 */}
+            {hasCurrentBid ? (
+              <div className="flex items-baseline gap-1.5">
+                <span className="gold-gradient-text text-5xl font-black leading-none tracking-tighter drop-shadow-[0_0_10px_rgba(200,155,60,0.3)]">
+                  {currentBid}
+                </span>
+                <span className="text-lg font-bold uppercase text-primary/60">P</span>
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-bold italic text-primary/40">
+                  입찰 없음
+                </span>
+              </div>
+            )}
 
             {/* 최소 입찰가 표시 */}
             {minBidPrice > 0 && (

@@ -4,9 +4,9 @@ import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.LobbyParticipant;
+import kr.draftgo.Draft_Go_BE.draft.lobby.event.LobbyUpdateEvent;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
-import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyWebSocketService;
 import kr.draftgo.Draft_Go_BE.match.domain.MatchDocument;
 import kr.draftgo.Draft_Go_BE.match.domain.MostChampionStat;
 import kr.draftgo.Draft_Go_BE.match.domain.MostChampionStat.MostChampion;
@@ -25,6 +25,7 @@ import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -55,7 +56,7 @@ public class MatchService {
     private final kr.draftgo.Draft_Go_BE.member.service.SeasonService seasonService;
     private final DraftRepository draftRepository;
     private final RedisLobbyRepository redisLobbyRepository;
-    private final LobbyWebSocketService lobbyWebSocketService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public List<MatchDetailRes> getMatchHistory(Long memberId, Pageable pageable) {
@@ -179,7 +180,7 @@ public class MatchService {
 
                 if (isParticipating) {
                     log.info("회원 {}의 정보 갱신 완료. 로비 {}에 이벤트 발행", memberId, draft.getId());
-                    lobbyWebSocketService.broadcastLobbyUpdate(draft.getId(), LobbyEventType.MEMBER_INFO_UPDATED);
+                    eventPublisher.publishEvent(new LobbyUpdateEvent(draft.getId(), LobbyEventType.MEMBER_INFO_UPDATED));
                 }
             }
         } catch (Exception e) {

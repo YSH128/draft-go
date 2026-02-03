@@ -3,14 +3,15 @@ package kr.draftgo.Draft_Go_BE.draft.auction.service;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.BidReq;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
+import kr.draftgo.Draft_Go_BE.draft.auction.event.AuctionWebSocketEvent;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.AuctionKey;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.BidLuaExecutor;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
-import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
 import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
 import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,7 +20,7 @@ public class BidService {
 
     private final BidLuaExecutor luaExecutor;
     private final RedisAuctionRepository redisRepo;
-    private final AuctionEventPublisher publisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     public void placeBid(Long draftId, Member member, BidReq req) {
 
@@ -107,7 +108,10 @@ public class BidService {
         // 7. 입찰 후 남은 시간 조회 (타이머가 10초로 리셋되었을 수 있음)
         Integer remainingSeconds = redisRepo.getRemainingSeconds(draftId);
 
-        // 8. WebSocket으로 입찰 이벤트 발행
-        publisher.bidUpdated(draftId, req.teamId(), req.price(), remainingSeconds);
+        // 8. WebSocket으로 입찰 이벤트 발행 (트랜잭션 커밋 후)
+        // 참고: BidService는 @Transactional이 아니지만, 이벤트는 즉시 발행됨
+        // 만약 트랜잭션 내에서 호출된다면 커밋 후 발행됨
+        eventPublisher.publishEvent(new AuctionWebSocketEvent.BidEvent(
+                draftId, req.teamId(), req.price(), remainingSeconds));
     }
 }

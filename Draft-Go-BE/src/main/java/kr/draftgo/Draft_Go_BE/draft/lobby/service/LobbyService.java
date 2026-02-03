@@ -13,9 +13,9 @@ import kr.draftgo.Draft_Go_BE.draft.lobby.dto.request.ReadyToggleReq;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.response.LobbyInfoRes;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.response.UserSummary;
 import kr.draftgo.Draft_Go_BE.draft.lobby.event.DraftStartedEvent;
+import kr.draftgo.Draft_Go_BE.draft.lobby.event.LobbyUpdateEvent;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
-import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyWebSocketService;
 import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
@@ -53,7 +53,6 @@ public class LobbyService {
     private final MostChampionStatRepository mostChampionStatRepository;
     private final DataDragonService dataDragonService;
     private final RedisLobbyRepository lobbyRedisRepository;
-    private final LobbyWebSocketService lobbyWebSocketService;
     private final DraftInitializationService draftInitializationService;
     private final ChatWebSocketController chatWebSocketController;
     private final RoundStartService roundStartService;
@@ -241,8 +240,8 @@ public class LobbyService {
 
         lobbyRedisRepository.changeRole(draftId, req.getTargetUserId(), req.getRole());
 
-        // WebSocket 브로드캐스트
-        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.ROLE_CHANGED);
+        // WebSocket 브로드캐스트 (트랜잭션 커밋 후)
+        eventPublisher.publishEvent(new LobbyUpdateEvent(draftId, LobbyEventType.ROLE_CHANGED));
     }
 
     /**
@@ -266,8 +265,8 @@ public class LobbyService {
 
         lobbyRedisRepository.changePosition(draftId, req.getTargetUserId(), req.getPosition());
 
-        // WebSocket 브로드캐스트
-        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.POSITION_CHANGED);
+        // WebSocket 브로드캐스트 (트랜잭션 커밋 후)
+        eventPublisher.publishEvent(new LobbyUpdateEvent(draftId, LobbyEventType.POSITION_CHANGED));
     }
 
     /**
@@ -299,8 +298,8 @@ public class LobbyService {
 
         lobbyRedisRepository.removeParticipant(draftId, targetUserId);
 
-        // WebSocket 브로드캐스트
-        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.PARTICIPANT_LEFT);
+        // WebSocket 브로드캐스트 (트랜잭션 커밋 후)
+        eventPublisher.publishEvent(new LobbyUpdateEvent(draftId, LobbyEventType.PARTICIPANT_LEFT));
 
         // 채팅 퇴장 알림
         chatWebSocketController.sendLeaveMessage(draftId, nickname);
@@ -321,8 +320,8 @@ public class LobbyService {
 
         lobbyRedisRepository.setLeaderPoint(draftId, leaderId, point);
 
-        // WebSocket 브로드캐스트
-        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.LEADER_POINT_CHANGED);
+        // WebSocket 브로드캐스트 (트랜잭션 커밋 후)
+        eventPublisher.publishEvent(new LobbyUpdateEvent(draftId, LobbyEventType.LEADER_POINT_CHANGED));
     }
 
     /**
@@ -349,8 +348,8 @@ public class LobbyService {
 
         draftRepository.save(draft);
 
-        // WebSocket 브로드캐스트
-        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.INVITE_CODE_REFRESHED);
+        // WebSocket 브로드캐스트 (트랜잭션 커밋 후)
+        eventPublisher.publishEvent(new LobbyUpdateEvent(draftId, LobbyEventType.INVITE_CODE_REFRESHED));
     }
 
     /**
@@ -373,8 +372,8 @@ public class LobbyService {
 
         lobbyRedisRepository.toggleReady(draftId, leaderId, req.getIsReady());
 
-        // WebSocket 브로드캐스트
-        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.READY_STATUS_CHANGED);
+        // WebSocket 브로드캐스트 (트랜잭션 커밋 후)
+        eventPublisher.publishEvent(new LobbyUpdateEvent(draftId, LobbyEventType.READY_STATUS_CHANGED));
     }
 
     /**
@@ -496,8 +495,8 @@ public class LobbyService {
             throw new CustomException(ErrorType.DRAFT_NOT_IN_LOBBY, "로비 상태에서만 방을 폭파할 수 있습니다.");
         }
 
-        // WebSocket으로 방 폭파 알림 (먼저 전송)
-        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.DRAFT_DESTROYED);
+        // WebSocket으로 방 폭파 알림 (트랜잭션 커밋 후)
+        eventPublisher.publishEvent(new LobbyUpdateEvent(draftId, LobbyEventType.DRAFT_DESTROYED));
 
         // 채팅으로 방 폭파 알림
         chatWebSocketController.sendSystemMessage(draftId, "관리자가 방을 폭파했습니다. 모든 참가자가 퇴장되었습니다.");

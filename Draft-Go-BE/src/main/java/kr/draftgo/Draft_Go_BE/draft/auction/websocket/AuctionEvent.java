@@ -21,20 +21,11 @@ public class AuctionEvent {
     public static AuctionEvent roundStart(RoundStatus status) {
         return AuctionEvent.builder()
                 .type(AuctionEventType.ROUND_START)
-                .data(RoundStartEventDto.builder()
-                        .draftId(status.getDraftId())
-                        .draftMemberId(status.getDraftMemberId())
-                        .playerName(status.getPlayerName())
-                        .playerProfileImageUrl(status.getPlayerProfileImageUrl())
-                        .tier(status.getTier())
-                        .division(status.getDivision())
-                        .position(status.getPosition())
-                        .mainPosition(status.getMainPosition())
-                        .subPosition(status.getSubPosition())
-                        .mostChampions(status.getMostChampions())
-                        .turnOrder(status.getTurnOrder())
-                        .currentMemberStatus(status.getCurrentMemberStatus())
-                        .build())
+                .data(
+                        RoundStartEventDto.builder()
+                                .roundStatus(status)
+                                .build()
+                )
                 .build();
     }
 

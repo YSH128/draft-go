@@ -4,14 +4,10 @@ import kr.draftgo.Draft_Go_BE.match.dto.MostChampionRes;
 import kr.draftgo.Draft_Go_BE.member.domain.Division;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import kr.draftgo.Draft_Go_BE.member.domain.Tier;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
+import lombok.*;
 
 import java.io.Serializable;
 import java.util.List;
-
-import lombok.ToString;
 
 @Getter
 @Builder
@@ -35,7 +31,8 @@ public class RoundStatus implements Serializable {
     private Long draftMemberId;
     private int turnOrder;
     private CurrentMemberStatus currentMemberStatus;
-    private Integer minBidPrice;        // 최소 입찰가 (유찰 단계면 0, 일반 단계면 startPrice)
+
+    private Integer minBidPrice; // 최소 입찰가 (유찰 단계면 0, 일반 단계면 startPrice)
 
     public static RoundStatus start(Long draftId, Long draftMemberId,
             int turnOrder,
@@ -61,7 +58,7 @@ public class RoundStatus implements Serializable {
                 .subPosition(subPosition)
                 .mostChampions(mostChampions)
                 .playerProfileImageUrl(playerProfileImageUrl)
-                .minBidPrice(minBidPrice)
+                .minBidPrice(minBidPrice != null ? minBidPrice : 0) // null 방어
                 .build();
     }
 }

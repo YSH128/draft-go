@@ -3,9 +3,9 @@ package kr.draftgo.Draft_Go_BE.draft.auction.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
+import kr.draftgo.Draft_Go_BE.draft.auction.event.AuctionWebSocketEvent;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RoundLuaExecutor;
-import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
 import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
@@ -25,7 +25,7 @@ import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
 import kr.draftgo.Draft_Go_BE.member.service.SeasonService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,10 +45,8 @@ public class RoundStartService {
     private final DraftMemberRepository draftMemberRepo;
     private final DraftRepository draftRepository;
     private final AuctionFinishService auctionFinishService;
-    private final AuctionQueryService auctionQueryService;
     private final TeamRepository teamRepo;
     private final TeammateRepository teammateRepo;
-    private final AuctionEventPublisher auctionEventPublisher;
     private final ChatWebSocketController chatWebSocketController;
     private final DataDragonService dataDragonService;
     private final ObjectMapper objectMapper;
@@ -56,6 +54,7 @@ public class RoundStartService {
     private final MostChampionStatRepository mostChampionStatRepository;
     private final MemberStatRepository memberStatRepository;
     private final SeasonService seasonService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 경매 시작 (관리자 권한 체크 포함)
@@ -181,15 +180,14 @@ public class RoundStartService {
             return; // 이미 진행 중
         }
 
-        // 5. 이벤트 발행
-        auctionEventPublisher.roundStart(draftId, newRoundState);
+        // 5. 이벤트 발행 (트랜잭션 커밋 후 WebSocket 브로드캐스트)
+        eventPublisher.publishEvent(new AuctionWebSocketEvent.RoundStartEvent(draftId, newRoundState));
+        eventPublisher.publishEvent(new AuctionWebSocketEvent.TeamInfoUpdateEvent(draftId));
+        eventPublisher.publishEvent(new AuctionWebSocketEvent.QueueUpdateEvent(draftId));
 
         // 6. 채팅 시스템 메시지
         chatWebSocketController.sendSystemMessage(draftId, "🎯 현재 선수: " + next.getName());
 
-        // 7. 변경된 Queue와 Team 정보 브로드캐스팅
-        auctionEventPublisher.publishTeamInfo(draftId, auctionQueryService.getTeamInfos(draftId));
-        auctionEventPublisher.publishDraftQueue(draftId, auctionQueryService.getDraftQueue(draftId));
 
         log.info("New round started for draftId: {}, player: {}", draftId, next.getName());
     }

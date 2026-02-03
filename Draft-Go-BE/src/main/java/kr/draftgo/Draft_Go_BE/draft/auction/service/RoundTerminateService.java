@@ -2,11 +2,12 @@ package kr.draftgo.Draft_Go_BE.draft.auction.service;
 
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
+import kr.draftgo.Draft_Go_BE.draft.auction.event.AuctionWebSocketEvent;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RoundLuaExecutor;
-import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,9 +17,8 @@ public class RoundTerminateService {
 
     private final RoundLuaExecutor roundLuaExecutor;
     private final RedisAuctionRepository redisRepo;
-    private final AuctionEventPublisher auctionEventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
     private final RoundStartService roundStartService;
-    private final AuctionQueryService auctionQueryService;
     private final BidCompletionService bidCompletionService;
 
     /**
@@ -62,8 +62,8 @@ public class RoundTerminateService {
         Long bidderTeamId = bid.getTeamId();
         int bidPrice = bid.getPrice();
 
-        // 3. 즉시 roundEnded 이벤트 발행 (클라이언트에게 종료 알림)
-        auctionEventPublisher.roundEnded(draftId, bid);
+        // 3. 즉시 roundEnded 이벤트 발행 (트랜잭션 커밋 후 WebSocket 브로드캐스트)
+        eventPublisher.publishEvent(new AuctionWebSocketEvent.RoundEndedEvent(draftId, bid));
 
         // 4. Redis 포인트 차감 (트랜잭션 밖에서 처리)
         if (terminateResult == 1 && bid.exists()) {
@@ -91,10 +91,8 @@ public class RoundTerminateService {
         // 6. 다음 라운드 시작 (RoundStartService에 위임)
         roundStartService.startNextRound(draftId);
 
-        // 7. 다음 라운드 시작 후 변경된 Queue와 Team 정보 브로드캐스팅
-        // (다음 라운드의 현재 경매 대상자가 큐에서 제외된 상태로 발행됨)
-        auctionEventPublisher.publishTeamInfo(draftId, auctionQueryService.getTeamInfos(draftId));
-        auctionEventPublisher.publishDraftQueue(draftId, auctionQueryService.getDraftQueue(draftId));
+        // 7. 다음 라운드 시작 후 변경된 Queue와 Team 정보 이벤트 발행
+        // (RoundStartService에서 이미 발행되므로 여기서는 제거)
     }
 
     /**
