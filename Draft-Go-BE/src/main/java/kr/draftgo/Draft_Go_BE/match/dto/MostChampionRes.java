@@ -9,6 +9,7 @@ import lombok.Getter;
 public class MostChampionRes {
     private int championId;
     private String championName;
+    private String championIconUrl;
     private int totalGames;
     private int totalWins;
     private int totalLosses;

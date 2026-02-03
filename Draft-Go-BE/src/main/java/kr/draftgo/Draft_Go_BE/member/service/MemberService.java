@@ -163,7 +163,19 @@ public class MemberService {
         // MongoDB에서 최고 챔피언 통계 조회
         List<MostChampionRes> mostChampions = mostChampionStatRepository.findByMemberId(member.getId())
                 .map(mostStat -> mostStat.getMostChampions().stream()
-                        .map(MostChampionRes::from)
+                        .map(champ -> {
+                            String iconUrl = dataDragonService.getChampionIconUrl(champ.getChampionName());
+                            return MostChampionRes.builder()
+                                    .championId(champ.getChampionId())
+                                    .championName(champ.getChampionName())
+                                    .championIconUrl(iconUrl)
+                                    .totalGames(champ.getTotalGames())
+                                    .totalWins(champ.getTotalWins())
+                                    .totalLosses(champ.getTotalLosses())
+                                    .winRate(champ.getWinRate())
+                                    .kda(champ.getKda())
+                                    .build();
+                        })
                         .collect(Collectors.toList()))
                 .orElse(Collections.emptyList());
 
