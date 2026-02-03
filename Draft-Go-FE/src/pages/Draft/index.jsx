@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getMyProfile } from "../../api/auth";
 import { getAuctionState, placeBid, startAuction } from "../../api/draft";
 import ToastContainer from "../../components/ToastContainer";
@@ -62,6 +62,7 @@ const mapTeams = (teams) =>
   });
 
 export default function DraftPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const draftIdParam = searchParams.get("draftId");
   const draftId = draftIdParam ? Number(draftIdParam) : null;
@@ -186,14 +187,17 @@ export default function DraftPage() {
     }
   }, [applyInitialData, draftId, isValidDraftId]);
 
-  const handleQueueUpdate = useCallback((body) => {
-    try {
-      const queue = JSON.parse(body);
-      setQueue(queue || []);
-    } catch (error) {
-      console.error("Queue 업데이트 실패:", error);
-    }
-  }, []);
+  const handleQueueUpdate = useCallback(
+    (body) => {
+      try {
+        const queue = JSON.parse(body);
+        setQueue(queue || []);
+      } catch (error) {
+        console.error("Queue 업데이트 실패:", error);
+      }
+    },
+    [],
+  );
 
   const handleTeamsUpdate = useCallback((body) => {
     try {
@@ -209,10 +213,22 @@ export default function DraftPage() {
     try {
       const message = JSON.parse(body);
       setMessages((prev) => [...prev, { ...message, id: Date.now() }]);
+
+      // 시스템 메시지로 경매 종료 감지 (백엔드 AuctionFinishService 참조)
+      if (
+        message.type === "SYSTEM" &&
+        message.content === "🎉 모든 경매가 종료되었습니다!"
+      ) {
+        console.log("드래프트 종료 이벤트(시스템 메시지) 수신");
+        showToast("모든 경매가 종료되었습니다. 결과 페이지로 이동합니다.", "success");
+        setTimeout(() => {
+          navigate(`/result?draftId=${draftId}`);
+        }, 2000);
+      }
     } catch (error) {
       console.error("채팅 메시지 처리 실패:", error);
     }
-  }, []);
+  }, [draftId, navigate, showToast]);
 
   // WebSocket 이벤트 핸들러 - 백엔드 이벤트 타입에 맞춰 처리
   const handleAuctionEvent = useCallback((body) => {

@@ -177,3 +177,175 @@ export const filterDraftsByStatus = (drafts, filterKey, currentUserId = null) =>
 
   return drafts.filter((draft) => draft.status === filterKey);
 };
+
+// ============================================================================
+// Draft Result Adapter
+// ============================================================================
+
+// 팀 색상 목록 (순차 할당용)
+const TEAM_COLORS = ['Red', 'Blue', 'Green', 'Purple'];
+
+// 티어 점수화 (평균 계산용) - 높을수록 상위 티어
+const TIER_SCORES = {
+  CHALLENGER: 2700,
+  GRANDMASTER: 2600,
+  MASTER: 2500,
+  DIAMOND: 2000,
+  EMERALD: 1600,
+  PLATINUM: 1200,
+  GOLD: 800,
+  SILVER: 400,
+  BRONZE: 200,
+  IRON: 0,
+  UNRANKED: 0,
+};
+
+// Division 점수 (I=4, II=3, III=2, IV=1)
+const DIVISION_SCORES = { I: 100, II: 75, III: 50, IV: 25 };
+
+/**
+ * 티어 + 디비전을 점수로 변환
+ */
+const getTierScore = (tier, division) => {
+  if (!tier || tier === 'UNRANKED') return 0;
+  const baseTier = tier.toUpperCase();
+  const baseScore = TIER_SCORES[baseTier] || 0;
+  // MASTER, GRANDMASTER, CHALLENGER는 디비전 없음
+  if (['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(baseTier)) {
+    return baseScore;
+  }
+  const divScore = DIVISION_SCORES[division] || 0;
+  return baseScore + divScore;
+};
+
+/**
+ * 점수를 다시 티어 문자열로 변환
+ */
+const scoreToTierString = (score) => {
+  if (score >= 2700) return 'CHALLENGER';
+  if (score >= 2600) return 'GRANDMASTER';
+  if (score >= 2500) return 'MASTER';
+
+  // 디비전이 있는 티어들
+  const tiers = [
+    { name: 'DIAMOND', min: 2000 },
+    { name: 'EMERALD', min: 1600 },
+    { name: 'PLATINUM', min: 1200 },
+    { name: 'GOLD', min: 800 },
+    { name: 'SILVER', min: 400 },
+    { name: 'BRONZE', min: 200 },
+    { name: 'IRON', min: 0 },
+  ];
+
+  for (const { name, min } of tiers) {
+    if (score >= min) {
+      const diff = score - min;
+      let div = 4;
+      if (diff >= 75) div = 1;
+      else if (diff >= 50) div = 2;
+      else if (diff >= 25) div = 3;
+      return `${name}_${div}`;
+    }
+  }
+
+  return 'UNRANKED';
+};
+
+/**
+ * 티어+디비전 → "GOLD_1" 형식 변환
+ */
+const formatTierString = (tier, division) => {
+  if (!tier || tier === 'UNRANKED') return 'UNRANKED';
+  const upperTier = tier.toUpperCase();
+  // MASTER, GRANDMASTER, CHALLENGER는 디비전 없음
+  if (['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(upperTier)) {
+    return upperTier;
+  }
+  const divNum = { I: 1, II: 2, III: 3, IV: 4 }[division] || 1;
+  return `${upperTier}_${divNum}`;
+};
+
+/**
+ * 팀 평균 티어 계산
+ */
+const calculateAverageTier = (players) => {
+  if (!players || players.length === 0) return 'UNRANKED';
+
+  const validPlayers = players.filter((p) => p.tier && p.tier !== 'UNRANKED');
+  if (validPlayers.length === 0) return 'UNRANKED';
+
+  const totalScore = validPlayers.reduce(
+    (sum, p) => sum + getTierScore(p.tier, p.division),
+    0
+  );
+  const avgScore = Math.round(totalScore / validPlayers.length);
+  return scoreToTierString(avgScore);
+};
+
+/**
+ * 드래프트 결과 데이터 변환
+ * @param {Object} raw - API 응답 원본 (DraftResultResponse)
+ * @param {number|string|null} currentMemberId - 현재 로그인한 사용자 ID
+ * @returns {Array} 변환된 팀 배열 (TeamCard 컴포넌트 호환)
+ */
+export const adaptDraftResult = (raw, currentMemberId) => {
+  if (!raw || !raw.teams) return [];
+
+  // currentMemberId를 문자열로 정규화 (null/undefined 체크)
+  const myId = currentMemberId != null ? String(currentMemberId) : null;
+
+  return raw.teams.map((team, index) => {
+    const players = team.players || [];
+
+    // 팀장 찾기
+    const leader = players.find((p) => p.isLeader);
+
+    // Key Player 찾기 (NEW: 팀장 제외, 공동 수상 지원)
+    // 1. 팀장이 아닌 후보들만 필터링
+    const candidates = players.filter((p) => !p.isLeader);
+    // 2. 후보 중 최고 입찰액 찾기
+    const maxBid = Math.max(0, ...candidates.map((p) => p.bidPrice || 0));
+    // 3. 최고 입찰액을 가진 선수들의 memberId Set (공동 수상 처리)
+    const keyPlayerIds = new Set(
+      maxBid > 0
+        ? candidates
+            .filter((p) => (p.bidPrice || 0) === maxBid)
+            .map((p) => String(p.memberId))
+        : []
+    );
+
+    // 선수 데이터 변환
+    const mappedPlayers = players.map((player) => {
+      const playerId = String(player.memberId);
+      const isMe = myId !== null && playerId === myId;
+      const isKeyPlayer = keyPlayerIds.has(playerId);
+
+      return {
+        memberId: player.memberId,
+        role: player.position,
+        tierRank: formatTierString(player.tier, player.division),
+        name: player.gameName,
+        tagLine: player.tagLine,
+        profileIconUrl: player.profileIconUrl,
+        isMe,
+        isLeader: player.isLeader || false,
+        isKeyPlayer,
+        bidPrice: player.bidPrice || 0,
+      };
+    });
+
+    // 내 팀 여부 확인 (변환된 players 기반)
+    const isMyTeam = mappedPlayers.some((p) => p.isMe);
+
+    return {
+      id: team.teamId,
+      leaderName: leader?.gameName || team.teamName || `팀 ${index + 1}`,
+      teamColor: TEAM_COLORS[index % TEAM_COLORS.length],
+      averageTier: calculateAverageTier(players),
+      isMyTeam,
+      finalPoint: team.finalPoint ?? 0,
+      spentPoint: team.spentPoint ?? 0,
+      players: mappedPlayers,
+    };
+  });
+};

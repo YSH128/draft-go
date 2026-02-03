@@ -1,6 +1,8 @@
-import React from "react";
-import Badge from "../../ui/Badge";
-import { getTierColorKey, getTierLabel } from "../../../constants/riot";
+import {
+  getTierColorKey,
+  getTierLabel,
+  getTierImage,
+} from "../../../constants/riot";
 
 import topIcon from "../../../assets/positions/top.svg";
 import jungleIcon from "../../../assets/positions/jungle.svg";
@@ -30,100 +32,171 @@ const ROLE_PRIORITY = {
   SUPPORT: 5,
 };
 
-const TEAM_COLOR_MAP = {
-  Red: "text-[var(--color-team-red)]",
-  Blue: "text-[var(--color-team-blue)]",
-  Green: "text-[var(--color-team-green)]",
-  Purple: "text-[var(--color-team-purple)]",
-};
-
 export default function TeamCard({ team }) {
-  const borderClass = team.isMyTeam
-    ? "border-primary shadow-[0_0_10px_rgba(200,155,60,0.2)]"
-    : "border-card-border";
+  // 내 팀 스타일 - 노란색 강조
+  const cardClass = team.isMyTeam
+    ? "border-2 border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]"
+    : "border border-card-border";
 
+  // 포지션 순서대로 정렬
   const sortedPlayers = [...team.players].sort((a, b) => {
-    const priorityA = ROLE_PRIORITY[a.role.toUpperCase()] || 99;
-    const priorityB = ROLE_PRIORITY[b.role.toUpperCase()] || 99;
+    const priorityA = ROLE_PRIORITY[a.role?.toUpperCase()] || 99;
+    const priorityB = ROLE_PRIORITY[b.role?.toUpperCase()] || 99;
     return priorityA - priorityB;
   });
 
-  const teamColorClass = TEAM_COLOR_MAP[team.teamColor] || "text-gray-400";
+  // 평균 티어 정보
+  const avgTierImage = getTierImage(team.averageTier);
+  const avgTierLabel = getTierLabel(team.averageTier);
+  const avgTierColorKey = getTierColorKey(team.averageTier);
 
   return (
     <div
-      className={`bg-card-dark relative flex flex-col rounded-xl border p-5 ${borderClass}`}
+      className={`bg-card-dark relative flex flex-col rounded-xl p-5 ${cardClass}`}
     >
-      {/* 1. 헤더 수정 */}
-      <div className="mb-4 flex items-start justify-between">
-        <div className="flex h-full flex-col justify-center pt-1">
-          <div className="mb-1 flex items-center gap-2">
-            <h3
-              className={`text-xl font-bold ${team.isMyTeam ? "text-primary" : "text-white"}`}
-            >
-              {team.leaderName} 팀
-            </h3>
-            {team.isMyTeam && (
-              <Badge variant="bid" className="text-[10px]">
-                내 팀
-              </Badge>
-            )}
-          </div>
-          <span
-            className={`text-sm font-bold tracking-wider uppercase ${teamColorClass}`}
+      {/* 1. 헤더 */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3
+            className={`text-xl font-bold ${team.isMyTeam ? "text-yellow-400" : "text-white"}`}
           >
-            {team.teamColor} Team
-          </span>
+            {team.leaderName} 팀
+          </h3>
+          {team.isMyTeam && (
+            <span className="rounded bg-yellow-500 px-2 py-0.5 text-[10px] font-bold text-black">
+              MY TEAM
+            </span>
+          )}
         </div>
 
-        <div className="border-card-border bg-card-bg/50 flex min-w-[90px] flex-col items-center justify-center rounded-lg border p-2">
-          <span className="mb-1 text-[10px] tracking-wider text-gray-500 uppercase">
-            평균 티어
+        {/* 평균 티어 - 이미지 + 텍스트 */}
+        <div className="flex items-center gap-2">
+          <div className="relative h-10 w-10">
+            <div
+              className={`absolute inset-0 rounded-full blur-md bg-tier-${avgTierColorKey}-bg opacity-40`}
+            />
+            <img
+              src={avgTierImage}
+              alt={avgTierLabel}
+              className="relative h-full w-full object-contain drop-shadow-lg"
+            />
+          </div>
+          <span className={`text-sm font-bold text-tier-${avgTierColorKey}`}>
+            {avgTierLabel}
           </span>
-          <Badge variant={getTierColorKey(team.averageTier)} className="px-1.5">
-            {getTierLabel(team.averageTier)}
-          </Badge>
         </div>
       </div>
 
       {/* 2. 선수 목록 */}
-      <div className="flex-1 space-y-2">
+      <div className="flex-1 space-y-1.5">
         {sortedPlayers.map((player, index) => {
-          const tierVariant = getTierColorKey(player.tier);
-          const tierName = getTierLabel(player.tier);
-          const roleIconSrc = ROLE_ICONS[player.role.toUpperCase()] || topIcon;
+          // tierRank 필드 사용 (어댑터에서 변환됨)
+          const tierImage = getTierImage(player.tierRank);
+          const tierLabel = getTierLabel(player.tierRank);
+          const roleIconSrc = ROLE_ICONS[player.role?.toUpperCase()] || topIcon;
+
+          // 내 플레이어 행 강조 (노란색 계열)
           const playerRowClass = player.isMe
-            ? "border-primary bg-primary/10 shadow-[inset_0_0_10px_rgba(200,155,60,0.1)]"
-            : "border-card-border/50 bg-card-bg";
+            ? "bg-yellow-500/20 border-l-4 border-yellow-400 border-y border-r border-card-border/40"
+            : "border border-card-border/40 bg-card-bg/80 hover:bg-card-bg";
 
           return (
             <div
-              key={index}
-              className={`flex items-center justify-between rounded border p-2 ${playerRowClass}`}
+              key={player.memberId || index}
+              className={`flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors ${playerRowClass}`}
             >
-              <div className="flex items-center gap-3">
-                <div className="flex w-8 justify-center">
-                  <img
-                    src={roleIconSrc}
-                    alt={player.role}
-                    className="h-6 w-6 object-contain opacity-80"
-                  />
-                </div>
-                <Badge
-                  variant={tierVariant}
-                  className="w-[70px] justify-center px-0 whitespace-nowrap"
-                >
-                  {tierName}
-                </Badge>
+              {/* 포지션 아이콘 */}
+              <div className="flex w-auto shrink-0 justify-center border-r border-white/10 pr-3 mr-3">
+                <img
+                  src={roleIconSrc}
+                  alt={player.role}
+                  className="h-6 w-6 object-contain opacity-70"
+                />
               </div>
-              <span
-                className={`ml-3 flex-1 truncate text-sm font-medium ${player.isMe ? "text-primary font-bold" : "text-white"}`}
-              >
-                {player.name}
-              </span>
+
+              {/* 프로필 아이콘 */}
+              <div className="relative shrink-0">
+                {player.profileIconUrl ? (
+                  <img
+                    src={player.profileIconUrl}
+                    alt=""
+                    className={`h-8 w-8 rounded-full object-cover ${
+                      player.isMe
+                        ? "ring-offset-card-dark ring-2 ring-yellow-400 ring-offset-1"
+                        : "border border-gray-600"
+                    }`}
+                  />
+                ) : (
+                  <div
+                    className={`flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 text-xs font-medium ${
+                      player.isMe ? "text-yellow-400" : "text-gray-400"
+                    }`}
+                  >
+                    {player.name?.charAt(0) || "?"}
+                  </div>
+                )}
+              </div>
+
+              {/* 티어 이미지 (작게) */}
+              <div className="relative h-6 w-6 shrink-0">
+                <img
+                  src={tierImage}
+                  alt={tierLabel}
+                  className="h-full w-full object-contain drop-shadow-md"
+                  title={tierLabel}
+                />
+              </div>
+
+              {/* 이름 + 배지들 */}
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                <span
+                  className={`truncate text-sm ${
+                    player.isMe
+                      ? "font-bold text-yellow-400"
+                      : "font-medium text-white"
+                  }`}
+                >
+                  {player.name}
+                </span>
+                {/* LEADER 배지 */}
+                {player.isLeader && (
+                  <span className="shrink-0 rounded bg-rose-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    👑 LEADER
+                  </span>
+                )}
+                {/* KEY 배지 (어댑터에서 계산됨) */}
+                {player.isKeyPlayer && (
+                  <span className="shrink-0 rounded bg-indigo-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    KEY
+                  </span>
+                )}
+              </div>
+
+              {/* 낙찰가 */}
+              {player.bidPrice > 0 && (
+                <span
+                  className={`shrink-0 text-xs font-medium ${
+                    player.isKeyPlayer ? "text-indigo-400" : "text-gray-400"
+                  }`}
+                >
+                  {player.bidPrice}P
+                </span>
+              )}
             </div>
           );
         })}
+      </div>
+
+      {/* 3. 포인트 정보 */}
+      <div className="border-card-border/30 mt-4 flex justify-between border-t pt-3 text-xs text-gray-500">
+        <span>
+          사용{" "}
+          <span className="font-medium text-gray-300">{team.spentPoint}P</span>
+        </span>
+        <span>
+          잔여{" "}
+          <span className="font-medium text-gray-300">{team.finalPoint}P</span>
+        </span>
       </div>
     </div>
   );

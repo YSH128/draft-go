@@ -1,15 +1,6 @@
 import { instance as api } from '../libs/axios';
 import { adaptDraftList } from './draftAdapter';
 
-// API Base URL 설정을 위한 인스턴스 (auth.js와 공유하거나 별도로 생성)
-// TODO: 전역 설정으로 이동 고려
-// const api = axios.create({
-//   baseURL: '/api/v1', // Proxy 설정에 따라 변경 가능
-//   headers: {
-//     'Content-Type': 'application/json',
-//   },
-// });
-
 // Draft Room & Lobby API
 
 // API 상태값 상수 (Swagger 스펙 기준)
@@ -181,6 +172,15 @@ export const setLeaderPoint = async (draftId, data) => {
  */
 export const startDraft = async (draftId) => {
     const response = await api.post(`/drafts/${draftId}/lobby/start`);
+    return response.data;
+};
+
+/**
+ * 드래프트 결과 조회
+ * @param {number|string} draftId
+ */
+export const getDraftResult = async (draftId) => {
+    const response = await api.get(`/drafts/${draftId}/result`);
     return response.data;
 };
 
