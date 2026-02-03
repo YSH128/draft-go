@@ -5,7 +5,7 @@ import TimerCircle from "./TimerCircle";
  * 경매 스테이지
  * - 현재 경매 중인 선수 정보를 표시
  */
-export default function AuctionStage({ player, currentBid, timeLeft }) {
+export default function AuctionStage({ player, currentBid, minBidPrice = 0, timeLeft }) {
   if (!player) return null;
 
   const { name, imageUrl, tier, division, positions = [], mainPosition, subPosition, mostChampions = [] } = player;
@@ -120,7 +120,7 @@ export default function AuctionStage({ player, currentBid, timeLeft }) {
 
         {/* 우측: 타이머 + 입찰가 */}
         <div className="flex min-w-[200px] items-center justify-end gap-10 border-l border-primary/10 pl-10">
-          <TimerCircle seconds={timeLeft} maxSeconds={30} />
+          <TimerCircle seconds={timeLeft} maxSeconds={15} />
 
           <div className="flex flex-col items-end text-right">
             <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-primary/60">
@@ -132,6 +132,18 @@ export default function AuctionStage({ player, currentBid, timeLeft }) {
               </span>
               <span className="text-lg font-bold uppercase text-primary/60">P</span>
             </div>
+
+            {/* 최소 입찰가 표시 */}
+            {minBidPrice > 0 && (
+              <div className="mt-2 flex items-baseline gap-1">
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-primary/40">
+                  최소 입찰가:
+                </span>
+                <span className="text-sm font-bold text-primary/60">
+                  {minBidPrice}P
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

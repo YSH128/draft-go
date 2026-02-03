@@ -37,24 +37,24 @@ public class RedisAuctionRepository {
 
             try {
                 Long draftIdValue = map.get("draftId") instanceof Number
-                        ? ((Number) map.get("draftId")).longValue()
-                        : null;
+                    ? ((Number) map.get("draftId")).longValue()
+                    : null;
 
                 String playerName = (String) map.get("playerName");
                 String playerProfileImageUrl = (String) map.get("playerProfileImageUrl");
 
                 Long draftMemberId = map.get("draftMemberId") instanceof Number
-                        ? ((Number) map.get("draftMemberId")).longValue()
-                        : null;
+                    ? ((Number) map.get("draftMemberId")).longValue()
+                    : null;
 
                 int turnOrder = map.get("turnOrder") instanceof Number
-                        ? ((Number) map.get("turnOrder")).intValue()
-                        : 0;
+                    ? ((Number) map.get("turnOrder")).intValue()
+                    : 0;
 
                 String statusStr = (String) map.get("currentMemberStatus");
                 CurrentMemberStatus currentMemberStatus = statusStr != null
-                        ? CurrentMemberStatus.valueOf(statusStr)
-                        : null;
+                    ? CurrentMemberStatus.valueOf(statusStr)
+                    : null;
 
                 // Tier 역직렬화
                 String tierStr = (String) map.get("tier");
@@ -111,6 +111,11 @@ public class RedisAuctionRepository {
                             .collect(java.util.stream.Collectors.toList());
                 }
 
+                // MinBidPrice 역직렬화
+                Integer minBidPrice = map.get("minBidPrice") instanceof Number
+                    ? ((Number) map.get("minBidPrice")).intValue()
+                    : null;
+
                 return RoundStatus.builder()
                         .draftId(draftIdValue)
                         .playerName(playerName)
@@ -124,6 +129,7 @@ public class RedisAuctionRepository {
                         .draftMemberId(draftMemberId)
                         .turnOrder(turnOrder)
                         .currentMemberStatus(currentMemberStatus)
+                        .minBidPrice(minBidPrice)
                         .build();
 
             } catch (Exception e) {
@@ -167,7 +173,6 @@ public class RedisAuctionRepository {
 
     /**
      * 타이머 남은 시간 조회
-     * 
      * @return 남은 시간 (초). 타이머가 없거나 만료된 경우 0 반환
      */
     public Integer getRemainingSeconds(Long draftId) {
@@ -186,7 +191,6 @@ public class RedisAuctionRepository {
 
     /**
      * 타이머가 존재하는지 확인
-     * 
      * @return true: 타이머가 존재함, false: 타이머가 없거나 만료됨
      */
     public boolean hasTimer(Long draftId) {
@@ -197,7 +201,7 @@ public class RedisAuctionRepository {
     public Integer getTeamPoint(Long draftId, Long teamId) {
         Object val = redis.opsForValue().get(AuctionKey.teamPoint(draftId, teamId));
         if (val == null)
-            return null; // Redis에 값이 없으면 null 반환 (DB 값 사용)
+            return null;  // Redis에 값이 없으면 null 반환 (DB 값 사용)
         return (Integer) val;
     }
 

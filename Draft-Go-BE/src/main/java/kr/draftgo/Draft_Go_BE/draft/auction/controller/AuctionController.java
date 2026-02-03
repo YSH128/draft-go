@@ -7,8 +7,9 @@ import kr.draftgo.Draft_Go_BE.draft.auction.dto.BidReq;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.AuctionInitialDataResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.DraftMemberResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.TeamInfoResponse;
-import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionService;
+import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionQueryService;
 import kr.draftgo.Draft_Go_BE.draft.auction.service.BidService;
+import kr.draftgo.Draft_Go_BE.draft.auction.service.RoundStartService;
 import kr.draftgo.Draft_Go_BE.global.auth.CurrentMember;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import lombok.RequiredArgsConstructor;
@@ -21,14 +22,15 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/auctions/{draftId}")
 @RequiredArgsConstructor
 public class AuctionController {
-    private final AuctionService auctionService;
+    private final RoundStartService roundStartService;
+    private final AuctionQueryService auctionQueryService;
     private final BidService bidService;
 
     @Operation(summary = "Start auction manually")
     @PostMapping("/start")
     @PreAuthorize("isAuthenticated()")
     public void startAuction(@PathVariable Long draftId, @CurrentMember Member member) {
-        auctionService.processNextRoundByOwner(draftId, member);
+        roundStartService.startNextRoundByOwner(draftId, member);
     }
 
     @Operation(summary = "Place a bid")
@@ -45,20 +47,20 @@ public class AuctionController {
     )
     @GetMapping
     public AuctionInitialDataResponse getInitialData(@PathVariable Long draftId) {
-        return auctionService.getInitialData(draftId);
+        return auctionQueryService.getInitialData(draftId);
     }
 
     @Operation(summary = "드래프트 대기열 조회",
             description = "드래프트 대기열 수동 새로고침용")
     @GetMapping("/queue")
     public List<DraftMemberResponse> getDraftQueue(@PathVariable Long draftId) {
-        return auctionService.getDraftQueue(draftId);
+        return auctionQueryService.getDraftQueue(draftId);
     }
 
     @Operation(summary = "드래프트 구성 팀 정보 조회",
             description = "드래프트 구성 팀 정보 수동 새로고침용")
     @GetMapping("/teams")
     public List<TeamInfoResponse> getTeamInfos(@PathVariable Long draftId) {
-        return auctionService.getTeamInfos(draftId);
+        return auctionQueryService.getTeamInfos(draftId);
     }
 }

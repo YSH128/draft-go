@@ -1,29 +1,21 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.service;
 
-import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
+import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.AuctionInitialDataResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.DraftMemberResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.TeamInfoResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.response.TeammateResponse;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Team;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Teammate;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
-import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeammateRepository;
-import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
-import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
 import kr.draftgo.Draft_Go_BE.match.service.DataDragonService;
-import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
-import kr.draftgo.Draft_Go_BE.member.domain.SeasonDocument;
-import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
 import kr.draftgo.Draft_Go_BE.member.service.MemberStatService;
-import kr.draftgo.Draft_Go_BE.member.service.SeasonService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,52 +27,15 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class AuctionService {
+public class AuctionQueryService {
 
     private final RedisAuctionRepository redisRepo;
     private final DraftMemberRepository draftMemberRepo;
-    private final DraftRepository draftRepository;
     private final TeamRepository teamRepo;
     private final TeammateRepository teammateRepo;
-    private final MemberStatRepository memberStatRepository;
     private final DataDragonService dataDragonService;
     private final MemberStatService memberStatService;
-    private final RoundStartService roundStartService;
 
-    /**
-     * 경매 시작 (관리자 권한 체크 포함)
-     * - Controller에서 호출되며, 관리자 권한을 검증합니다.
-     * - 경매가 중단되었을 때 수동으로 재개하는 용도입니다.
-     */
-    @Transactional
-    public void processNextRoundByOwner(Long draftId, Member admin) {
-        // 관리자 권한 확인
-        Draft draft = draftRepository.findById(draftId)
-                .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
-
-        if (!draft.getOwner().getId().equals(admin.getId())) {
-            throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 경매를 시작할 수 있습니다.");
-        }
-
-        // RoundStartService에 위임
-        roundStartService.startNextRound(draftId);
-    }
-
-    /**
-     * 경매 시작 (내부 로직)
-     * - 관리자 권한 체크 없이 내부 로직에서 호출됩니다.
-     * - LobbyService.startDraft()에서 자동으로 호출됩니다.
-     * - 멱등성 보장: RoundStartService에서 처리
-     */
-    @Transactional
-    public void processNextRound(Long draftId) {
-        roundStartService.startNextRound(draftId);
-    }
-
-    /**
-     * 경매 초기 로드를 위한 통합 데이터 조회
-     * 클라이언트가 페이지 진입 시 필요한 모든 정보를 한 번에 제공
-     */
     @Transactional
     public AuctionInitialDataResponse getInitialData(Long draftId) {
         // 1. 현재 라운드 정보
@@ -115,12 +70,18 @@ public class AuctionService {
     }
 
     public List<DraftMemberResponse> getDraftQueue(Long draftId) {
+        // 현재 경매 진행 중인 멤버 ID 조회
+        RoundStatus currentRound = redisRepo.getCurrent(draftId);
+        Long currentDraftMemberId = (currentRound != null) ? currentRound.getDraftMemberId() : null;
+
         // WAITING과 SKIPPED 상태인 멤버만 조회 (COMPLETED는 제외)
         // turnOrder가 NULL인 경우(팀장)도 제외
+        // 현재 경매 진행 중인 멤버도 제외
         List<DraftMember> draftMembers = draftMemberRepo.findAllByDraftIdOrderByTurnOrderAsc(draftId).stream()
                 .filter(dm -> (dm.getStatus() == kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMemberStatus.WAITING
                             || dm.getStatus() == kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMemberStatus.SKIPPED)
-                            && dm.getTurnOrder() != null)
+                            && dm.getTurnOrder() != null
+                            && !dm.getId().equals(currentDraftMemberId))  // 현재 경매 대상자 제외
                 .toList();
 
 

@@ -3,6 +3,7 @@
  *
  * @param {number} increment - 입찰 증가 단위
  * @param {number} nextBid - 다음 입찰가
+ * @param {boolean} isFirstBid - 첫 입찰 여부
  * @param {Function} onBid - 입찰 핸들러
  * @param {boolean} disabled - 비활성화 여부
  * @param {string} disabledReason - 비활성화 사유 (disabled일 때 표시)
@@ -10,6 +11,7 @@
 export default function BidButton({
   increment = 20,
   nextBid,
+  isFirstBid = false,
   onBid,
   disabled = false,
   disabledReason = null,
@@ -25,9 +27,15 @@ export default function BidButton({
 
         <span className="relative z-10 flex items-center gap-3 text-2xl">
           입찰
-          <span className="rounded bg-black/10 px-2 text-xl text-black/80">
-            (+{increment} P)
-          </span>
+          {isFirstBid ? (
+            <span className="rounded bg-black/10 px-2 text-xl text-black/80">
+              (시작가)
+            </span>
+          ) : (
+            <span className="rounded bg-black/10 px-2 text-xl text-black/80">
+              (+{increment} P)
+            </span>
+          )}
         </span>
 
         <span className="relative z-10 mt-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-black opacity-70">

@@ -1,6 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.lobby.service;
 
-import kr.draftgo.Draft_Go_BE.draft.auction.service.AuctionService;
+import kr.draftgo.Draft_Go_BE.draft.auction.service.RoundStartService;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
 import kr.draftgo.Draft_Go_BE.draft.common.dto.CodeInfo;
@@ -12,6 +12,7 @@ import kr.draftgo.Draft_Go_BE.draft.lobby.dto.request.ChangeRoleReq;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.request.ReadyToggleReq;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.response.LobbyInfoRes;
 import kr.draftgo.Draft_Go_BE.draft.lobby.dto.response.UserSummary;
+import kr.draftgo.Draft_Go_BE.draft.lobby.event.DraftStartedEvent;
 import kr.draftgo.Draft_Go_BE.draft.lobby.redis.RedisLobbyRepository;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyEventType;
 import kr.draftgo.Draft_Go_BE.draft.lobby.websocket.LobbyWebSocketService;
@@ -28,6 +29,7 @@ import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberRepository;
 import kr.draftgo.Draft_Go_BE.member.service.MemberStatService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,7 +56,8 @@ public class LobbyService {
     private final LobbyWebSocketService lobbyWebSocketService;
     private final DraftInitializationService draftInitializationService;
     private final ChatWebSocketController chatWebSocketController;
-    private final AuctionService auctionService;
+    private final RoundStartService roundStartService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 로비 정보 조회
@@ -378,11 +381,12 @@ public class LobbyService {
         // 3. 팀 및 멤버 초기화 (DraftInitializationService로 위임)
         draftInitializationService.initializeDraft(draft, participants);
 
-        // 4. WebSocket 브로드캐스트 - 드래프트 시작
-        lobbyWebSocketService.broadcastLobbyUpdate(draftId, LobbyEventType.DRAFT_STARTED);
+        // 4. 경매 자동 시작
+        roundStartService.startNextRound(draftId);
 
-        // 5. 경매 자동 시작
-        auctionService.processNextRound(draftId);
+        // 5. 트랜잭션 커밋 후 WebSocket 브로드캐스트를 위한 이벤트 발행
+        // 이벤트는 트랜잭션이 성공적으로 커밋된 이후에 처리됨
+        eventPublisher.publishEvent(new DraftStartedEvent(draftId));
     }
 
     /**

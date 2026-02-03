@@ -3,28 +3,24 @@ package kr.draftgo.Draft_Go_BE.draft.auction.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
-import kr.draftgo.Draft_Go_BE.draft.auction.redis.AuctionKey;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RoundLuaExecutor;
 import kr.draftgo.Draft_Go_BE.draft.auction.websocket.AuctionEventPublisher;
 import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftStatus;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Team;
 import kr.draftgo.Draft_Go_BE.draft.common.domain.Teammate;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeammateRepository;
-import kr.draftgo.Draft_Go_BE.match.domain.MostChampionStat;
+import kr.draftgo.Draft_Go_BE.global.exception.CustomException;
+import kr.draftgo.Draft_Go_BE.global.exception.ErrorType;
 import kr.draftgo.Draft_Go_BE.match.dto.MostChampionRes;
 import kr.draftgo.Draft_Go_BE.match.repository.MostChampionStatRepository;
 import kr.draftgo.Draft_Go_BE.match.service.DataDragonService;
-import kr.draftgo.Draft_Go_BE.member.domain.Division;
-import kr.draftgo.Draft_Go_BE.member.domain.MemberStat;
-import kr.draftgo.Draft_Go_BE.member.domain.SeasonDocument;
-import kr.draftgo.Draft_Go_BE.member.domain.Tier;
+import kr.draftgo.Draft_Go_BE.member.domain.*;
 import kr.draftgo.Draft_Go_BE.member.repository.MemberStatRepository;
 import kr.draftgo.Draft_Go_BE.member.service.SeasonService;
 import lombok.RequiredArgsConstructor;
@@ -47,10 +43,12 @@ public class RoundStartService {
 
     private final RoundLuaExecutor roundLuaExecutor;
     private final DraftMemberRepository draftMemberRepo;
+    private final DraftRepository draftRepository;
     private final AuctionFinishService auctionFinishService;
+    private final AuctionQueryService auctionQueryService;
     private final TeamRepository teamRepo;
     private final TeammateRepository teammateRepo;
-    private final AuctionEventPublisher publisher;
+    private final AuctionEventPublisher auctionEventPublisher;
     private final ChatWebSocketController chatWebSocketController;
     private final DataDragonService dataDragonService;
     private final ObjectMapper objectMapper;
@@ -58,6 +56,24 @@ public class RoundStartService {
     private final MostChampionStatRepository mostChampionStatRepository;
     private final MemberStatRepository memberStatRepository;
     private final SeasonService seasonService;
+
+    /**
+     * 경매 시작 (관리자 권한 체크 포함)
+     * - Controller에서 호출되며, 관리자 권한을 검증합니다.
+     * - 경매가 중단되었을 때 수동으로 재개하는 용도입니다.
+     */
+    @Transactional
+    public void startNextRoundByOwner(Long draftId, Member admin) {
+        // 관리자 권한 확인
+        Draft draft = draftRepository.findById(draftId)
+                .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
+
+        if (!draft.getOwner().getId().equals(admin.getId())) {
+            throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 경매를 시작할 수 있습니다.");
+        }
+
+        startNextRound(draftId);
+    }
 
     /**
      * 다음 라운드 시작
@@ -70,9 +86,11 @@ public class RoundStartService {
 
         // 1. 다음 멤버 찾기 (WAITING 우선, 없으면 SKIPPED)
         Optional<DraftMember> nextMember = draftMemberRepo.findNextWaiting(draftId);
+        boolean isSkippedRound = false;  // 유찰 단계 여부
 
         if (nextMember.isEmpty()) {
             nextMember = draftMemberRepo.findNextSkipped(draftId);
+            isSkippedRound = true;  // SKIPPED 큐 진행 중
 
             if (nextMember.isEmpty()) {
                 // 경매 종료 - 별도 서비스로 위임
@@ -84,6 +102,13 @@ public class RoundStartService {
         }
 
         DraftMember next = nextMember.get();
+
+        // Draft 정보 조회 (최소 입찰가 결정을 위해)
+        Draft draft = draftRepository.findById(draftId)
+                .orElseThrow(() -> new IllegalArgumentException("Draft not found: " + draftId));
+
+        // 유찰 단계면 0포인트, 일반 단계면 startPrice
+        Integer minBidPrice = isSkippedRound ? 0 : draft.getStartPrice();
 
         // 2. MemberStat 조회 (활성 시즌 기준)
         SeasonDocument activeSeason = seasonService.getActiveSeason();
@@ -135,7 +160,8 @@ public class RoundStartService {
                 next.getPosition(), // 경매 포지션
                 next.getMember().getMainPosition(), // 주 포지션
                 next.getMember().getSubPosition(), // 부 포지션
-                mostChampions // 모스트 챔피언 (championIconUrl 포함)
+                mostChampions, // 모스트 챔피언 (championIconUrl 포함)
+                minBidPrice
         );
 
         // 5. JSON 직렬화
@@ -147,8 +173,8 @@ public class RoundStartService {
             throw new RuntimeException("Failed to serialize RoundStatus", e);
         }
 
-        // 4. Lua 스크립트로 원자적으로 라운드 시작
-        int result = roundLuaExecutor.startRound(draftId, newRoundStateJson, 30);
+        // 4. Lua 스크립트로 원자적으로 라운드 시작 (15초 타이머)
+        int result = roundLuaExecutor.startRound(draftId, newRoundStateJson, 15);
 
         if (result == 0) {
             log.warn("Auction already in progress for draftId: {}. Skipping startNextRound.", draftId);
@@ -156,10 +182,14 @@ public class RoundStartService {
         }
 
         // 5. 이벤트 발행
-        publisher.roundStart(draftId, newRoundState);
+        auctionEventPublisher.roundStart(draftId, newRoundState);
 
         // 6. 채팅 시스템 메시지
         chatWebSocketController.sendSystemMessage(draftId, "🎯 현재 선수: " + next.getName());
+
+        // 7. 변경된 Queue와 Team 정보 브로드캐스팅
+        auctionEventPublisher.publishTeamInfo(draftId, auctionQueryService.getTeamInfos(draftId));
+        auctionEventPublisher.publishDraftQueue(draftId, auctionQueryService.getDraftQueue(draftId));
 
         log.info("New round started for draftId: {}, player: {}", draftId, next.getName());
     }

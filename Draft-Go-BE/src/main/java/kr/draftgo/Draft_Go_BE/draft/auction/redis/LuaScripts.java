@@ -9,50 +9,41 @@ public class LuaScripts {
             local leaderId = ARGV[2]
             local price = tonumber(ARGV[3])
             local extraTime = tonumber(ARGV[4])
+            local minBidPrice = tonumber(ARGV[5])
 
             -- 1. 경매 진행 중인지 확인 (타이머 존재 여부)
             if redis.call('EXISTS', timerKey) == 0 then
-                return -1 -- Auction ended
+                return -1 -- Auction not in progress (timer expired)
             end
 
-            -- 2. 현재 입찰가 확인
-            local currentPrice = 0
+            -- 2. 현재 입찰 확인
             local currentBid = redis.call('GET', bidKey)
+            
             if currentBid then
-                -- JSON parsing logic is complex in pure Lua without libs,
-                -- so we assume bidKey stores simple price or we parse struct.
-                -- For simplicity here, let's assume we store the price separately or extract it.
-                -- However, standard practice: get price from Hash or auxiliary key.
-                -- But BidInfo is a JSON blob usually.
-                -- Let's assume the previous bid is just replaced if higher.
-                -- But we need to compare prices.
-                -- To simplify, let's assume RedisAuctionRepository stores structure.
-                -- Actually BidLuaExecutor passes args.
-                -- Let's adhere to a text-based protocol or assume bidKey is just a serialized JSON.
-                -- Parsing JSON in Lua (cjson) is possible.
-            end
-
-            -- Using cjson to decode
-            if currentBid then
+                -- 입찰이 이미 존재하는 경우: 현재 최고가보다 커야 함
                 local status, bidObj = pcall(cjson.decode, currentBid)
                 if status and bidObj and bidObj.price then
-                    currentPrice = tonumber(bidObj.price)
+                    local currentPrice = tonumber(bidObj.price)
+                    if price <= currentPrice then
+                        return -2 -- Price must be higher than current bid
+                    end
+                else
+                    return -3 -- Invalid bid data (corrupted JSON)
+                end
+            else
+                -- 첫 입찰인 경우: minBidPrice 이상이어야 함
+                if price < minBidPrice then
+                    return -4 -- Price below minimum bid price
                 end
             end
 
-            -- 3. 가격 비교
-            if price <= currentPrice then
-                return 0 -- Price too low
-            end
-
-            -- 4. 입찰 갱신 (JSON format matching BidInfo)
+            -- 3. 입찰 갱신 (JSON format matching BidInfo)
             local newBid = cjson.encode({teamId=teamId, price=price})
             redis.call('SET', bidKey, newBid)
 
-            -- 5. 시간 연장 (남은 시간이 10초 미만이면 10초로 초기화 등 logic)
-            -- Simple logic: reset TTL to extraTime if TTL < extraTime
+            -- 4. 타이머 연장 (남은 시간이 extraTime보다 작으면 extraTime으로 리셋)
             local ttl = redis.call('TTL', timerKey)
-            if ttl < extraTime then
+            if ttl >= 0 and ttl < extraTime then
                 redis.call('EXPIRE', timerKey, extraTime)
             end
 

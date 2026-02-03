@@ -41,9 +41,14 @@ public class BidService {
             );
         }
 
-        // 2. 가격 검증 (0 이하 불가)
-        if (req.price() <= 0) {
-            throw new IllegalArgumentException("Bid price must be positive");
+        // 2. 현재 경매 중인 선수의 정보 확인 (Redis의 RoundStatus에서 조회)
+        RoundStatus currentRound = redisRepo.getCurrent(draftId);
+        if (currentRound == null) {
+            throw new CustomException(ErrorType.AUCTION_NOT_IN_PROGRESS, "진행 중인 경매가 없습니다.");
+        }
+
+        if (currentRound.getPosition() == null) {
+            throw new IllegalStateException("Current round position is null for draftId: " + draftId);
         }
 
         // 3. 팀 포인트 사전 검증 (빠른 실패)
@@ -57,19 +62,8 @@ public class BidService {
                 String.format("보유 포인트(%d)가 입찰가(%d)보다 부족합니다.", currentPoint, req.price()));
         }
 
-        // 4. 현재 경매 중인 선수의 포지션 확인 (Redis의 RoundStatus에서 조회)
-        RoundStatus currentRound = redisRepo.getCurrent(draftId);
-        if (currentRound == null) {
-            throw new CustomException(ErrorType.AUCTION_NOT_IN_PROGRESS, "진행 중인 경매가 없습니다.");
-        }
-
-        if (currentRound.getPosition() == null) {
-            throw new IllegalStateException("Current round position is null for draftId: " + draftId);
-        }
-
+        // 4. 팀이 이미 해당 포지션의 선수를 보유하고 있는지 확인 (Redis에서 조회)
         String auctionPosition = currentRound.getPosition().name();
-
-        // 5. 팀이 이미 해당 포지션의 선수를 보유하고 있는지 확인 (Redis에서 조회)
         boolean hasPosition = redisRepo.hasTeamPosition(draftId, req.teamId(), auctionPosition);
         if (hasPosition) {
             throw new CustomException(
@@ -79,30 +73,41 @@ public class BidService {
             );
         }
 
-        // 6. 현재 최고 입찰가 확인 및 검증 (현재 최고가보다 커야 함)
-        BidInfo currentBid = redisRepo.getBid(draftId);
-        if (currentBid.exists()) {
-            if (req.price() <= currentBid.getPrice()) {
-                throw new CustomException(
-                    ErrorType.BID_PRICE_TOO_LOW,
-                    String.format("입찰가는 현재 최고가(%dp)보다 커야 합니다.", currentBid.getPrice())
-                );
-            }
-        }
-        // 첫 입찰인 경우에는 최소 금액 검증만 통과하면 됨
-
-        // 7. Lua 스크립트로 원자적 입찰 처리
-        luaExecutor.tryBid(
+        // 5. Lua 스크립트로 원자적 입찰 처리 (가격 검증 포함)
+        Integer minBidPrice = currentRound.getMinBidPrice() != null ? currentRound.getMinBidPrice() : 0;
+        int result = luaExecutor.tryBid(
                 AuctionKey.bid(draftId),
                 AuctionKey.timer(draftId),
                 req.teamId(),
                 memberId,
-                req.price());
+                req.price(),
+                minBidPrice);
 
-        // 8. 입찰 후 남은 시간 조회 (타이머가 30초로 리셋되었으므로)
+        // 6. Lua 스크립트 결과에 따른 예외 처리
+        if (result == -1) {
+            throw new CustomException(ErrorType.AUCTION_NOT_IN_PROGRESS, "경매가 진행 중이 아닙니다. (타이머 만료)");
+        } else if (result == -2) {
+            BidInfo currentBid = redisRepo.getBid(draftId);
+            throw new CustomException(
+                ErrorType.BID_PRICE_TOO_LOW,
+                String.format("입찰가는 현재 최고가(%dp)보다 커야 합니다.",
+                    currentBid != null ? currentBid.getPrice() : 0)
+            );
+        } else if (result == -3) {
+            throw new IllegalStateException("Redis 입찰 데이터가 손상되었습니다.");
+        } else if (result == -4) {
+            throw new CustomException(
+                ErrorType.BID_PRICE_TOO_LOW,
+                String.format("입찰가는 최소 %d포인트 이상이어야 합니다.", minBidPrice)
+            );
+        } else if (result != 1) {
+            throw new IllegalStateException("입찰 처리 중 알 수 없는 오류가 발생했습니다. (code: " + result + ")");
+        }
+
+        // 7. 입찰 후 남은 시간 조회 (타이머가 10초로 리셋되었을 수 있음)
         Integer remainingSeconds = redisRepo.getRemainingSeconds(draftId);
 
-        // 9. WebSocket으로 입찰 이벤트 발행
+        // 8. WebSocket으로 입찰 이벤트 발행
         publisher.bidUpdated(draftId, req.teamId(), req.price(), remainingSeconds);
     }
 }

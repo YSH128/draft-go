@@ -24,7 +24,7 @@ public class AuctionRecoveryService {
 
     private final DraftRepository draftRepository;
     private final RedisAuctionRepository redisRepo;
-    private final AuctionService auctionService;
+    private final RoundStartService roundStartService;
     private final RoundTerminateService roundTerminateService;
 
     /**
@@ -73,14 +73,14 @@ public class AuctionRecoveryService {
             } catch (IllegalStateException e) {
                 // terminateRound 실패 → Redis 상태 불일치
                 redisRepo.clear(draftId);
-                auctionService.processNextRound(draftId);
+                roundStartService.startNextRound(draftId);
                 log.info("[Auction Recovery] DraftId: {} - Recovered by starting new round", draftId);
             }
         }
         // Case 2: Redis에 경매 상태도 없는 경우 (완전히 중단됨)
         else if (currentRound == null) {
             // 새로운 경매 라운드 시작
-            auctionService.processNextRound(draftId);
+            roundStartService.startNextRound(draftId);
             log.info("[Auction Recovery] DraftId: {} - Restarted auction", draftId);
         }
         // Case 3: 정상 진행 중 (타이머도 있고 상태도 있음)

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getMyProfile } from "../../api/auth";
-import { getAuctionState, placeBid, startAuction } from "../../api/draft";
+import { getAuctionState, placeBid } from "../../api/draft";
 import ToastContainer from "../../components/ToastContainer";
 import { getChatPublishPath, getChatTopic } from "../../constants/socket";
 import useToast from "../../hooks/useToast";
@@ -11,7 +11,7 @@ import { AuctionSection, ChatSection, TeamSidebarSection } from "./sections";
 
 const DEFAULT_TIER = "UNRANKED";
 const BID_INCREMENT = 20;
-const ROUND_SECONDS = 30;
+const ROUND_SECONDS = 15;
 
 // 백엔드에서 받은 queue 데이터를 UI용으로 변환
 const normalizeQueue = (queue) =>
@@ -79,10 +79,12 @@ export default function DraftPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
+
   const { toasts, showToast, removeToast } = useToast();
 
-  const didStartAuction = useRef(false);
   const wsClientRef = useRef(null);
+  const timerStartRef = useRef({ time: Date.now(), baseSeconds: ROUND_SECONDS });
+
 
   const wsUrl = useMemo(
     () => buildWsUrl(import.meta.env.VITE_API_BASE_URL),
@@ -155,7 +157,13 @@ export default function DraftPage() {
       mainPosition,
       subPosition,
       mostChampions,
+      minBidPrice: currentState.minBidPrice ?? 0,
     };
+  }, [currentState]);
+
+  // 최소 입찰가 (currentState에서 직접 추출)
+  const minBidPrice = useMemo(() => {
+    return currentState?.minBidPrice ?? 0;
   }, [currentState]);
 
   // 현재 선수의 포지션이 내 팀에 이미 있는지 확인
@@ -280,8 +288,17 @@ export default function DraftPage() {
 
   // 다음 입찰가
   const nextBidPrice = useMemo(() => {
-    return (currentBid?.price ?? 0) + BID_INCREMENT;
-  }, [currentBid]);
+    const currentPrice = currentBid?.price ?? 0;
+    const minPrice = minBidPrice ?? 0;
+
+    // 아직 입찰이 없으면 (teamId가 없으면) 최소 입찰가부터 시작
+    if (!currentBid?.teamId) {
+      return minPrice;
+    }
+
+    // 입찰이 있으면 현재가 + 증분
+    return currentPrice + BID_INCREMENT;
+  }, [currentBid, minBidPrice]);
 
   // 입찰 가능 여부 검증
   const canBid = useMemo(() => {
@@ -382,12 +399,6 @@ export default function DraftPage() {
         applyInitialData(initialData);
         setMyMemberId(myProfileData?.memberId ?? null);
 
-        // 첫 경매 시작이 필요한 경우
-        if (!initialData.currentRound && !didStartAuction.current) {
-          didStartAuction.current = true;
-          await startAuction(draftId);
-        }
-
         setIsLoading(false);
       } catch (error) {
         console.error("초기 데이터 로딩 실패:", error);
@@ -456,20 +467,27 @@ export default function DraftPage() {
     };
   }, [isValidDraftId, refreshAuctionState]);
 
-  // 타이머 카운트다운
+  // timeLeft가 변경될 때 타이머 기준점 업데이트 (서버에서 시간 갱신 시)
+  useEffect(() => {
+    timerStartRef.current = { time: Date.now(), baseSeconds: timeLeft };
+  }, [timeLeft]);
+
+  // 타이머 카운트다운 (0.1초 단위로 부드럽게, 서버 업데이트 반영)
   useEffect(() => {
     if (!currentState) return;
 
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        const next = prev - 1;
-        if (next <= 0) {
-          clearInterval(timer);
-          return 0;
-        }
-        return next;
-      });
-    }, 1000);
+      const { time: startTime, baseSeconds } = timerStartRef.current;
+      const elapsed = (Date.now() - startTime) / 1000;
+      const remaining = baseSeconds - elapsed;
+
+      if (remaining <= 0) {
+        setTimeLeft(0);
+        clearInterval(timer);
+      } else {
+        setTimeLeft(remaining);
+      }
+    }, 100); // 100ms마다 업데이트
 
     return () => clearInterval(timer);
   }, [currentState]);
@@ -537,6 +555,9 @@ export default function DraftPage() {
       <AuctionSection
         player={currentPlayer}
         currentBid={currentBid?.price ?? 0}
+        minBidPrice={minBidPrice}
+        nextBidPrice={nextBidPrice}
+        hasCurrentBid={!!currentBid?.teamId}
         timeLeft={timeLeft}
         bidIncrement={BID_INCREMENT}
         onBid={handleBid}

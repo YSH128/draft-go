@@ -35,6 +35,7 @@ public class RoundStatus implements Serializable {
     private Long draftMemberId;
     private int turnOrder;
     private CurrentMemberStatus currentMemberStatus;
+    private Integer minBidPrice;        // 최소 입찰가 (유찰 단계면 0, 일반 단계면 startPrice)
 
     public static RoundStatus start(Long draftId, Long draftMemberId,
             int turnOrder,
@@ -45,7 +46,8 @@ public class RoundStatus implements Serializable {
             Position position,
             Position mainPosition,
             Position subPosition,
-            List<MostChampionRes> mostChampions) {
+            List<MostChampionRes> mostChampions,
+            Integer minBidPrice) {
         return RoundStatus.builder()
                 .draftId(draftId)
                 .currentMemberStatus(CurrentMemberStatus.BIDDING)
@@ -59,6 +61,7 @@ public class RoundStatus implements Serializable {
                 .subPosition(subPosition)
                 .mostChampions(mostChampions)
                 .playerProfileImageUrl(playerProfileImageUrl)
+                .minBidPrice(minBidPrice)
                 .build();
     }
 }

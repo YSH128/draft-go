@@ -2,14 +2,17 @@
  * 원형 타이머 컴포넌트
  * - SVG 기반 원형 프로그레스 바
  *
- * @param {number} seconds - 남은 초
- * @param {number} maxSeconds - 전체 초 (기본 30)
+ * @param {number} seconds - 남은 초 (소수점 포함)
+ * @param {number} maxSeconds - 전체 초 (기본 15)
  */
-export default function TimerCircle({ seconds, maxSeconds = 30 }) {
+export default function TimerCircle({ seconds, maxSeconds = 15 }) {
   const radius = 36;
   const circumference = 2 * Math.PI * radius;
   const progress = (seconds / maxSeconds) * circumference;
   const offset = circumference - progress;
+
+  // 0.01초 단위로 표시 (소수점 두 자리)
+  const displaySeconds = Math.max(0, seconds).toFixed(2);
 
   return (
     <div className="relative flex size-20 items-center justify-center">
@@ -33,11 +36,11 @@ export default function TimerCircle({ seconds, maxSeconds = 30 }) {
           strokeWidth="4"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="transition-all duration-1000"
+          className="transition-all duration-100"
         />
       </svg>
-      {/* 초 표시 */}
-      <span className="animate-pulse text-2xl font-black text-primary">{seconds}</span>
+      {/* 초 표시 (소수점 두 자리) */}
+      <span className="text-xl font-black text-primary tabular-nums">{displaySeconds}</span>
     </div>
   );
 }
