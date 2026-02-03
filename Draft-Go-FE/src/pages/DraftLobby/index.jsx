@@ -330,7 +330,7 @@ export default function DraftLobby() {
                     games: c.totalGames,
                     winRate: c.winRate,
                     kda: c.kda,
-                    imageUrl: c.championIconUrl || `https://ddragon.leagueoflegends.com/cdn/14.16.1/img/champion/${c.championName}.png`
+                    imageUrl: c.championIconUrl || c.imageUrl || `https://ddragon.leagueoflegends.com/cdn/14.16.1/img/champion/${c.championName}.png`
                 })),
                 lp: leader.leaguePoints,
                 gameName: leader.gameName,
@@ -486,7 +486,7 @@ export default function DraftLobby() {
                     games: c.totalGames,
                     winRate: c.winRate,
                     kda: c.kda,
-                    imageUrl: c.imageUrl || `https://ddragon.leagueoflegends.com/cdn/14.16.1/img/champion/${c.championName}.png`
+                    imageUrl: c.championIconUrl || c.imageUrl || `https://ddragon.leagueoflegends.com/cdn/14.16.1/img/champion/${c.championName}.png`
                 })),
                 gameName: memberProfile.gameName,
                 tagLine: memberProfile.tagLine,
@@ -1504,8 +1504,8 @@ export default function DraftLobby() {
                                             }
                                         }}
                                         className={`!h-14 !px-8 !text-xl !rounded-xl gap-2 !flex-row flex items-center justify-center transition-all duration-300 ${captains.filter(c => c.name).every(c => c.ready)
-                                                ? 'shadow-[0_0_20px_rgba(200,155,60,0.4)] hover:brightness-110 cursor-pointer opacity-100'
-                                                : 'shadow-none cursor-not-allowed opacity-50'
+                                            ? 'shadow-[0_0_20px_rgba(200,155,60,0.4)] hover:brightness-110 cursor-pointer opacity-100'
+                                            : 'shadow-none cursor-not-allowed opacity-50'
                                             }`}
                                     >
                                         <span className="material-symbols-outlined font-bold text-2xl">gavel</span>

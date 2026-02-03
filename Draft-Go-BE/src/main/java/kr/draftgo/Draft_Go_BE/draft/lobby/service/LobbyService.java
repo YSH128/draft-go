@@ -86,16 +86,37 @@ public class LobbyService {
         Map<Long, Member> leaderMemberMap = memberRepository.findAllById(leaderIds).stream()
                 .collect(Collectors.toMap(Member::getId, m -> m));
 
-        // 팀장의 모스트 챔피언 정보 조회
+        // 팀장의 모스트 챔피언 정보 조회 (DataDragonService 활용)
         Map<Long, List<MostChampionRes>> leaderMostChampionsMap = leaderIds.stream()
                 .collect(Collectors.toMap(
                         memberId -> memberId,
                         memberId -> mostChampionStatRepository.findByMemberId(memberId)
                                 .map(mostStat -> mostStat.getMostChampions().stream()
-                                        .map(MostChampionRes::from)
+                                        .map(champ -> {
+                                            // DataDragonService를 통해 아이콘 URL 및 한글 이름 조회
+                                            String championIconUrl = dataDragonService
+                                                    .getChampionIconUrl(champ.getChampionName());
+                                            String koreanName = dataDragonService
+                                                    .getKoreanChampionName(champ.getChampionName());
+
+                                            // MostChampionRes 생성 (빌더 패턴 활용)
+                                            return MostChampionRes.builder()
+                                                    .championId(champ.getChampionId())
+                                                    .championName(
+                                                            koreanName != null ? koreanName : champ.getChampionName()) // 한글
+                                                                                                                       // 이름
+                                                                                                                       // 우선
+                                                                                                                       // 사용
+                                                    .championIconUrl(championIconUrl)
+                                                    .totalGames(champ.getTotalGames())
+                                                    .totalWins(champ.getTotalWins())
+                                                    .totalLosses(champ.getTotalLosses())
+                                                    .winRate(champ.getWinRate())
+                                                    .kda(champ.getKda())
+                                                    .build();
+                                        })
                                         .collect(Collectors.toList()))
-                                .orElse(Collections.emptyList())
-                ));
+                                .orElse(Collections.emptyList())));
 
         // Leaders: role이 "LEADER"인 참가자
         List<LeaderDetail> leaders = participants.stream()
