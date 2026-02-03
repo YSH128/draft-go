@@ -378,15 +378,23 @@ public class LobbyService {
 
     /**
      * 드래프트 시작 (관리자 전용)
+     * 비관적 락을 사용하여 동시성 문제 방지
      */
     @Transactional
     public void startDraft(Long draftId, Long adminId) {
-        Draft draft = draftRepository.findById(draftId)
+        // 비관적 락을 사용하여 Draft 조회 (동시성 제어)
+        // SELECT FOR UPDATE로 다른 트랜잭션이 같은 row를 동시에 수정하는 것을 방지
+        Draft draft = draftRepository.findByIdWithLock(draftId)
                 .orElseThrow(() -> new CustomException(ErrorType.DRAFT_NOT_FOUND));
 
         // 관리자 권한 확인
         if (!draft.getOwner().getId().equals(adminId)) {
             throw new CustomException(ErrorType.UNAUTHORIZED_OWNER_ONLY, "관리자만 드래프트를 시작할 수 있습니다.");
+        }
+
+        // 드래프트 상태 확인 - 이미 시작된 드래프트는 다시 시작할 수 없음 (중복 시작 방지)
+        if (draft.getStatus() != DraftStatus.LOBBY) {
+            throw new CustomException(ErrorType.DRAFT_NOT_IN_LOBBY, "이미 시작되었거나 종료된 드래프트입니다.");
         }
 
         List<LobbyParticipant> participants = lobbyRedisRepository.getParticipants(draftId);

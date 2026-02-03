@@ -169,7 +169,7 @@ export default function DraftLobby() {
     const [isEditDraftModalOpen, setIsEditDraftModalOpen] = useState(false);
     const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
     const [messages, setMessages] = useState([]);
-    
+
     // Draft Start Animation State
     const [isStarting, setIsStarting] = useState(false);
 
@@ -182,7 +182,7 @@ export default function DraftLobby() {
         console.log("🎬 [DraftLobby] Draft Starting Animation Triggered!");
         setIsStarting(true);
         setTimeout(() => {
-             navigate(`/draft?draftId=${draftId}`);
+            navigate(`/draft?draftId=${draftId}`);
         }, 2500);
     }, [draftId, navigate]);
 
@@ -1515,7 +1515,6 @@ export default function DraftLobby() {
                                             try {
                                                 const targetId = draftId || 1;
                                                 await DraftApi.startDraft(targetId);
-                                                await DraftApi.startDraft(targetId);
                                                 // 애니메이션 발동 (Socket이 늦을 수 있으므로 직접 호출)
                                                 handleDraftStarted();
                                             } catch (e) {
@@ -1533,9 +1532,8 @@ export default function DraftLobby() {
                                     </Button>
                                 ) : (
                                     <div className="bg-[#0f0e0b] border border-[#393528] rounded-xl px-6 py-4 flex items-center gap-4 shadow-xl">
-                                        <span className={`material-symbols-outlined text-[#c89b3c] text-2xl ${
-                                            captains.filter(c => c.name).every(c => c.ready) ? 'animate-pulse' : 'animate-spin-slow'
-                                        }`}>
+                                        <span className={`material-symbols-outlined text-[#c89b3c] text-2xl ${captains.filter(c => c.name).every(c => c.ready) ? 'animate-pulse' : 'animate-spin-slow'
+                                            }`}>
                                             {captains.filter(c => c.name).every(c => c.ready) ? 'hourglass_top' : 'sync'}
                                         </span>
                                         <div>
@@ -1577,11 +1575,11 @@ export default function DraftLobby() {
                         </div>
 
                         {/* Background Image / Overlay */}
-            {isStarting && <DraftStartOverlay />}
-            <div 
-                className="fixed inset-0 bg-cover bg-center opacity-20 pointer-events-none z-[-1]"
-                style={{ backgroundImage: `url('/assets/wallpaper/wallpaper_1.jpg')` }}
-            ></div>
+                        {isStarting && <DraftStartOverlay />}
+                        <div
+                            className="fixed inset-0 bg-cover bg-center opacity-20 pointer-events-none z-[-1]"
+                            style={{ backgroundImage: `url('/assets/wallpaper/wallpaper_1.jpg')` }}
+                        ></div>
 
                         {/* Input Area */}
                         <div className="p-5 bg-panel-dark border-t border-[#393528]">
