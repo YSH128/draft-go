@@ -98,15 +98,17 @@ public class RoundStartService {
         Tier tier = memberStat != null ? memberStat.getTier() : null;
         Division division = memberStat != null ? memberStat.getDivision() : null;
 
-        // 3. 모스트 챔피언 조회 (최대 3개) - championIconUrl 포함
+        // 3. 모스트 챔피언 조회 (최대 3개) - championIconUrl 포함, 한글 이름 사용
         List<MostChampionRes> mostChampions = mostChampionStatRepository.findByMemberId(next.getMember().getId())
                 .map(mostStat -> mostStat.getMostChampions().stream()
                         .limit(3)
                         .map(champ -> {
-                            String championIconUrl = dataDragonService.getChampionIconUrl(champ.getChampionName());
+                            String englishName = champ.getChampionName();
+                            String koreanName = dataDragonService.getKoreanChampionName(englishName); // 한글 이름으로 변환
+                            String championIconUrl = dataDragonService.getChampionIconUrl(englishName); // URL은 영어로
                             return MostChampionRes.builder()
                                     .championId(champ.getChampionId())
-                                    .championName(champ.getChampionName())
+                                    .championName(koreanName) // 한글 이름 사용
                                     .championIconUrl(championIconUrl)
                                     .totalGames(champ.getTotalGames())
                                     .totalWins(champ.getTotalWins())

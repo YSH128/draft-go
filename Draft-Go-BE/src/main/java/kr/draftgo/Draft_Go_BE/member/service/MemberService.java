@@ -164,10 +164,12 @@ public class MemberService {
         List<MostChampionRes> mostChampions = mostChampionStatRepository.findByMemberId(member.getId())
                 .map(mostStat -> mostStat.getMostChampions().stream()
                         .map(champ -> {
-                            String iconUrl = dataDragonService.getChampionIconUrl(champ.getChampionName());
+                            String englishName = champ.getChampionName();
+                            String koreanName = dataDragonService.getKoreanChampionName(englishName); // 한글 이름으로 변환
+                            String iconUrl = dataDragonService.getChampionIconUrl(englishName); // URL은 영어로
                             return MostChampionRes.builder()
                                     .championId(champ.getChampionId())
-                                    .championName(champ.getChampionName())
+                                    .championName(koreanName) // 한글 이름 사용
                                     .championIconUrl(iconUrl)
                                     .totalGames(champ.getTotalGames())
                                     .totalWins(champ.getTotalWins())

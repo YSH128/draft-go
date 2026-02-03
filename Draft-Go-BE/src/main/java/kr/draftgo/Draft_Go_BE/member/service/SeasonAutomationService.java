@@ -59,13 +59,32 @@ public class SeasonAutomationService {
      */
     @Scheduled(cron = "0 */10 * * * *") // 매 10분마다
     public void checkSeasonUpdate() {
-        log.info("[Automation] 시즌 체크 스케줄러 실행");
         try {
-            String currentVersion = dataDragonService.getVersion(); // e.g., "16.2.1"
+            // ✅ 1단계: 패치 버전 먼저 갱신!
+            boolean versionChanged = dataDragonService.refreshVersion();
+
+            // ✅ 2단계: 최신 버전 가져오기 (방금 갱신된 값)
+            String currentVersion = dataDragonService.getVersion();
             SeasonDocument activeSeason = seasonService.getActiveSeason();
+
+            // ✅ 현재 패치 버전 & 시즌 정보 로그 출력
+            if (activeSeason != null) {
+                log.info("📊 [Automation] 현재 패치 버전: {}, 현재 시즌 ID: {}, 시작 버전: {}",
+                        currentVersion,
+                        activeSeason.getSeasonId(),
+                        activeSeason.getStartVersion());
+            } else {
+                log.info("📊 [Automation] 현재 패치 버전: {}, 활성 시즌: 없음", currentVersion);
+            }
+
+            // ✅ 3단계: 버전이 변경되었으면 챔피언/룬/스펠 데이터도 갱신
+            if (versionChanged) {
+                dataDragonService.refreshAllDataIfNeeded();
+            }
 
             if (activeSeason == null) {
                 // 활성 시즌이 없으면 부트스트랩 시도
+                log.warn("⚠️ [Automation] 활성 시즌이 없습니다. 부트스트랩을 시도합니다.");
                 bootstrap();
                 return;
             }
@@ -75,7 +94,7 @@ public class SeasonAutomationService {
             // 1. 버전 비교 (Major Update Check)
             // 17.x 등 메이저 버전이 바뀌면 무조건 시즌 교체
             if (isMajorUpdate(currentVersion, activeStartVersion)) {
-                log.info("[Automation] Major Update Detected ({} -> {}). Creating new season...", activeStartVersion,
+                log.info("🔥 [Automation] Major Update Detected ({} -> {}). Creating new season...", activeStartVersion,
                         currentVersion);
                 seasonService.createNextSeason(currentVersion);
                 return;
@@ -90,18 +109,18 @@ public class SeasonAutomationService {
             if (!activeStartVersion.equals(currentMajorMinor) &&
                     (lastChecked == null || !lastChecked.equals(currentMajorMinor))) {
 
-                log.info("[Automation] New version detected: {}. Checking Challenger League...", currentVersion);
+                log.info("🔍 [Automation] New version detected: {}. Checking Challenger League...", currentVersion);
                 Map<String, Object> challengerLeague = riotApiService.getChallengerLeague("RANKED_SOLO_5x5");
 
                 if (challengerLeague != null && challengerLeague.containsKey("entries")) {
                     List<?> entries = (List<?>) challengerLeague.get("entries");
                     if (entries == null || entries.isEmpty()) {
                         log.info(
-                                "[Automation] Challenger League is Empty! Split Reset Detected. Creating new season...");
+                                "🔥 [Automation] Challenger League is Empty! Split Reset Detected. Creating new season...");
                         seasonService.createNextSeason(currentVersion);
                     } else {
                         log.info(
-                                "[Automation] Version updated to {}, but Challenger league has {} entries. Regular patch.",
+                                "ℹ️ [Automation] Version updated to {}, but Challenger league has {} entries. Regular patch.",
                                 currentVersion, entries.size());
                         // 확인 완료: 다음번엔 API 호출 안 하도록 기록
                         seasonService.updateLastCheckedVersion(activeSeason.getSeasonId(), currentMajorMinor);
@@ -110,7 +129,7 @@ public class SeasonAutomationService {
             }
 
         } catch (Exception e) {
-            log.error("[Automation] Use Scheduled Task Failed", e);
+            log.error("❌ [Automation] Scheduled Task Failed", e);
         }
     }
 
