@@ -183,7 +183,7 @@ export default function TeamLeaderCard({
                 /* Case 2 & 3: 보기 모드 (준비 완료 또는 대기 중) */
                  <div className="flex flex-col items-center justify-center bg-[#0f0e0b] border border-[#393528] py-4 rounded-xl shadow-inner w-full opacity-90">
                     {/* 타인이 볼 때는 Ready 상태일 때만 포지션 표시 */}
-                    {(isReady && selectedRole) ? (
+                    {(selectedRole) ? (
                         <>
                             <PositionIcon position={selectedRole} className="w-8 h-8 mb-1 drop-shadow-md" style={{ color: tierColor}} />
                             <span className="text-[10px] font-bold uppercase tracking-[0.1em]" style={{ color: tierColor }}>{selectedRole} 선택</span>
