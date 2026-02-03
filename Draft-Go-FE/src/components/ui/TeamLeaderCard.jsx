@@ -30,10 +30,7 @@ export default function TeamLeaderCard({
   const tierColor = `var(--color-tier-${tierLower}-bg)`;
   const tierBadgeText = `var(--color-tier-${tierLower}-badge-text)`;
 
-  // 디버깅 로그
-  if (isCurrentUser) {
-      console.log(`[TeamLeaderCard] Me: ${captainName}, IsReady: ${isReady}, SelectedRole: ${selectedRole}`);
-  }
+
 
   // --- 상태 설명 ---
   // 1. 선택 단계: 팀장(본인)이면서 준비 안 됨

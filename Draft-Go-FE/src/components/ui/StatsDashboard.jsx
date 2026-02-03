@@ -51,7 +51,7 @@ export default function StatsDashboard({ captains, draftPool, calculateAverageTi
         <div className="flex-1 flex justify-around w-full">
           {['TOP', 'JNG', 'MID', 'ADC', 'SUP'].map(role => {
             // Calculate Captain Count for this role (ONLY READY captains!)
-            const captainCount = captains.filter(c => c.selectedRole === role && c.ready).length;
+            const captainCount = captains.filter(c => c.selectedRole === role).length;
             const poolCount = draftPool[role]?.length || 0;
             const roleAverage = calculateAverageTier(draftPool[role] || []);
 

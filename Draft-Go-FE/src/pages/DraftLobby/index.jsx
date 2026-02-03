@@ -667,7 +667,7 @@ export default function DraftLobby() {
     };
 
     const handleOpenProfile = async (participant) => {
-        console.log('handleOpenProfile called:', participant, 'userRole:', userRole);
+
 
         const profileData = {
             summonerName: participant.name,

@@ -35,18 +35,16 @@ export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage) => {
         : messageBody;
       
       const { eventType } = payload;
-      console.log(`📩 [LobbySocket] Event: ${eventType}`, payload);
+
 
       // 이벤트 분기 처리
       switch (eventType) {
         case LOBBY_SOCKET_EVENTS.DRAFT_STARTED:
           // 드래프트 시작 → 경매 페이지로 라우팅
-          console.log('🚀 [LobbySocket] Draft started, navigating to auction...');
           navigate(`/draft?draftId=${draftId}`);
           break;
 
         case LOBBY_SOCKET_EVENTS.DRAFT_DESTROYED:
-          console.warn('⛔ [LobbySocket] Draft destroyed by host.');
           if (onLobbyEnded) onLobbyEnded();
           break;
 
@@ -59,7 +57,6 @@ export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage) => {
         case LOBBY_SOCKET_EVENTS.LEADER_POINT_CHANGED:
         case LOBBY_SOCKET_EVENTS.INVITE_CODE_REFRESHED:
         case LOBBY_SOCKET_EVENTS.REFRESH_REQUIRED:
-          console.log('🔄 [LobbySocket] Invalidating lobby data...');
           queryClient.invalidateQueries({ queryKey: ['lobbyData', Number(draftId)] });
           break;
 
@@ -81,20 +78,17 @@ export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage) => {
       return;
     }
 
-    console.log(`[LobbySocket] Connecting to: ${wsUrl}`);
+
 
     // STOMP 클라이언트 생성
     const client = createStompClient({
       url: wsUrl,
       onConnect: () => {
-        console.log(`✅ [LobbySocket] Connected to draft ${draftId}`);
-
         // 로비 토픽 구독: /topic/lobby/{draftId}
         client.subscribe(getLobbyTopic(draftId), handleSocketMessage);
 
         // 채팅 토픽 구독: /topic/chat/{draftId}
         const chatTopic = getChatTopic(draftId);
-        console.log(`💬 [LobbySocket] Subscribing to chat topic: ${chatTopic}`);
         client.subscribe(chatTopic, (body) => {
           if (onChatMessage) {
             try {
@@ -115,7 +109,6 @@ export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage) => {
 
     // Cleanup: 언마운트 시 연결 해제
     return () => {
-      console.log('🔌 [LobbySocket] Disconnecting...');
       client?.disconnect();
       clientRef.current = null;
     };
