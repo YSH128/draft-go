@@ -1,6 +1,7 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.dto.event;
 
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.CurrentMemberStatus;
+import kr.draftgo.Draft_Go_BE.match.dto.MostChampionRes;
 import kr.draftgo.Draft_Go_BE.member.domain.Division;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import kr.draftgo.Draft_Go_BE.member.domain.Tier;
@@ -25,10 +26,10 @@ public class RoundStartEventDto {
     private String playerProfileImageUrl;
     private Tier tier;
     private Division division;
-    private Position position;          // 경매 포지션
-    private Position mainPosition;      // 주 포지션
-    private Position subPosition;       // 부 포지션
-    private List<String> mostChampions; // 모스트 챔피언 (최대 3개)
+    private Position position; // 경매 포지션
+    private Position mainPosition; // 주 포지션
+    private Position subPosition; // 부 포지션
+    private List<MostChampionRes> mostChampions; // 모스트 챔피언 (최대 3개, championIconUrl 포함)
     private int turnOrder;
     private CurrentMemberStatus currentMemberStatus;
 }

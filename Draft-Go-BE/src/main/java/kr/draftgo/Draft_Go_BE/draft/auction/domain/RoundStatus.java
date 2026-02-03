@@ -1,5 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.domain;
 
+import kr.draftgo.Draft_Go_BE.match.dto.MostChampionRes;
 import kr.draftgo.Draft_Go_BE.member.domain.Division;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import kr.draftgo.Draft_Go_BE.member.domain.Tier;
@@ -27,24 +28,24 @@ public class RoundStatus implements Serializable {
     private String playerProfileImageUrl;
     private Tier tier;
     private Division division;
-    private Position position;          // 경매 대상 선수의 포지션
-    private Position mainPosition;      // 주 포지션 (선호 포지션)
-    private Position subPosition;       // 부 포지션 (선호 포지션)
-    private List<String> mostChampions; // 모스트 챔피언 최대 3개
+    private Position position; // 경매 대상 선수의 포지션
+    private Position mainPosition; // 주 포지션 (선호 포지션)
+    private Position subPosition; // 부 포지션 (선호 포지션)
+    private List<MostChampionRes> mostChampions; // 모스트 챔피언 최대 3개 (championIconUrl 포함)
     private Long draftMemberId;
     private int turnOrder;
     private CurrentMemberStatus currentMemberStatus;
 
     public static RoundStatus start(Long draftId, Long draftMemberId,
-                                    int turnOrder,
-                                    String playerName,
-                                    String playerProfileImageUrl,
-                                    Tier tier,
-                                    Division division,
-                                    Position position,
-                                    Position mainPosition,
-                                    Position subPosition,
-                                    List<String> mostChampions) {
+            int turnOrder,
+            String playerName,
+            String playerProfileImageUrl,
+            Tier tier,
+            Division division,
+            Position position,
+            Position mainPosition,
+            Position subPosition,
+            List<MostChampionRes> mostChampions) {
         return RoundStatus.builder()
                 .draftId(draftId)
                 .currentMemberStatus(CurrentMemberStatus.BIDDING)

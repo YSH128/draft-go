@@ -85,25 +85,31 @@ export default function AuctionStage({ player, currentBid, timeLeft }) {
               </span>
               {mostChampions.length > 0 ? (
                 <div className="flex gap-1.5">
-                  {mostChampions.map((champName, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-1 rounded bg-black/40 px-1.5 py-0.5"
-                      title={champName}
-                    >
-                      <img
-                        src={`https://ddragon.leagueoflegends.com/cdn/14.1.1/img/champion/${champName}.png`}
-                        alt={champName}
-                        className="h-4 w-4 rounded-sm"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                      <span className="text-[10px] font-medium text-white/80">
-                        {champName}
-                      </span>
-                    </div>
-                  ))}
+                  {mostChampions.map((champ, idx) => {
+                    // mostChampions가 객체 배열인 경우와 문자열 배열인 경우 모두 처리
+                    const championName = typeof champ === 'string' ? champ : (champ.championName || champ.name);
+                    const championIconUrl = typeof champ === 'object' ? (champ.championIconUrl || champ.imageUrl) : null;
+
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-1 rounded bg-black/40 px-1.5 py-0.5"
+                        title={championName}
+                      >
+                        <img
+                          src={championIconUrl || `https://ddragon.leagueoflegends.com/cdn/14.1.1/img/champion/${championName}.png`}
+                          alt={championName}
+                          className="h-4 w-4 rounded-sm"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                        <span className="text-[10px] font-medium text-white/80">
+                          {championName}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <span className="text-[10px] italic text-primary/30">정보 없음</span>

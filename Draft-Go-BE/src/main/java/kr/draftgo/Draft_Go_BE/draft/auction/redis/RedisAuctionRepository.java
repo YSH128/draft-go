@@ -3,6 +3,7 @@ package kr.draftgo.Draft_Go_BE.draft.auction.redis;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.CurrentMemberStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.RoundStatus;
 import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
+import kr.draftgo.Draft_Go_BE.match.dto.MostChampionRes;
 import kr.draftgo.Draft_Go_BE.member.domain.Division;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
 import kr.draftgo.Draft_Go_BE.member.domain.Tier;
@@ -36,24 +37,24 @@ public class RedisAuctionRepository {
 
             try {
                 Long draftIdValue = map.get("draftId") instanceof Number
-                    ? ((Number) map.get("draftId")).longValue()
-                    : null;
+                        ? ((Number) map.get("draftId")).longValue()
+                        : null;
 
                 String playerName = (String) map.get("playerName");
                 String playerProfileImageUrl = (String) map.get("playerProfileImageUrl");
 
                 Long draftMemberId = map.get("draftMemberId") instanceof Number
-                    ? ((Number) map.get("draftMemberId")).longValue()
-                    : null;
+                        ? ((Number) map.get("draftMemberId")).longValue()
+                        : null;
 
                 int turnOrder = map.get("turnOrder") instanceof Number
-                    ? ((Number) map.get("turnOrder")).intValue()
-                    : 0;
+                        ? ((Number) map.get("turnOrder")).intValue()
+                        : 0;
 
                 String statusStr = (String) map.get("currentMemberStatus");
                 CurrentMemberStatus currentMemberStatus = statusStr != null
-                    ? CurrentMemberStatus.valueOf(statusStr)
-                    : null;
+                        ? CurrentMemberStatus.valueOf(statusStr)
+                        : null;
 
                 // Tier 역직렬화
                 String tierStr = (String) map.get("tier");
@@ -75,23 +76,55 @@ public class RedisAuctionRepository {
                 String subPositionStr = (String) map.get("subPosition");
                 Position subPosition = subPositionStr != null ? Position.valueOf(subPositionStr) : null;
 
-                // Most Champions 역직렬화
-                List<String> mostChampions = (List<String>) map.get("mostChampions");
+                // Most Champions 역직렬화 (List<Map> -> List<MostChampionRes>)
+                List<MostChampionRes> mostChampions = null;
+                Object championsObj = map.get("mostChampions");
+                if (championsObj instanceof List) {
+                    List<?> championsList = (List<?>) championsObj;
+                    mostChampions = championsList.stream()
+                            .filter(item -> item instanceof LinkedHashMap)
+                            .map(item -> {
+                                LinkedHashMap<String, Object> champMap = (LinkedHashMap<String, Object>) item;
+                                return MostChampionRes.builder()
+                                        .championId(champMap.get("championId") instanceof Number
+                                                ? ((Number) champMap.get("championId")).intValue()
+                                                : null)
+                                        .championName((String) champMap.get("championName"))
+                                        .championIconUrl((String) champMap.get("championIconUrl"))
+                                        .totalGames(champMap.get("totalGames") instanceof Number
+                                                ? ((Number) champMap.get("totalGames")).intValue()
+                                                : 0)
+                                        .totalWins(champMap.get("totalWins") instanceof Number
+                                                ? ((Number) champMap.get("totalWins")).intValue()
+                                                : 0)
+                                        .totalLosses(champMap.get("totalLosses") instanceof Number
+                                                ? ((Number) champMap.get("totalLosses")).intValue()
+                                                : 0)
+                                        .winRate(champMap.get("winRate") instanceof Number
+                                                ? ((Number) champMap.get("winRate")).intValue()
+                                                : 0)
+                                        .kda(champMap.get("kda") instanceof Number
+                                                ? ((Number) champMap.get("kda")).doubleValue()
+                                                : 0.0)
+                                        .build();
+                            })
+                            .collect(java.util.stream.Collectors.toList());
+                }
 
                 return RoundStatus.builder()
-                    .draftId(draftIdValue)
-                    .playerName(playerName)
-                    .playerProfileImageUrl(playerProfileImageUrl)
-                    .tier(tier)
-                    .division(division)
-                    .position(position)
-                    .mainPosition(mainPosition)
-                    .subPosition(subPosition)
-                    .mostChampions(mostChampions)
-                    .draftMemberId(draftMemberId)
-                    .turnOrder(turnOrder)
-                    .currentMemberStatus(currentMemberStatus)
-                    .build();
+                        .draftId(draftIdValue)
+                        .playerName(playerName)
+                        .playerProfileImageUrl(playerProfileImageUrl)
+                        .tier(tier)
+                        .division(division)
+                        .position(position)
+                        .mainPosition(mainPosition)
+                        .subPosition(subPosition)
+                        .mostChampions(mostChampions)
+                        .draftMemberId(draftMemberId)
+                        .turnOrder(turnOrder)
+                        .currentMemberStatus(currentMemberStatus)
+                        .build();
 
             } catch (Exception e) {
                 throw new RuntimeException("Failed to parse RoundStatus from Redis: " + e.getMessage(), e);
@@ -134,6 +167,7 @@ public class RedisAuctionRepository {
 
     /**
      * 타이머 남은 시간 조회
+     * 
      * @return 남은 시간 (초). 타이머가 없거나 만료된 경우 0 반환
      */
     public Integer getRemainingSeconds(Long draftId) {
@@ -152,6 +186,7 @@ public class RedisAuctionRepository {
 
     /**
      * 타이머가 존재하는지 확인
+     * 
      * @return true: 타이머가 존재함, false: 타이머가 없거나 만료됨
      */
     public boolean hasTimer(Long draftId) {
@@ -162,7 +197,7 @@ public class RedisAuctionRepository {
     public Integer getTeamPoint(Long draftId, Long teamId) {
         Object val = redis.opsForValue().get(AuctionKey.teamPoint(draftId, teamId));
         if (val == null)
-            return null;  // Redis에 값이 없으면 null 반환 (DB 값 사용)
+            return null; // Redis에 값이 없으면 null 반환 (DB 값 사용)
         return (Integer) val;
     }
 

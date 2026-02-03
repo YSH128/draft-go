@@ -18,6 +18,7 @@ import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeammateRepository;
 import kr.draftgo.Draft_Go_BE.match.domain.MostChampionStat;
+import kr.draftgo.Draft_Go_BE.match.dto.MostChampionRes;
 import kr.draftgo.Draft_Go_BE.match.repository.MostChampionStatRepository;
 import kr.draftgo.Draft_Go_BE.match.service.DataDragonService;
 import kr.draftgo.Draft_Go_BE.member.domain.Division;
@@ -97,11 +98,26 @@ public class RoundStartService {
         Tier tier = memberStat != null ? memberStat.getTier() : null;
         Division division = memberStat != null ? memberStat.getDivision() : null;
 
-        // 3. 모스트 챔피언 조회 (최대 3개)
-        List<String> mostChampions = mostChampionStatRepository.findByMemberId(next.getMember().getId())
+        // 3. 모스트 챔피언 조회 (최대 3개) - championIconUrl 포함
+        List<MostChampionRes> mostChampions = mostChampionStatRepository.findByMemberId(next.getMember().getId())
                 .map(mostStat -> mostStat.getMostChampions().stream()
                         .limit(3)
-                        .map(MostChampionStat.MostChampion::getChampionName)
+                        .map(champ -> {
+                            String championIconUrl = dataDragonService.getChampionIconUrl(champ.getChampionName());
+                            return MostChampionRes.builder()
+                                    .championId(champ.getChampionId())
+                                    .championName(champ.getChampionName())
+                                    .championIconUrl(championIconUrl)
+                                    .totalGames(champ.getTotalGames())
+                                    .totalWins(champ.getTotalWins())
+                                    .totalLosses(champ.getTotalLosses())
+                                    .winRate(champ.getTotalGames() > 0
+                                            ? (int) Math
+                                                    .round((double) champ.getTotalWins() / champ.getTotalGames() * 100)
+                                            : 0)
+                                    .kda(champ.getKda())
+                                    .build();
+                        })
                         .collect(Collectors.toList()))
                 .orElse(null);
 
@@ -114,10 +130,10 @@ public class RoundStartService {
                 dataDragonService.getProfileIconUrl(next.getMember().getProfileIconId()),
                 tier,
                 division,
-                next.getPosition(),                      // 경매 포지션
-                next.getMember().getMainPosition(),      // 주 포지션
-                next.getMember().getSubPosition(),       // 부 포지션
-                mostChampions                            // 모스트 챔피언
+                next.getPosition(), // 경매 포지션
+                next.getMember().getMainPosition(), // 주 포지션
+                next.getMember().getSubPosition(), // 부 포지션
+                mostChampions // 모스트 챔피언 (championIconUrl 포함)
         );
 
         // 5. JSON 직렬화
