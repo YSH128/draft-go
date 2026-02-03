@@ -18,7 +18,7 @@ import { LOBBY_SOCKET_EVENTS, getLobbyTopic, getChatTopic, getChatPublishPath } 
  * @param {Function} onLobbyEnded - 로비 종료 콜백
  * @param {Function} onChatMessage - 채팅 메시지 수신 콜백
  */
-export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage) => {
+export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage, onDraftStarted) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const clientRef = useRef(null);
@@ -40,8 +40,13 @@ export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage) => {
       // 이벤트 분기 처리
       switch (eventType) {
         case LOBBY_SOCKET_EVENTS.DRAFT_STARTED:
-          // 드래프트 시작 → 경매 페이지로 라우팅
-          navigate(`/draft?draftId=${draftId}`);
+          // 드래프트 시작 → 콜백 실행 (애니메이션 등 처리 후 부모 컴포넌트에서 라우팅)
+          if (onDraftStarted) {
+             onDraftStarted();
+          } else {
+             // 콜백이 없으면 기본 동작으로 즉시 이동 (fallback)
+             navigate(`/draft?draftId=${draftId}`);
+          }
           break;
 
         case LOBBY_SOCKET_EVENTS.DRAFT_DESTROYED:
@@ -66,7 +71,7 @@ export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage) => {
     } catch (error) {
       console.error('❌ [LobbySocket] Message handling error:', error);
     }
-  }, [draftId, navigate, onLobbyEnded, queryClient]);
+  }, [draftId, navigate, onLobbyEnded, queryClient, onDraftStarted]);
 
   useEffect(() => {
     if (!draftId) return;
@@ -112,7 +117,7 @@ export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage) => {
       client?.disconnect();
       clientRef.current = null;
     };
-  }, [draftId, handleSocketMessage, onChatMessage]);
+  }, [draftId, handleSocketMessage, onChatMessage, onDraftStarted]);
 
   /**
    * 채팅 메시지 전송

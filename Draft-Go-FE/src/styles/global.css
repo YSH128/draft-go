@@ -66,10 +66,9 @@
   --color-tier-grandmaster-badge-text: #ffd1d1;
   --color-tier-grandmaster-text: #ffd1d1;
 
-  --color-tier-challenger-bg: #F4C025;
-  --color-tier-challenger-badge-text: #1597E5;
-  --color-tier-challenger-text: #00F0FF;
-
+  --color-tier-challenger-bg: #f4c025;
+  --color-tier-challenger-badge-text: #1597e5;
+  --color-tier-challenger-text: #00f0ff;
 
   /* 매핑 */
   --header-height: 80px;
@@ -224,8 +223,12 @@ h6 {
 
   /* 애니메이션 */
   @keyframes shine {
-    0% { left: -100%; }
-    100% { left: 200%; }
+    0% {
+      left: -100%;
+    }
+    100% {
+      left: 200%;
+    }
   }
 
   .animate-shine {
@@ -233,8 +236,14 @@ h6 {
   }
 
   @keyframes fadeIn {
-    0% { opacity: 0; transform: translateY(20px); }
-    100% { opacity: 1; transform: translateY(0); }
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .animate-fadeIn {
@@ -254,6 +263,16 @@ h6 {
 
   .animate-slide-in-right {
     animation: slide-in-right 0.3s ease-out;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
   }
 }
 

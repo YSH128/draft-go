@@ -19,6 +19,7 @@ import AlertModal from '../../components/ui/AlertModal';
 import Badge from "../../components/ui/Badge";
 import StatsDashboard from "../../components/ui/StatsDashboard";
 import DraftPoolColumn from "../../components/ui/DraftPoolColumn";
+import DraftStartOverlay from "../../components/ui/DraftStartOverlay";
 import useAuthStore from "../../stores/useAuthStore";
 import { useLobbyData } from "../../hooks/useLobbyData";
 import { useLobbySocket } from "../../hooks/useLobbySocket";
@@ -162,12 +163,30 @@ export default function DraftLobby() {
         });
     }, [user?.id]);
 
-    const { sendChatMessage } = useLobbySocket(draftId, handleLobbyEnded, handleChatMessage);
+
 
     // ========== Local State (UI only) ==========
     const [isEditDraftModalOpen, setIsEditDraftModalOpen] = useState(false);
     const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
     const [messages, setMessages] = useState([]);
+    
+    // Draft Start Animation State
+    const [isStarting, setIsStarting] = useState(false);
+
+    /**
+     * 드래프트 시작 이벤트 핸들러
+     * - 즉시 이동하지 않고 애니메이션을 위해 상태 변경
+     * - 2.5초 후 이동
+     */
+    const handleDraftStarted = useCallback(() => {
+        console.log("🎬 [DraftLobby] Draft Starting Animation Triggered!");
+        setIsStarting(true);
+        setTimeout(() => {
+             navigate(`/draft?draftId=${draftId}`);
+        }, 2500);
+    }, [draftId, navigate]);
+
+    const { sendChatMessage } = useLobbySocket(draftId, handleLobbyEnded, handleChatMessage, handleDraftStarted);
 
     const [isKickedAlertOpen, setIsKickedAlertOpen] = useState(false);
     const [isLobbyClosedAlertOpen, setIsLobbyClosedAlertOpen] = useState(false);
@@ -1496,8 +1515,9 @@ export default function DraftLobby() {
                                             try {
                                                 const targetId = draftId || 1;
                                                 await DraftApi.startDraft(targetId);
-                                                // 경매 페이지로 이동
-                                                navigate(`/draft?draftId=${targetId}`);
+                                                await DraftApi.startDraft(targetId);
+                                                // 애니메이션 발동 (Socket이 늦을 수 있으므로 직접 호출)
+                                                handleDraftStarted();
                                             } catch (e) {
                                                 console.error("Start failed:", e);
                                                 alert("드래프트 시작 실패: " + (e.response?.data?.message || e.message));
@@ -1513,10 +1533,18 @@ export default function DraftLobby() {
                                     </Button>
                                 ) : (
                                     <div className="bg-[#0f0e0b] border border-[#393528] rounded-xl px-6 py-4 flex items-center gap-4 shadow-xl">
-                                        <span className="material-symbols-outlined text-[#c89b3c] text-2xl animate-spin-slow">sync</span>
+                                        <span className={`material-symbols-outlined text-[#c89b3c] text-2xl ${
+                                            captains.filter(c => c.name).every(c => c.ready) ? 'animate-pulse' : 'animate-spin-slow'
+                                        }`}>
+                                            {captains.filter(c => c.name).every(c => c.ready) ? 'hourglass_top' : 'sync'}
+                                        </span>
                                         <div>
                                             <p className="text-[#c89b3c] text-xs font-bold uppercase tracking-widest mb-0.5">SYSTEM</p>
-                                            <p className="text-white font-bold text-sm text-opacity-80">관리자의 시작을 기다리는 중...</p>
+                                            <p className="text-white font-bold text-sm text-opacity-80">
+                                                {captains.filter(c => c.name).every(c => c.ready)
+                                                    ? "관리자의 시작을 기다리는 중..."
+                                                    : "팀장들의 준비를 기다리는 중..."}
+                                            </p>
                                         </div>
                                     </div>
                                 )}
@@ -1547,6 +1575,13 @@ export default function DraftLobby() {
                                 <ChatBubble key={msg.id} sender={msg.sender} message={msg.message} variant={msg.variant} timestamp={msg.timestamp} />
                             ))}
                         </div>
+
+                        {/* Background Image / Overlay */}
+            {isStarting && <DraftStartOverlay />}
+            <div 
+                className="fixed inset-0 bg-cover bg-center opacity-20 pointer-events-none z-[-1]"
+                style={{ backgroundImage: `url('/assets/wallpaper/wallpaper_1.jpg')` }}
+            ></div>
 
                         {/* Input Area */}
                         <div className="p-5 bg-panel-dark border-t border-[#393528]">
