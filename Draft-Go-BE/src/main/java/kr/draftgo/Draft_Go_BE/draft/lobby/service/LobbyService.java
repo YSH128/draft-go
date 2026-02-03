@@ -170,6 +170,7 @@ public class LobbyService {
                 .maxTeamCount(draft.getMaxTeamCount())
                 .startPoint(draft.getStartPoint())
                 .startPrice(draft.getStartPrice())
+                .thumbnailUrl(draft.getThumbnailUrl())
                 .status(draft.getStatus())
                 .leaders(leaders)
                 .members(members)

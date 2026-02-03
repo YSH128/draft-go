@@ -21,6 +21,7 @@ public class LobbyInfoRes {
     private Integer maxTeamCount;
     private Integer startPoint;
     private Integer startPrice;
+    private String thumbnailUrl;
     private DraftStatus status;
     private List<LeaderDetail> leaders;
     private List<MemberDetail> members;

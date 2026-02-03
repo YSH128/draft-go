@@ -1,4 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import wallpaper1 from '../../assets/wallpaper/draft-go-wallpaper-1.png';
+import wallpaper2 from '../../assets/wallpaper/draft-go-wallpaper-2.png';
+import wallpaper3 from '../../assets/wallpaper/draft-go-wallpaper-3.png';
+import wallpaper4 from '../../assets/wallpaper/draft-go-wallpaper-4.png';
+import wallpaper5 from '../../assets/wallpaper/draft-go-wallpaper-5.png';
+
+const WALLPAPERS = [wallpaper1, wallpaper2, wallpaper3, wallpaper4, wallpaper5];
+
 import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
 import { createDraftRoom, updateDraft } from '../../api/draft';
@@ -22,7 +30,8 @@ export default function CreateDraftModal({
     title: '',
     maxTeamCount: 2, 
     startPoint: 1000,
-    startPrice: 100
+    startPrice: 100,
+    thumbnailUrl: WALLPAPERS[0]
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +44,8 @@ export default function CreateDraftModal({
                  title: initialData.title || '',
                  maxTeamCount: initialData.maxTeamCount || 2,
                  startPoint: initialData.startPoint || 1000,
-                 startPrice: initialData.startPrice || 100
+                 startPrice: initialData.startPrice || 100,
+                 thumbnailUrl: initialData.thumbnailUrl || WALLPAPERS[0]
              });
          } else if (!isEditMode) {
              // 생성 모드 초기화
@@ -43,7 +53,8 @@ export default function CreateDraftModal({
                 title: '',
                 maxTeamCount: 2, 
                 startPoint: 1000,
-                startPrice: 100
+                startPrice: 100,
+                thumbnailUrl: WALLPAPERS[0]
               });
          }
      }
@@ -237,6 +248,31 @@ export default function CreateDraftModal({
                             onChange={handleChange}
                             className="w-full bg-[#0f0e0b] border border-[#393528] rounded-lg h-12 pl-8 pr-4 text-white focus:outline-none focus:border-primary transition-colors font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
+                    </div>
+                    </div>
+
+                {/* 4. 배경 이미지 선택 */}
+                <div>
+                    <label className="block text-[#bab29c] text-xs font-bold mb-2 ml-1 uppercase tracking-wider">배경 이미지 선택</label>
+                    <div className="grid grid-cols-5 gap-2">
+                        {WALLPAPERS.map((wp, idx) => (
+                            <div 
+                                key={idx}
+                                onClick={() => setFormData(prev => ({ ...prev, thumbnailUrl: wp }))}
+                                className={`relative aspect-video rounded-md overflow-hidden cursor-pointer border-2 transition-all ${
+                                    formData.thumbnailUrl === wp 
+                                    ? 'border-primary shadow-[0_0_10px_rgba(200,155,60,0.4)] scale-105 z-10' 
+                                    : 'border-transparent hover:border-[#bab29c] opacity-60 hover:opacity-100'
+                                }`}
+                            >
+                                <img src={wp} alt={`Wallpaper ${idx + 1}`} className="w-full h-full object-cover" />
+                                {formData.thumbnailUrl === wp && (
+                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                        <span className="material-symbols-outlined text-white font-bold drop-shadow-md">check</span>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 </div>
 
