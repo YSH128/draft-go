@@ -9,10 +9,10 @@ const REGEX = {
   PASSWORD_NUMBER: /[0-9]/,
   PASSWORD_SPECIAL: /[!"#$%&'()*+,\-./:;<=>?@[\]^_`{|}~]/,
   GAME_NAME: /^[a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣\s]+$/,
-  TAG_LINE: /^[a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣]+$/,
+  TAG_LINE: /^[a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣\s]+$/,
   KOREAN: /[ㄱ-ㅎㅏ-ㅣ가-힣]/g,
   GAME_NAME_FILTER: /[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣\s]/g,
-  TAG_LINE_FILTER: /[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣#]/g,
+  TAG_LINE_FILTER: /[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣#\s]/g,
 };
 
 // 비밀번호 검증 로직을 함수로 분리하여 passwordStrength와 passwordValidation에서 재사용
