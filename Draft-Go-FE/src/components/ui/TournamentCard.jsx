@@ -23,7 +23,6 @@ export default function TournamentCard({
   const [avatarError, setAvatarError] = useState(false);
 
   // 상태 플래그 (UI 렌더링용)
-  const isRecruiting = status === UI_DRAFT_STATUS.RECRUITING;
   const isInProgress = status === UI_DRAFT_STATUS.IN_PROGRESS;
   const isScheduled = status === UI_DRAFT_STATUS.SCHEDULED;
 
@@ -104,12 +103,11 @@ export default function TournamentCard({
         <div className="mt-auto flex items-end justify-between gap-3 border-t border-white/5 pt-3">
           {/* 상태별 정보 표시 */}
           <div className="flex flex-col">
-            {isRecruiting && (
-              <div className="flex items-center gap-1.5">
-                <Icon name="groups" className="text-base text-slate-500" />
-                <span className="text-sm font-bold text-white">{total}팀</span>
-              </div>
-            )}
+            {/* 총 팀 수 (모든 상태에서 표시) */}
+            <div className="flex items-center gap-1.5">
+              <Icon name="groups" className="text-base text-slate-500" />
+              <span className="text-sm font-bold text-white">{total}팀</span>
+            </div>
             {isInProgress && (
               <div className="flex items-center gap-1.5">
                 <span className="relative flex size-2">
