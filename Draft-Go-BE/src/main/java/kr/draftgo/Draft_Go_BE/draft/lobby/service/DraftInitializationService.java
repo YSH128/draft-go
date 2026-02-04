@@ -53,11 +53,14 @@ public class DraftInitializationService {
             createTeamWithLeader(draft, leader);
         }
 
-        // 3. 팀원들을 DraftMember로 등록 (팀장 제외, OBSERVER 제외)
-        registerDraftMembers(draft, participants, leaders);
+        // 3. 팀장들을 DraftMember로 등록 (COMPLETED 상태, turnOrder = 0)
+        registerLeadersAsDraftMembers(draft, leaders);
 
-        log.info("Draft initialization completed. Teams: {}, DraftMembers: {}",
-                leaders.size(), participants.size() - leaders.size());
+        // 4. 팀원들을 DraftMember로 등록 (WAITING 상태, turnOrder = 1부터 시작)
+        registerDraftMembers(draft, participants);
+
+        log.info("Draft initialization completed. Teams: {}, Leaders as DraftMembers: {}, Regular DraftMembers: {}",
+                leaders.size(), leaders.size(), participants.size() - leaders.size());
     }
 
     /**
@@ -98,9 +101,38 @@ public class DraftInitializationService {
     }
 
     /**
+     * 팀장들을 DraftMember로 등록
+     * - turnOrder를 0으로 설정 (가장 먼저 배치)
+     * - 상태를 COMPLETED로 설정 (이미 팀에 속해있으므로)
+     */
+    private void registerLeadersAsDraftMembers(Draft draft, List<LobbyParticipant> leaders) {
+        for (LobbyParticipant leader : leaders) {
+            Member leaderMember = memberRepository.findById(leader.getMemberId())
+                    .orElseThrow(() -> new CustomException(ErrorType.MEMBER_NOT_FOUND));
+
+            DraftMember leaderDraftMember = DraftMember.builder()
+                    .draft(draft)
+                    .member(leaderMember)
+                    .position(leader.getPosition())
+                    .build();
+
+            // turnOrder를 0으로 설정 (가장 먼저)
+            leaderDraftMember.assignTurnOrder(0);
+
+            // COMPLETED 상태로 설정 (이미 팀에 속해있으므로)
+            leaderDraftMember.complete();
+
+            draftMemberRepository.save(leaderDraftMember);
+
+            log.debug("Leader registered as DraftMember (COMPLETED): {} (Position: {}, TurnOrder: 0)",
+                    leaderMember.getGameName(), leader.getPosition());
+        }
+    }
+
+    /**
      * DraftMember 등록 (경매 대상 선수들)
      */
-    private void registerDraftMembers(Draft draft, List<LobbyParticipant> participants, List<LobbyParticipant> leaders) {
+    private void registerDraftMembers(Draft draft, List<LobbyParticipant> participants) {
         // 팀원들만 필터링 (MEMBER 역할 + OBSERVER 제외)
         List<LobbyParticipant> members = participants.stream()
                 .filter(p -> "MEMBER".equals(p.getRole()) && p.getPosition() != kr.draftgo.Draft_Go_BE.member.domain.Position.OBSERVER)
@@ -117,7 +149,7 @@ public class DraftInitializationService {
                     .position(memberParticipant.getPosition())
                     .build();
 
-            // turnOrder 할당 (팀장이 아닌 경우만)
+            // turnOrder 할당 (1부터 시작)
             draftMember.assignTurnOrder(turnOrder++);
 
             draftMemberRepository.save(draftMember);
