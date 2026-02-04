@@ -12,6 +12,9 @@ import {
   FILTER_STATUS,
   UI_FILTER_TO_API_STATUS,
 } from '../constants/draft';
+import {
+  getWallpaperImageById
+} from '../constants/wallpapers';
 
 // Re-export constants for backward compatibility
 export { STATUS_LABELS, FILTER_STATUS, UI_FILTER_TO_API_STATUS };
@@ -39,6 +42,7 @@ const isValidThumbnailUrl = (url) => {
 
 /**
  * Deterministic 썸네일 URL 결정
+ * - Wallpaper ID면 실제 이미지 경로로 변환
  * - 유효한 URL이 있으면 그대로 사용
  * - 없거나 Mock 데이터면 draftId 기반 고정 이미지 할당
  * @param {string|null} apiUrl - API에서 받은 URL
@@ -46,10 +50,25 @@ const isValidThumbnailUrl = (url) => {
  * @returns {string}
  */
 const getDeterministicThumbnail = (apiUrl, draftId) => {
+  if (!apiUrl || typeof apiUrl !== 'string') {
+    // URL이 없으면 기본 이미지 할당
+    const numericId = typeof draftId === 'number' ? draftId : parseInt(draftId, 10) || 0;
+    const index = Math.abs(numericId) % DEFAULT_THUMBNAILS.length;
+    return DEFAULT_THUMBNAILS[index];
+  }
+
+  // 1. Wallpaper ID 형식인지 확인 (wallpaper-1, wallpaper-2, etc.)
+  const wallpaperImage = getWallpaperImageById(apiUrl);
+  if (wallpaperImage) {
+    return wallpaperImage;
+  }
+
+  // 2. 유효한 외부 URL인지 확인
   if (isValidThumbnailUrl(apiUrl)) {
     return apiUrl;
   }
-  // draftId를 숫자로 변환 후 배열 길이로 나눈 나머지 사용
+
+  // 3. 모두 실패하면 draftId 기반 기본 이미지 할당
   const numericId = typeof draftId === 'number' ? draftId : parseInt(draftId, 10) || 0;
   const index = Math.abs(numericId) % DEFAULT_THUMBNAILS.length;
   return DEFAULT_THUMBNAILS[index];
@@ -309,8 +328,8 @@ export const adaptDraftResult = (raw, currentMemberId) => {
     const keyPlayerIds = new Set(
       maxBid > 0
         ? candidates
-            .filter((p) => (p.bidPrice || 0) === maxBid)
-            .map((p) => String(p.memberId))
+          .filter((p) => (p.bidPrice || 0) === maxBid)
+          .map((p) => String(p.memberId))
         : []
     );
 
