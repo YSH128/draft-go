@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+
 @Table(name = "member_stat", uniqueConstraints = @UniqueConstraint(columnNames = { "member_id", "season_id" }))
 public class MemberStat {
 

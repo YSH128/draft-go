@@ -19,7 +19,7 @@ public class MatchEventListener {
         private final MatchService matchService;
         private final RiotApiService riotApiService;
 
-        @Async
+        @Async("riotApiExecutor")
         @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
         public void handleMemberSignupEvent(MemberSignupEvent event) {
                 log.info("Async match fetch started for NEW user: {}", event.getMember().getUsername());

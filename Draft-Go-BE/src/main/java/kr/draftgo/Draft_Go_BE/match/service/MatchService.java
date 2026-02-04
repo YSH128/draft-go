@@ -104,7 +104,9 @@ public class MatchService {
 
         // 0. PUUID Check & Fetch if missing
         if (member.getPuuid() == null || member.getPuuid().isEmpty()) {
-            log.info("PUUID is missing for {}. Fetching from Riot API...", member.getUsername());
+            log.error(
+                    "[CRITICAL] PUUID is missing for Member ID: {}, Username: {}, GameName: {}. Fetching from Riot API...",
+                    member.getId(), member.getUsername(), member.getGameName());
             try {
                 String puuid = riotApiService.getPuuid(member.getGameName(), member.getTagLine());
                 if (puuid == null || puuid.isEmpty()) {
@@ -180,7 +182,8 @@ public class MatchService {
 
                 if (isParticipating) {
                     log.info("회원 {}의 정보 갱신 완료. 로비 {}에 이벤트 발행", memberId, draft.getId());
-                    eventPublisher.publishEvent(new LobbyUpdateEvent(draft.getId(), LobbyEventType.MEMBER_INFO_UPDATED));
+                    eventPublisher
+                            .publishEvent(new LobbyUpdateEvent(draft.getId(), LobbyEventType.MEMBER_INFO_UPDATED));
                 }
             }
         } catch (Exception e) {

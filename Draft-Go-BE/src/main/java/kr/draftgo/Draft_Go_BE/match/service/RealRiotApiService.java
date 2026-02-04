@@ -13,11 +13,13 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.Callable;
 
 @Slf4j
 @Service
@@ -28,6 +30,7 @@ public class RealRiotApiService implements RiotApiService {
         private final MatchRepository matchRepository;
         private final SeasonService seasonService;
         private final StringRedisTemplate redisTemplate;
+        private final io.github.bucket4j.Bucket bucket;
 
         public RealRiotApiService(@Value("${riot.api.key}") String apiKey, MatchRepository matchRepository,
                         SeasonService seasonService,
@@ -37,17 +40,82 @@ public class RealRiotApiService implements RiotApiService {
                 this.seasonService = seasonService;
                 this.redisTemplate = redisTemplate;
                 this.restClient = RestClient.create();
+
+                // Rate Limit 1: 100 requests per 2 minutes (App Rate Limit)
+                io.github.bucket4j.Bandwidth limit1 = io.github.bucket4j.Bandwidth.classic(100,
+                                io.github.bucket4j.Refill.intervally(100, Duration.ofMinutes(2)));
+
+                // Rate Limit 2: 5 requests per 1 second (Method Rate Limit - Super
+                // Conservative)
+                io.github.bucket4j.Bandwidth limit2 = io.github.bucket4j.Bandwidth.classic(5,
+                                io.github.bucket4j.Refill.intervally(5, Duration.ofSeconds(1)));
+
+                this.bucket = io.github.bucket4j.Bucket.builder()
+                                .addLimit(limit1)
+                                .addLimit(limit2)
+                                .build();
         }
+
         // --- Core API Calls ---
 
+        private <T> T executeWithRetry(Callable<T> task) {
+                int maxRetries = 3;
+                int retryCount = 0;
+
+                while (true) {
+                        try {
+                                bucket.asBlocking().consume(1); // Rate Limit Check
+                                return task.call();
+                        } catch (HttpClientErrorException.TooManyRequests e) {
+                                retryCount++;
+                                if (retryCount > maxRetries) {
+                                        log.error("Exceeded max retries for rate limit. Throwing exception.");
+                                        throw e;
+                                }
+
+                                long sleepSeconds = 1; // Default
+                                if (e.getResponseHeaders() != null) {
+                                        try {
+                                                String retryAfter = e.getResponseHeaders().getFirst("Retry-After");
+                                                if (retryAfter != null) {
+                                                        sleepSeconds = Long.parseLong(retryAfter);
+                                                }
+                                        } catch (NumberFormatException ex) {
+                                                log.warn("Failed to parse Retry-After header: {}", ex.getMessage());
+                                        }
+                                }
+
+                                log.warn("429 Too Many Requests blocked by Riot. Sleeping for {} seconds before retry {}/{}",
+                                                sleepSeconds, retryCount, maxRetries);
+
+                                try {
+                                        Thread.sleep(sleepSeconds * 1000 + 100); // Sleep + buffer
+                                } catch (InterruptedException ie) {
+                                        Thread.currentThread().interrupt();
+                                        throw new RuntimeException("Thread interrupted while waiting for retry", ie);
+                                }
+
+                        } catch (Exception e) {
+                                if (e instanceof InterruptedException) {
+                                        Thread.currentThread().interrupt();
+                                        throw new RuntimeException("Interrupted", e);
+                                }
+                                if (e instanceof RuntimeException) {
+                                        throw (RuntimeException) e;
+                                }
+                                throw new RuntimeException("Unexpected error during API call", e);
+                        }
+                }
+        }
+
         private Map<String, Object> getAccount(String gameName, String tagLine) {
-                return restClient.get()
+                return executeWithRetry(() -> restClient.get()
                                 .uri("https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{gameName}/{tagLine}",
                                                 gameName, tagLine)
                                 .header("X-Riot-Token", apiKey)
                                 .retrieve()
                                 .body(new ParameterizedTypeReference<Map<String, Object>>() {
-                                });
+                                }));
         }
 
         private List<String> fetchAllMatchIds(String puuid, long startTime) {
@@ -57,7 +125,7 @@ public class RealRiotApiService implements RiotApiService {
 
                 while (true) {
                         final int finalStart = currentStart;
-                        List<String> ids = restClient.get()
+                        List<String> ids = executeWithRetry(() -> restClient.get()
                                         .uri(uriBuilder -> uriBuilder
                                                         .scheme("https")
                                                         .host("asia.api.riotgames.com")
@@ -70,7 +138,7 @@ public class RealRiotApiService implements RiotApiService {
                                         .header("X-Riot-Token", apiKey)
                                         .retrieve()
                                         .body(new ParameterizedTypeReference<List<String>>() {
-                                        });
+                                        }));
 
                         if (ids == null || ids.isEmpty()) {
                                 break;
@@ -88,12 +156,12 @@ public class RealRiotApiService implements RiotApiService {
 
         private MatchDocument fetchAndSaveMatch(String matchId) {
                 try {
-                        Map<String, Object> data = restClient.get()
+                        Map<String, Object> data = executeWithRetry(() -> restClient.get()
                                         .uri("https://asia.api.riotgames.com/lol/match/v5/matches/{matchId}", matchId)
                                         .header("X-Riot-Token", apiKey)
                                         .retrieve()
                                         .body(new ParameterizedTypeReference<Map<String, Object>>() {
-                                        });
+                                        }));
 
                         if (data == null)
                                 return null;
@@ -101,10 +169,6 @@ public class RealRiotApiService implements RiotApiService {
                         Map<String, Object> info = (Map<String, Object>) data.get("info");
                         long creation = ((Number) info.get("gameCreation")).longValue();
                         String mode = (String) info.get("gameMode");
-                        // String gameVersion = (String) info.get("gameVersion");
-
-                        // [변경] 시즌 자동 생성 로직 제거 (Pending 전략)
-                        // seasonService.getOrCreateSeasonByVersion(gameVersion);
 
                         MatchDocument doc = MatchDocument.builder()
                                         .matchId(matchId)
@@ -125,8 +189,7 @@ public class RealRiotApiService implements RiotApiService {
                                 log.error("MongoDB save returned null for match ID: {}", matchId);
                         }
                         return savedDoc;
-                } catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e) {
-                        throw e;
+
                 } catch (Exception e) {
                         log.warn("Failed to fetch/save match {}", matchId, e);
                         return null;
@@ -207,12 +270,6 @@ public class RealRiotApiService implements RiotApiService {
                                         MatchDocument saved = fetchAndSaveMatch(matchId);
                                         if (saved != null)
                                                 count++;
-                                        try {
-                                                Thread.sleep(1250); // Rate limiting (1250ms for 100 req/2min of App
-                                                                    // Limit)
-                                        } catch (InterruptedException e) {
-                                                Thread.currentThread().interrupt();
-                                        }
                                 } else {
                                         log.debug("Match {} already exists in DB. Skipping.", matchId);
                                 }
@@ -231,7 +288,8 @@ public class RealRiotApiService implements RiotApiService {
         @Override
         public java.util.Map<String, Object> getLeagueInfoByPuuid(String puuid) {
                 try {
-                        List<Map<String, Object>> leagueEntries = fetchLeagueEntriesByPuuid(puuid);
+                        List<Map<String, Object>> leagueEntries = executeWithRetry(
+                                        () -> fetchLeagueEntriesByPuuid(puuid));
 
                         // Find RANKED_SOLO_5x5
                         for (Map<String, Object> entry : leagueEntries) {
@@ -258,13 +316,13 @@ public class RealRiotApiService implements RiotApiService {
         @Override
         public Map<String, Object> getSummonerInfo(String puuid) {
                 try {
-                        return restClient.get()
+                        return executeWithRetry(() -> restClient.get()
                                         .uri("https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}",
                                                         puuid)
                                         .header("X-Riot-Token", apiKey)
                                         .retrieve()
                                         .body(new ParameterizedTypeReference<Map<String, Object>>() {
-                                        });
+                                        }));
                 } catch (Exception e) {
                         log.error("Failed to get summoner info for puuid: {}", puuid, e);
                         return Collections.emptyMap();
@@ -274,13 +332,13 @@ public class RealRiotApiService implements RiotApiService {
         @Override
         public Map<String, Object> getChallengerLeague(String queue) {
                 try {
-                        return restClient.get()
+                        return executeWithRetry(() -> restClient.get()
                                         .uri("https://kr.api.riotgames.com/lol/league/v4/challengerleagues/by-queue/{queue}",
                                                         queue)
                                         .header("X-Riot-Token", apiKey)
                                         .retrieve()
                                         .body(new ParameterizedTypeReference<Map<String, Object>>() {
-                                        });
+                                        }));
                 } catch (Exception e) {
                         log.error("Failed to get Challenger league for queue: {}", queue, e);
                         return Collections.emptyMap();

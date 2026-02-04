@@ -61,6 +61,11 @@ public class AuthService {
 
         // Riot API를 통해 PUUID 가져오기
         String puuid = riotApiService.getPuuid(req.getGameName(), req.getTagLine());
+        log.info("Fetched PUUID for {}: {}", req.getUsername(), puuid);
+
+        if (puuid == null || puuid.isBlank()) {
+            throw new CustomException(ErrorType.INTERNAL_SERVER_ERROR, "PUUID 조회에 실패했습니다. (Riot API Error)");
+        }
 
         // Member 엔티티 생성 및 저장
         Member member = Member.builder()
@@ -73,7 +78,10 @@ public class AuthService {
                 .subPosition(req.getSubPosition())
                 .build();
 
+        log.info("Saving Member - Username: {}, GameName: {}, PUUID: {}", member.getUsername(), member.getGameName(),
+                member.getPuuid());
         Member savedMember = memberRepository.save(member);
+        log.info("Member Saved - ID: {}, PUUID: {}", savedMember.getId(), savedMember.getPuuid());
 
         // 회원가입 이벤트 발행 (비동기로 통계 정보 수집)
         eventPublisher.publishEvent(new MemberSignupEvent(savedMember));
@@ -119,7 +127,8 @@ public class AuthService {
         // Redis에 저장된 Refresh Token과 비교
         String storedRefreshToken = redisTemplate.opsForValue().get("RT:" + username);
         if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
-            log.warn("Refresh Token Mismatch for user: {}. Redis token exists: {}", username, storedRefreshToken != null);
+            log.warn("Refresh Token Mismatch for user: {}. Redis token exists: {}", username,
+                    storedRefreshToken != null);
             throw new CustomException(ErrorType.REFRESH_TOKEN_MISMATCH);
         }
 
