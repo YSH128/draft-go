@@ -100,7 +100,18 @@ public class TestMemberInitService {
                 {"JUGKlNG", "kr"},
                 {"kiin", "KR1"},
                 {"오너", "111"},
-                {"타 잔", "KR"}
+                {"타 잔", "KR1"},
+
+                {"DK Lucid", "KR1"},
+                {"Peyz", "KR11"},
+                {"Teddy", "sss"},
+                {"미북이", "KR1"},
+                {"우제초이", "Kr2"},
+                {"어리고싶다", "KR1"},
+                {"vinaka", "KR1"},
+                {"MaRin", "KR1"},
+                {"DK Smash", "KR7"},
+                {"Mannoroth", "KR1"}
         };
 
         int testAccountNum = realAccounts.length;
