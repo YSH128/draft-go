@@ -6,6 +6,7 @@ import AuthButton from "../../components/ui/AuthButton";
 import SectionDivider from "../../components/ui/SectionDivider";
 import TextLink, { FooterLinks } from "../../components/ui/TextLink";
 import riotIcon from "../../assets/images/riot-logo.png";
+import logo from "../../assets/logo/draft-go-logo.png";
 import useAuthStore from "../../stores/useAuthStore";
 
 const LoginPage = () => {
@@ -63,10 +64,10 @@ const LoginPage = () => {
   return (
     <div className="flex min-h-screen justify-center bg-gray-950 px-4 pt-16">
       <div className="h-fit w-full max-w-[420px] rounded-lg border border-[#c8aa6e]/30 bg-gray-900/80 p-8 shadow-xl backdrop-blur-sm">
-        {/* 타이틀 */}
-        <h1 className="mb-6 text-center text-2xl font-bold tracking-wider text-[#f0e6d2] uppercase">
-          DRAFT GO
-        </h1>
+        {/* 타이틀 -> 로고 이미지 교체 */}
+        <div className="mb-6 flex justify-center">
+            <img src={logo} alt="Draft-GO" className="h-[100px] w-auto drop-shadow-[0_0_2px_#c89b3c]" />
+        </div>
 
         {/* 에러 메시지 */}
         {error && (

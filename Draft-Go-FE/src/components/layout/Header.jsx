@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import useAuthStore from "../../stores/useAuthStore";
-import logo from "../../assets/images/main-logo-noname.png";
+import logo from "../../assets/logo/draft-go-logo.png";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -15,7 +15,7 @@ const Header = () => {
     <header className="flex h-[80px] w-full items-center justify-between bg-[var(--color-header-bg)] px-8 shadow-md">
       {/* Left: Logo & Branding */}
       <Link to="/" className="flex items-center gap-3">
-        <img src={logo} alt="Draft-GO Logo" className="h-10 w-auto drop-shadow-[0_0_1px_#c89b3c]" />
+        <img src={logo} alt="Draft-GO Logo" className="h-[55px] w-auto drop-shadow-[0_0_1px_#c89b3c]" />
         <span className="font-display text-xl font-bold text-white tracking-wide">
           Draft-GO
         </span>

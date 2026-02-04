@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import logo from "../../assets/images/main-logo-noname.png";
+import logo from "../../assets/logo/draft-go-logo.png";
 
 export default function Footer() {
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -28,7 +28,7 @@ export default function Footer() {
             <img
               src={logo}
               alt="Draft-GO"
-              className="h-7 w-auto drop-shadow-[0_0_1px_#c89b3c]"
+              className="h-8 w-auto drop-shadow-[0_0_1px_#c89b3c]"
             />
             <span className="font-display text-lg font-bold tracking-wide text-white">
               Draft-GO
