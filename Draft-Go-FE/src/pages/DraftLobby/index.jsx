@@ -192,6 +192,7 @@ export default function DraftLobby() {
     const [isLobbyClosedAlertOpen, setIsLobbyClosedAlertOpen] = useState(false);
     const [isDestroyConfirmOpen, setIsDestroyConfirmOpen] = useState(false);
     const [isUpdateSuccessOpen, setIsUpdateSuccessOpen] = useState(false);
+    const [startErrorModal, setStartErrorModal] = useState({ isOpen: false, message: '' });
     const isSelfLeavingRef = useRef(false); // Track if user is leaving voluntarily
 
 
@@ -222,10 +223,18 @@ export default function DraftLobby() {
     }, [rawData]);
 
     // ========== Auto-redirect when kicked from lobby ==========
+    const [isRunningAlertOpen, setIsRunningAlertOpen] = useState(false);
+
     useEffect(() => {
         // 데이터가 로딩 중이거나 없으면 리다이렉트 하지 않음
         // invalidateQueries 후 refetch 중일 때(isRefetching/isFetching)도 기다려야 함
         if (isLoading || isFetching || !data || !user?.id) {
+            return;
+        }
+
+        // 이미 시작된 드래프트인지 확인
+        if (data.status === 'IN_DRAFT') {
+            setIsRunningAlertOpen(true);
             return;
         }
 
@@ -1413,7 +1422,8 @@ export default function DraftLobby() {
                                         roleName="탑 (Top)"
                                         role="TOP"
                                         count={draftPool.TOP.length}
-                                        captainCount={captains.filter(c => c.selectedRole === 'TOP' && c.ready).length}
+                                        captainCount={captains.filter(c => c.selectedRole === 'TOP').length}
+                                        requiredCount={data?.maxTeamCount || 2}
                                         players={draftPool.TOP}
                                         userRole={userRole}
                                         isAdmin={isHost}
@@ -1427,7 +1437,8 @@ export default function DraftLobby() {
                                         roleName="정글 (Jungle)"
                                         role="JNG"
                                         count={draftPool.JNG.length}
-                                        captainCount={captains.filter(c => c.selectedRole === 'JNG' && c.ready).length}
+                                        captainCount={captains.filter(c => c.selectedRole === 'JNG').length}
+                                        requiredCount={data?.maxTeamCount || 2}
                                         players={draftPool.JNG}
                                         userRole={userRole}
                                         isAdmin={isHost}
@@ -1441,7 +1452,8 @@ export default function DraftLobby() {
                                         roleName="미드 (Mid)"
                                         role="MID"
                                         count={draftPool.MID.length}
-                                        captainCount={captains.filter(c => c.selectedRole === 'MID' && c.ready).length}
+                                        captainCount={captains.filter(c => c.selectedRole === 'MID').length}
+                                        requiredCount={data?.maxTeamCount || 2}
                                         players={draftPool.MID}
                                         userRole={userRole}
                                         isAdmin={isHost}
@@ -1456,7 +1468,8 @@ export default function DraftLobby() {
                                         roleName="원딜 (ADC)"
                                         role="ADC"
                                         count={draftPool.ADC.length}
-                                        captainCount={captains.filter(c => c.selectedRole === 'ADC' && c.ready).length}
+                                        captainCount={captains.filter(c => c.selectedRole === 'ADC').length}
+                                        requiredCount={data?.maxTeamCount || 2}
                                         players={draftPool.ADC}
                                         userRole={userRole}
                                         isAdmin={isHost}
@@ -1470,7 +1483,8 @@ export default function DraftLobby() {
                                         roleName="서포터 (Support)"
                                         role="SUP"
                                         count={draftPool.SUP.length}
-                                        captainCount={captains.filter(c => c.selectedRole === 'SUP' && c.ready).length}
+                                        captainCount={captains.filter(c => c.selectedRole === 'SUP').length}
+                                        requiredCount={data?.maxTeamCount || 2}
                                         players={draftPool.SUP}
                                         userRole={userRole}
                                         isAdmin={isHost}
@@ -1519,7 +1533,11 @@ export default function DraftLobby() {
                                                 handleDraftStarted();
                                             } catch (e) {
                                                 console.error("Start failed:", e);
-                                                alert("드래프트 시작 실패: " + (e.response?.data?.message || e.message));
+                                                // alert("드래프트 시작 실패: " + (e.response?.data?.message || e.message));
+                                                setStartErrorModal({
+                                                    isOpen: true,
+                                                    message: e.response?.data?.message || e.message || "드래프트 시작 중 오류가 발생했습니다."
+                                                });
                                             }
                                         }}
                                         className={`!h-14 !px-8 !text-xl !rounded-xl gap-2 !flex-row flex items-center justify-center transition-all duration-300 ${captains.filter(c => c.name).every(c => c.ready)
@@ -1677,6 +1695,33 @@ export default function DraftLobby() {
                     message="대회 정보가 성공적으로 수정되었습니다."
                     variant="success"
                     icon="check_circle"
+                />
+
+                {/* Draft Start Error Modal */}
+                <AlertModal
+                    isOpen={startErrorModal.isOpen}
+                    onClose={() => setStartErrorModal({ ...startErrorModal, isOpen: false })}
+                    title="경매 시작 불가"
+                    message={startErrorModal.message}
+                    variant="error"
+                    icon="error"
+                />
+
+                {/* Already Started Notification Modal */}
+                <AlertModal
+                    isOpen={isRunningAlertOpen}
+                    onClose={() => {
+                        setIsRunningAlertOpen(false);
+                        navigate(`/draft?draftId=${draftId}`);
+                    }}
+                    onConfirm={() => {
+                        setIsRunningAlertOpen(false);
+                        navigate(`/draft?draftId=${draftId}`);
+                    }}
+                    title="경매 진행 중"
+                    message={"이미 경매가 시작되었습니다.\n경매 페이지로 이동합니다."}
+                    variant="info"
+                    icon="gavel"
                 />
             </div>
         </DragDropContext>

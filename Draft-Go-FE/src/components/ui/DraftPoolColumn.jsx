@@ -14,6 +14,7 @@ export default function DraftPoolColumn({
   roleIcon, 
   count, 
   captainCount,
+  requiredCount, // New prop
   players, 
   userRole, 
   isAdmin, 
@@ -25,6 +26,27 @@ export default function DraftPoolColumn({
     // 현재 사용자가 이미 이 풀에 있는지 확인
     const hasCurrentUser = players.some(p => p.isSelf || p.name === "나 (Me)");
     
+    // Status Logic
+    const totalCount = count + captainCount;
+    // requiredCount가 있으면 계산, 없으면 null handled
+    const diff = requiredCount ? totalCount - requiredCount : 0;
+    
+    let statusText = null;
+    let statusColor = "text-[#bab29c]";
+    
+    if (requiredCount) {
+        if (diff === 0) {
+            statusText = "(OK)";
+            statusColor = "text-green-500";
+        } else if (diff < 0) {
+            statusText = `(부족 ${diff})`; // e.g. -1
+            statusColor = "text-red-500";
+        } else {
+            statusText = `(초과 +${diff})`;
+            statusColor = "text-orange-500";
+        }
+    }
+
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
@@ -36,6 +58,13 @@ export default function DraftPoolColumn({
                         <span className="material-symbols-outlined text-primary text-xl">{roleIcon}</span>
                     )}
                     {roleName}
+                    
+                    {/* Status Indicator */}
+                    {statusText && (
+                        <span className={`text-[10px] font-bold ml-1 ${statusColor}`}>
+                            {statusText}
+                        </span>
+                    )}
                 </h4>
                 <span className="text-xs text-[#bab29c] font-mono font-bold">{count}</span>
             </div>
