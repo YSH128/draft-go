@@ -29,6 +29,9 @@ public class DataDragonService {
     private final Map<String, String> championNameMap = new HashMap<>(); // 영어 -> 한글 챔피언 이름 매핑 (e.g. "MissFortune" ->
                                                                          // "미스 포츈")
 
+    private final Map<String, String> championKeyMap = new HashMap<>(); // lowercase -> RealKey (e.g. "fiddlesticks" ->
+                                                                        // "Fiddlesticks")
+
     private static final String VERSION_URL = "https://ddragon.leagueoflegends.com/api/versions.json";
     private static final String RUNES_URL_TEMPLATE = "https://ddragon.leagueoflegends.com/cdn/%s/data/ko_KR/runesReforged.json";
     private static final String SPELL_URL_TEMPLATE = "https://ddragon.leagueoflegends.com/cdn/%s/data/ko_KR/summoner.json";
@@ -145,10 +148,16 @@ public class DataDragonService {
                     String englishName = entry.getKey(); // 영어 이름 (e.g. "MissFortune")
                     JsonNode champion = entry.getValue();
                     String koreanName = champion.get("name").asText(); // 한글 이름 (e.g. "미스 포츈")
+
                     championNameMap.put(englishName, koreanName);
+
+                    // Add to Key Map for case-insensitive lookup
+                    // e.g. "fiddlesticks" -> "Fiddlesticks"
+                    // e.g. "missfortune" -> "MissFortune"
+                    championKeyMap.put(englishName.toLowerCase().replace(" ", ""), englishName);
                 });
             }
-            log.info("Cached {} Champions (Korean Names)", championNameMap.size());
+            log.info("Cached {} Champions (Korean Names & Keys)", championNameMap.size());
         } catch (Exception e) {
             log.error("❌ [DataDragon] 챔피언 데이터 로드 실패", e);
         }
@@ -198,6 +207,7 @@ public class DataDragonService {
         try {
             // 챔피언 데이터 재로드
             championNameMap.clear();
+            championKeyMap.clear();
             fetchChampions();
 
             // 룬/스펠도 갱신
@@ -232,8 +242,18 @@ public class DataDragonService {
     public String getChampionIconUrl(String championName) {
         if (championName == null || championName.isEmpty())
             return null;
+
+        // 1. Try case-insensitive lookup
+        String key = championName.toLowerCase().replace(" ", "");
+        String realName = championKeyMap.get(key);
+
+        // 2. Fallback to original if not found (or if map not initialized yet)
+        if (realName == null) {
+            realName = championName;
+        }
+
         return String.format("https://ddragon.leagueoflegends.com/cdn/%s/img/champion/%s.png", this.version,
-                championName);
+                realName);
     }
 
     public String getItemIconUrl(int itemId) {
@@ -275,6 +295,14 @@ public class DataDragonService {
         if (englishName == null || englishName.isEmpty()) {
             return englishName;
         }
+
+        // Try case-insensitive lookup first
+        String key = englishName.toLowerCase().replace(" ", "");
+        String realName = championKeyMap.get(key);
+        if (realName != null) {
+            englishName = realName;
+        }
+
         return championNameMap.getOrDefault(englishName, englishName);
     }
 }
