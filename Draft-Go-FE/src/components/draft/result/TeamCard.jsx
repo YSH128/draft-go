@@ -103,81 +103,86 @@ export default function TeamCard({ team }) {
           return (
             <div
               key={player.memberId || index}
-              className={`flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors ${playerRowClass}`}
+              className={`flex items-center gap-2 rounded-lg px-2 py-2 transition-colors ${playerRowClass}`}
             >
-              {/* 포지션 아이콘 */}
-              <div className="flex w-auto shrink-0 justify-center border-r border-white/10 pr-3 mr-3">
+              {/* 1. 포지션 아이콘 (크기 축소 및 패딩 제거) */}
+              <div className="flex w-6 shrink-0 justify-center">
                 <img
                   src={roleIconSrc}
                   alt={player.role}
-                  className="h-6 w-6 object-contain opacity-70"
+                  className="h-5 w-5 object-contain opacity-70"
                 />
               </div>
 
-              {/* 프로필 아이콘 */}
-              <div className="relative shrink-0">
+              {/* 2. 프로필 + 티어 (통합) */}
+              <div className="relative mr-1 shrink-0">
                 {player.profileIconUrl ? (
                   <img
                     src={player.profileIconUrl}
                     alt=""
-                    className={`h-8 w-8 rounded-full object-cover ${
-                      player.isMe
-                        ? "ring-offset-card-dark ring-2 ring-yellow-400 ring-offset-1"
-                        : "border border-gray-600"
-                    }`}
+                    className={`h-8 w-8 rounded-full object-cover ${player.isMe
+                      ? "ring-offset-card-dark ring-2 ring-yellow-400 ring-offset-1"
+                      : "border border-gray-600"
+                      }`}
                   />
                 ) : (
                   <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 text-xs font-medium ${
-                      player.isMe ? "text-yellow-400" : "text-gray-400"
-                    }`}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 text-xs font-medium ${player.isMe ? "text-yellow-400" : "text-gray-400"
+                      }`}
                   >
                     {player.name?.charAt(0) || "?"}
                   </div>
                 )}
+
+                {/* 티어 아이콘 (우측 하단 오버레이) */}
+                <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-black/50 p-0.5 shadow-sm backdrop-blur-sm">
+                  <img
+                    src={tierImage}
+                    alt={tierLabel}
+                    className="h-full w-full object-contain"
+                    title={tierLabel}
+                  />
+                </div>
               </div>
 
-              {/* 티어 이미지 (작게) */}
-              <div className="relative h-6 w-6 shrink-0">
-                <img
-                  src={tierImage}
-                  alt={tierLabel}
-                  className="h-full w-full object-contain drop-shadow-md"
-                  title={tierLabel}
-                />
-              </div>
-
-              {/* 이름 + 배지들 */}
-              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              {/* 3. 이름 + 아이콘 배지 (텍스트 제거) */}
+              <div className="flex min-w-0 flex-1 items-center gap-1">
                 <span
-                  className={`truncate text-sm ${
-                    player.isMe
-                      ? "font-bold text-yellow-400"
-                      : "font-medium text-white"
-                  }`}
+                  className={`truncate text-sm ${player.isMe
+                    ? "font-bold text-yellow-400"
+                    : "font-medium text-white"
+                    }`}
+                  title={player.name}
                 >
                   {player.name}
                 </span>
-                {/* LEADER 배지 */}
+
+                {/* 리더 아이콘 */}
                 {player.isLeader && (
-                  <span className="shrink-0 rounded bg-rose-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                    👑 LEADER
+                  <span
+                    className="material-symbols-outlined shrink-0 text-[16px] text-rose-500 drop-shadow-[0_0_5px_rgba(244,63,94,0.5)]"
+                    title="팀장 (Leader)"
+                  >
+                    crown
                   </span>
                 )}
-                {/* KEY 배지 (어댑터에서 계산됨) */}
+
+                {/* 키 플레이어 아이콘 */}
                 {player.isKeyPlayer && (
-                  <span className="shrink-0 rounded bg-indigo-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                    KEY
+                  <span
+                    className="material-symbols-outlined shrink-0 text-[16px] text-indigo-400 drop-shadow-[0_0_5px_rgba(129,140,248,0.5)]"
+                    title="핵심 선수 (Key Player)"
+                  >
+                    key
                   </span>
                 )}
               </div>
 
-              {/* 낙찰가 */}
-              {player.bidPrice > 0 && (
+              {/* 4. 낙찰가 (우측 정렬) */}
+              {(player.bidPrice !== undefined && player.bidPrice !== null) && (
                 <span
-                  className={`shrink-0 text-xs font-medium ${
-                    player.isKeyPlayer ? "text-indigo-400" : "text-gray-400"
-                  }`}
+                  className={`shrink-0 text-xs font-bold ${player.isKeyPlayer ? "text-indigo-400" : "text-gray-500"
+                    }`}
                 >
                   {player.bidPrice}P
                 </span>

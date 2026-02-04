@@ -1,10 +1,18 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import TeamCard from "../../components/draft/result/TeamCard";
 import useDraftResultData from "../../hooks/useDraftResultData";
+import UnifiedChat from "../../components/chat/UnifiedChat";
+import { ROUTES } from "../../constants/routes";
+import { useChatSocket } from "../../hooks/useChatSocket";
 
 export default function DraftResultPage() {
   const navigate = useNavigate();
   const { teams, isLoading, isError, isValidId } = useDraftResultData();
+  const [searchParams] = useSearchParams();
+  const draftIdParam = searchParams.get("draftId");
+  const draftId = draftIdParam ? Number(draftIdParam) : null;
+
+  const { sendMessage } = useChatSocket(draftId);
 
   // draftId가 없는 경우
   if (!isValidId) {
@@ -56,49 +64,71 @@ export default function DraftResultPage() {
     );
   }
 
+
+
   return (
-    <div className="bg-background-dark min-h-screen p-4 text-white md:p-10">
-      {/* 페이지 헤더 */}
-      <div className="mx-auto mb-10 max-w-[1400px]">
-        <h1 className="mb-2 text-4xl font-bold text-white">드래프트 결과</h1>
-      </div>
-
-      {/* 섹션 타이틀 */}
-      <div className="mx-auto mb-6 flex max-w-[1400px] items-center gap-3">
-        <div className="bg-primary h-6 w-1 rounded-full"></div>
-        <h2 className="text-xl font-bold text-gray-200">최종 팀 명단</h2>
-      </div>
-
-      {/* 팀 카드 그리드 */}
-      <div className="mx-auto max-w-[1400px]">
-        {teams.length === 0 ? (
-          <div className="py-12 text-center text-gray-400">
-            아직 팀 구성 결과가 없습니다.
+    <div className="flex min-h-screen bg-background-dark text-white">
+      {/* 메인 콘텐츠 (자연스러운 스크롤) */}
+      <div className="flex-1 p-4 md:p-10 lg:mr-[320px]">
+        <div className="mx-auto max-w-[1400px]">
+          {/* 페이지 헤더 */}
+          <div className="mb-10">
+            <h1 className="mb-2 text-4xl font-bold text-white">드래프트 결과</h1>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {teams.map((team) => (
-              <TeamCard key={team.id} team={team} />
-            ))}
+
+          {/* 섹션 타이틀 */}
+          <div className="mb-6 flex items-center gap-3">
+            <div className="bg-primary h-6 w-1 rounded-full"></div>
+            <h2 className="text-xl font-bold text-gray-200">최종 팀 명단</h2>
           </div>
-        )}
+
+          {/* 팀 카드 그리드 */}
+          <div>
+            {teams.length === 0 ? (
+              <div className="py-12 text-center text-gray-400">
+                아직 팀 구성 결과가 없습니다.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {teams.map((team) => (
+                  <TeamCard key={team.id} team={team} />
+                ))}
+              </div>
+            )}
+          </div>
+
+
+
+          {/* 하단 푸터 */}
+          <div className="mt-16 border-t border-white/5 pt-8">
+            <p className="mt-8 text-center text-xs text-gray-700">
+              © 2026 Draft-Go. All rights reserved.
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* 홈으로 돌아가기 */}
-      <div className="mx-auto mt-12 max-w-[1400px] text-center">
+      {/* 채팅 사이드바 (Fixed 고정) */}
+      <UnifiedChat 
+        className="w-[320px] h-screen fixed right-0 top-0 border-l border-white/10 hidden lg:flex overflow-hidden"
+        viewerCount={0}
+        onSendMessage={sendMessage}
+      />
+
+      {/* 로비로 나가기 버튼 (Fixed) */}
+      <div className="fixed bottom-5 left-5 z-50">
         <button
-          onClick={() => navigate("/")}
-          className="rounded-lg bg-gray-700 px-8 py-3 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-600"
+          onClick={() => navigate(ROUTES.HOME)}
+          className="group flex items-center gap-2 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-white/60 transition-all duration-200 hover:border-primary/50 hover:bg-black/80 hover:text-white backdrop-blur-sm"
+          title="로비로 나가기"
         >
-          메인으로
+          <span className="material-symbols-outlined text-lg transition-colors group-hover:text-primary">
+            logout
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-widest transition-colors group-hover:text-primary">
+            EXIT
+          </span>
         </button>
-      </div>
-
-      {/* 하단 푸터 */}
-      <div className="mx-auto mt-16 max-w-[1400px] border-t border-white/5 pt-8">
-        <p className="mt-8 text-center text-xs text-gray-700">
-          © 2026 Draft-Go. All rights reserved.
-        </p>
       </div>
     </div>
   );

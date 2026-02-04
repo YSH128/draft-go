@@ -14,7 +14,7 @@ export default function AuctionStage({ player, currentBid, hasCurrentBid = false
     .filter(Boolean);
 
   return (
-    <div className="reactive-border-gold relative w-full max-w-5xl rounded-xl bg-gradient-to-br from-card-dark to-background-dark p-8 shadow-2xl">
+    <div className="reactive-border-gold relative w-full max-w-3xl rounded-xl bg-gradient-to-br from-card-dark to-background-dark p-8 shadow-2xl">
       <div className="absolute -top-3 left-8 z-10 rounded-full bg-primary px-4 py-0.5 text-[10px] font-black uppercase tracking-widest text-background-dark shadow-[0_0_10px_rgba(200,155,60,0.4)]">
         현재 경매 진행 중
       </div>

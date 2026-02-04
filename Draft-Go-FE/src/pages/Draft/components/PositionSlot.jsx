@@ -12,7 +12,7 @@ export default function PositionSlot({ position, player = null }) {
     <div className="flex flex-col items-center gap-1">
       {/* 슬롯 이미지 */}
       <div
-        className={`relative flex size-14 items-center justify-center rounded border bg-black/40 bg-cover bg-center ${
+        className={`relative flex size-10 items-center justify-center rounded border bg-black/40 bg-cover bg-center ${
           hasPlayer
             ? "border-primary/40"
             : "border-primary/10"
@@ -21,14 +21,14 @@ export default function PositionSlot({ position, player = null }) {
       />
 
       {/* 포지션 / 이름 라벨 */}
-      <div className="flex w-14 items-center justify-center gap-1">
+      <div className="flex w-10 items-center justify-center gap-0.5">
         <img
           src={position.icon}
           alt={position.label}
-          className={`h-3 w-3 ${hasPlayer ? "opacity-100" : "opacity-60"}`}
+          className={`h-2.5 w-2.5 ${hasPlayer ? "opacity-100" : "opacity-60"}`}
         />
         <span
-          className={`truncate text-[10px] font-medium ${
+          className={`truncate text-[9px] font-medium ${
             hasPlayer ? "text-white" : "text-primary/50"
           }`}
         >

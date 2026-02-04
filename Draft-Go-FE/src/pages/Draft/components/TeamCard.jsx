@@ -27,11 +27,11 @@ export default function TeamCard({ team, isActive = false, isMine = false }) {
   };
 
   return (
-    <div className={`space-y-4 rounded border p-4 ${getBorderStyle()}`}>
+    <div className={`space-y-4 rounded border p-4 overflow-hidden ${getBorderStyle()}`}>
       {/* 팀 헤더 */}
       <div className="flex items-center justify-between">
         <span className={`text-base font-bold ${isActive ? "text-primary" : "text-white"}`}>
-          {name} <span className="text-sm font-normal text-slate-400">({captain})</span>
+          {name}
         </span>
         <span className={`text-sm font-bold ${isActive ? "text-primary-bright" : "text-primary"}`}>
           {points} P
@@ -39,7 +39,7 @@ export default function TeamCard({ team, isActive = false, isMine = false }) {
       </div>
 
       {/* 포지션 슬롯 */}
-      <div className="flex justify-between gap-2">
+      <div className="flex justify-between gap-0.5">
         {POSITIONS.map((position) => (
           <PositionSlot
             key={position.id}

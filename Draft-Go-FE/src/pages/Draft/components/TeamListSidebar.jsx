@@ -10,7 +10,7 @@ import TeamCard from "./TeamCard";
  */
 export default function TeamListSidebar({ teams = [], activeTeamId, myTeamId }) {
   return (
-    <aside className="custom-scrollbar z-10 flex w-[480px] shrink-0 flex-col space-y-4 overflow-y-auto border-r border-primary/20 bg-background-dark p-5">
+    <aside className="custom-scrollbar z-10 flex w-full shrink-0 flex-col space-y-4 overflow-y-auto border-r border-primary/20 bg-background-dark p-5">
       {/* 섹션 타이틀 */}
       <h2 className="mb-2 px-1 text-xs font-bold uppercase tracking-widest text-primary">
         팀 리스트
