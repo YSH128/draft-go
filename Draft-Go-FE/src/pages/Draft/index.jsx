@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
 import UnifiedChat from "../../components/chat/UnifiedChat";
@@ -21,9 +21,34 @@ export default function DraftPage() {
   const game = useAuctionGame(draftId);
   console.log("🚩 DraftPage Render Start", { draftId, game });
 
+  // 백엔드 이벤트 기반 드래프트 상태 관리
+  // 백엔드에서 /ws/auction/{draftId} 토픽으로 AUCTION_ENDED 이벤트 전송
+  // 이벤트 구조: { type: "AUCTION_ENDED", data: { draftId, message } }
+  const handleAuctionEventWithStatus = useCallback((body) => {
+    try {
+      const event = typeof body === 'string' ? JSON.parse(body) : body;
+      
+      // AUCTION_ENDED 이벤트 처리
+      if (event.type === "AUCTION_ENDED") {
+        console.log("[Draft] 모든 경매 종료 이벤트 수신");
+        game.showToast(
+          "모든 경매가 종료되었습니다. 결과 페이지로 이동합니다.",
+          "success",
+        );
+        setTimeout(() => {
+          navigate(`/result?draftId=${draftId}`);
+        }, 2000);
+      } else {
+        // 다른 경매 이벤트는 기존 핸들러로 전달
+        game.handleAuctionEvent(body);
+      }
+    } catch (error) {
+      console.error("[Draft] 경매 이벤트 처리 실패:", error);
+    }
+  }, [draftId, navigate, game.showToast, game.handleAuctionEvent]); // game 대신 필요한 메서드만
   // 2. Draft Socket Hook
   useDraftSocket(draftId, {
-    handleAuctionEvent: game.handleAuctionEvent,
+    handleAuctionEvent: handleAuctionEventWithStatus, // 경매 + AUCTION_ENDED 이벤트 처리
     handleQueueUpdate: game.handleQueueUpdate,
     handleTeamsUpdate: game.handleTeamsUpdate,
     refreshAuctionState: game.refreshAuctionState,
@@ -33,23 +58,22 @@ export default function DraftPage() {
   const { messages } = useChatStore();
   const { sendMessage } = useChatSocket(draftId);
 
-  // 시스템 메시지 감지 (경매 종료 -> 결과 페이지 이동)
-  useEffect(() => {
-    const lastMsg = messages[messages.length - 1];
-    if (
-      lastMsg?.type === "SYSTEM" &&
-      lastMsg?.content === "🎉 모든 경매가 종료되었습니다!"
-    ) {
-      console.log("드래프트 종료 이벤트(시스템 메시지) 수신");
-      game.showToast(
-        "모든 경매가 종료되었습니다. 결과 페이지로 이동합니다.",
-        "success",
-      );
-      setTimeout(() => {
-        navigate(`/result?draftId=${draftId}`);
-      }, 2000);
-    }
-  }, [messages, draftId, navigate, game.showToast]);
+  // NOTE: 채팅 메시지는 로비 → 드래프트 → 결과 페이지까지 이어져야 함
+  // clearMessages()를 호출하지 않음!
+
+  // 4. Highest Bidder
+  const highestBidderInfo = useMemo(() => {
+    if (!game.activeTeamId) return { name: null, color: null };
+    const team = game.uiTeams.find((t) => t.id === game.activeTeamId);
+    return {
+      name: team ? team.captain : null,
+      color: team ? team.color : null,
+    };
+  }, [game.activeTeamId, game.uiTeams]);
+
+  // NOTE: 기존 시스템 메시지 감지 방식은 제거됨
+  // 이유: 채팅 메시지로 상태를 판단하는 것은 불안정하며,
+  //      이전 경매의 메시지가 남아있을 경우 오작동 가능
 
   if (!isValidDraftId) {
     return (
@@ -115,6 +139,8 @@ export default function DraftPage() {
             bidDisabledReason={game.bidDisabledReason}
             queue={game.activeQueue}
             passedQueue={game.passedQueue}
+            highestBidderName={highestBidderInfo.name}
+            highestBidderColor={highestBidderInfo.color}
           />
         </main>
 

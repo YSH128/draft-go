@@ -35,9 +35,21 @@ export const isLeader = (member) => {
   return member.isLeader === true || member.leader === true;
 };
 
+// 팀 색상 목록
+const TEAM_COLORS = [
+  "#A0A0A0", // 실버 그레이
+  "#556B2F", // 올리브 그린
+  "#FF8C00", // 다크 오렌지
+  "#8B4513", // 테라코타 브라운
+  "#20B2AA", // 제이드 그린
+  "#1E90FF", // 일렉트릭 블루
+  "#DC143C", // 크림슨 레드
+  "#9400D3", // 보이드 퍼플
+];
+
 // 백엔드 teams 데이터를 UI용으로 변환
 export const mapTeams = (teams) =>
-  (teams || []).map((team) => {
+  (teams || []).map((team, index) => {
     const leader = team.members?.find((m) => isLeader(m));
     return {
       id: String(team.teamId),
@@ -45,5 +57,6 @@ export const mapTeams = (teams) =>
       captain: leader?.name || "알 수 없음",
       points: team.currentPoint ?? 0,
       roster: buildRoster(team.members || []),
+      color: TEAM_COLORS[index % TEAM_COLORS.length],
     };
   });

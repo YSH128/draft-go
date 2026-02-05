@@ -62,11 +62,7 @@ export default function TeamCard({ team }) {
           >
             {team.leaderName} 팀
           </h3>
-          {team.isMyTeam && (
-            <span className="rounded bg-yellow-500 px-2 py-0.5 text-[10px] font-bold text-black">
-              MY TEAM
-            </span>
-          )}
+
         </div>
 
         {/* 평균 티어 - 이미지 + 텍스트 */}

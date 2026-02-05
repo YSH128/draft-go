@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Icon from "./Icon";
+import Icon from "../ui/Icon";
 import StatusBadge from "./StatusBadge";
 import { UI_DRAFT_STATUS, STATUS_BUTTON_CONFIG } from "../../constants/draft";
 
@@ -35,18 +35,28 @@ export default function TournamentCard({
 
   // 상태 기반 버튼 텍스트 결정 (참여 중이면 "입장하기")
   const getButtonLabel = () => {
+    // 종료된 드래프트는 참여 여부와 관계없이 결과보기를 표시
+    if (status === UI_DRAFT_STATUS.COMPLETED) return btnConfig.label;
     if (isParticipating) return "입장하기";
     return btnConfig.label;
   };
 
   // 상태 기반 버튼 스타일 결정
   const getButtonVariant = () => {
+    // 종료된 드래프트는 참여 여부와 관계없이 결과보기 스타일(ghost) 적용
+    if (status === UI_DRAFT_STATUS.COMPLETED) return btnConfig.variant;
     if (isParticipating) return "primary";
     return btnConfig.variant;
   };
 
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-white/10 bg-[#1a1f25] transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-[0_8px_30px_rgba(200,155,60,0.12)]">
+    <div
+      className={`group relative flex h-full flex-col overflow-hidden rounded-lg border bg-[#1a1f25] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(200,155,60,0.12)] ${
+        isParticipating
+          ? "border-2 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+          : "border-white/10 hover:border-primary/50"
+      }`}
+    >
       {/* 썸네일 영역 */}
       <div className="relative aspect-video w-full overflow-hidden">
         <img
@@ -66,10 +76,7 @@ export default function TournamentCard({
         {/* 참여 중 표시 */}
         {isParticipating && (
           <div className="absolute right-3 top-3">
-            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 py-1 text-[10px] font-bold text-emerald-400 backdrop-blur-md">
-              <Icon name="check_circle" className="text-xs" />
-              참여중
-            </span>
+            <StatusBadge variant="participating" />
           </div>
         )}
       </div>

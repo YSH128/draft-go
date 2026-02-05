@@ -73,7 +73,11 @@ function SmallTierTag({ tier, division }) {
     III: "III",
     IV: "IV",
   };
-  const divisionText = division && divisionMap[division] ? ` ${divisionMap[division]}` : "";
+  // 마스터 이상은 Division 표시 안 함
+  const isApex = ["master", "grandmaster", "challenger"].includes(tier);
+  const divisionText = (!isApex && division && divisionMap[division]) 
+    ? ` ${divisionMap[division]}` 
+    : "";
 
   return (
     <span

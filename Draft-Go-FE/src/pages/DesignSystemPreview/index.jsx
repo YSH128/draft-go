@@ -1,6 +1,6 @@
 import React from "react";
 import Button from "../../components/ui/Button.jsx";
-import TournamentCard from "../../components/ui/TournamentCard.jsx";
+import TournamentCard from "../../components/draft/TournamentCard.jsx";
 import Badge from "../../components/ui/Badge.jsx";
 import Avatar from "../../components/ui/Avatar.jsx";
 import ChatInput from "../../components/ui/ChatInput.jsx";

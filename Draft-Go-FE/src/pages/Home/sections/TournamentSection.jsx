@@ -3,10 +3,11 @@ import {
   Icon,
   FilterButton,
   FilterButtonGroup,
-  TournamentCard,
+
   TournamentGridSkeleton,
   GoldButton,
 } from "../../../components/ui";
+import TournamentCard from "../../../components/draft/TournamentCard";
 import FadeInUp from "../../../components/ui/FadeInUp";
 
 const INITIAL_VISIBLE_COUNT = 8;

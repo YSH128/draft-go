@@ -24,10 +24,14 @@
   --color-chat-dark: #050c12; /* 채팅 배경 */
 
   /* 팀 색상 */
-  --color-team-blue: #3b82f6;
-  --color-team-red: #ef4444;
-  --color-team-green: #22c55e;
-  --color-team-purple: #a855f7;
+  --color-team-1: #a0a0a0; /* 실버 그레이 */
+  --color-team-2: #556b2f; /* 올리브 그린 */
+  --color-team-3: #ff8c00; /* 다크 오렌지 */
+  --color-team-4: #8b4513; /* 테라코타 브라운 */
+  --color-team-5: #20b2aa; /* 제이드 그린 */
+  --color-team-6: #1e90ff; /* 일렉트릭 블루 */
+  --color-team-7: #dc143c; /* 크림슨 레드 */
+  --color-team-8: #9400d3; /* 보이드 퍼플 */
 
   /* 티어 색상 (배지용) */
   --color-tier-iron-bg: #544d50;
@@ -263,6 +267,21 @@ h6 {
 
   .animate-slide-in-right {
     animation: slide-in-right 0.3s ease-out;
+  }
+
+  @keyframes slide-in-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-in-up {
+    animation: slide-in-up 0.3s ease-out;
   }
 
   @keyframes spin {

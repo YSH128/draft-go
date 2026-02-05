@@ -52,7 +52,7 @@ export default function Toast({ message, type = 'info', onClose, duration = 5000
     return (
         <div
             className={`
-        animate-slide-in-right
+        animate-slide-in-up
         flex items-center gap-3 rounded-lg border-l-4 px-4 py-3
         shadow-lg backdrop-blur-sm
         ${getTypeStyles()}

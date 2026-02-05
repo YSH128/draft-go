@@ -13,21 +13,27 @@ import { POSITIONS } from "../../../constants/riot.js";
  * @param {boolean} isMine - 내 팀 여부
  */
 export default function TeamCard({ team, isActive = false, isMine = false }) {
-  const { name, captain, points, roster = {} } = team;
+  const { name, captain, points, roster = {}, color } = team;
 
   // 스타일 결정
   const getBorderStyle = () => {
     if (isActive) {
-      return "border-2 border-primary bg-card-dark shadow-[0_0_15px_rgba(200,155,60,0.1)]";
+      return "border-2 border-primary shadow-[0_0_15px_rgba(200,155,60,0.1)]";
     }
     if (isMine) {
-      return "border border-hextech-blue/40 bg-card-dark";
+      return "border border-hextech-blue/40";
     }
-    return "border-primary/20 bg-card-dark";
+    return "border-primary/20";
   };
 
   return (
-    <div className={`space-y-4 rounded border p-4 overflow-hidden ${getBorderStyle()}`}>
+    <div 
+      className={`space-y-4 rounded-r border-t border-b border-r p-4 overflow-hidden ${getBorderStyle()}`}
+      style={{ 
+        borderLeft: `4px solid ${color}`,
+        background: `linear-gradient(90deg, ${color}15 0%, rgba(9, 20, 40, 0) 70%)` // 15 = 약 8% Opacity -> 은은하게
+      }}
+    >
       {/* 팀 헤더 */}
       <div className="flex items-center justify-between">
         <span className={`text-base font-bold ${isActive ? "text-primary" : "text-white"}`}>

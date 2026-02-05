@@ -29,3 +29,26 @@ export const CHAT_MESSAGE_TYPES = {
 // Chat Topic Generator Functions
 export const getChatTopic = (draftId) => `/topic/chat/${draftId}`;
 export const getChatPublishPath = (draftId) => `/app/chat/${draftId}`;
+
+// Draft/Auction Event Types
+// NOTE: 백엔드는 /ws/auction/{draftId} 토픽으로 모든 경매 이벤트를 전송
+// 이벤트 타입: ROUND_START, BID, ROUND_ENDED, AUCTION_ENDED
+export const AUCTION_EVENT_TYPES = {
+  ROUND_START: 'ROUND_START',
+  BID: 'BID',
+  ROUND_ENDED: 'ROUND_ENDED',
+  AUCTION_ENDED: 'AUCTION_ENDED', // 경매 완전 종료
+};
+
+// TODO: 백엔드와 협의 후 확정
+// Draft Status Events (드래프트 상태 변경 이벤트)
+export const DRAFT_STATUS_EVENTS = {
+  STATUS_CHANGED: 'DRAFT_STATUS_CHANGED',
+  COMPLETED: 'COMPLETED',      // 경매 완료
+  IN_PROGRESS: 'IN_PROGRESS',  // 경매 진행 중
+  // PAUSED: 'PAUSED',         // 필요시 추가
+};
+
+// TODO: 백엔드와 토픽 경로 확인 필요
+// Draft Status Topic Generator
+export const getDraftStatusTopic = (draftId) => `/topic/draft/${draftId}/status`;

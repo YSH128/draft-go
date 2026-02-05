@@ -8,14 +8,15 @@ export default function useToast() {
     const [toasts, setToasts] = useState([]);
 
     /**
-     * 새로운 토스트 알림 표시
+     * 새로운 토스트 알림 표시 (이전 토스트는 자동 제거)
      * @param {string} message - 표시할 메시지
      * @param {string} type - 'error' | 'warning' | 'success' | 'info'
      * @param {number} duration - 표시 시간 (ms), 기본값 3000ms
      */
     const showToast = useCallback((message, type = 'info', duration = 3000) => {
         const id = Date.now() + Math.random(); // 동시에 여러 토스트 생성 시 고유 ID 보장
-        setToasts((prev) => [...prev, { id, message, type, duration }]);
+        // 이전 토스트를 모두 제거하고 새 토스트만 표시
+        setToasts([{ id, message, type, duration }]);
     }, []);
 
     /**

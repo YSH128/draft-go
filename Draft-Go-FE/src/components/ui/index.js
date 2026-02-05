@@ -2,9 +2,8 @@ export { default as Button } from "./Button";
 export { default as Icon } from "./Icon";
 export { default as StatCard } from "./StatCard";
 export { default as FilterButton, FilterButtonGroup } from "./FilterButton";
-export { default as StatusBadge } from "./StatusBadge";
 export { default as GoldButton } from "./GoldButton";
-export { default as TournamentCard, TournamentCardWrapper } from "./TournamentCard";
+
 export { default as Avatar } from "./Avatar";
 export { default as Badge } from "./Badge";
 export { default as SectionTitle } from "./SectionTitle";
