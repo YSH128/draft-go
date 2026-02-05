@@ -78,7 +78,6 @@ public class TestMemberInitService {
         Division[] divisions = { Division.I, Division.II, Division.III, Division.IV };
         Position[] positions = { Position.TOP, Position.JUNGLE, Position.MID, Position.BOT, Position.SUP };
 
-        // 실제 게임 닉네임 배열 (test1~test20)
         String[][] realAccounts = {
                 {"무 잔", "하데스"},
                 {"Akaps", "KR1"},
@@ -116,14 +115,15 @@ public class TestMemberInitService {
 
         int testAccountNum = realAccounts.length;
 
-        for (int i = 1; i <= 30; i++) {
+        for (int i = 1; i <= 40; i++) {
             String username = "test" + i;
+            boolean isTestAccount = i <= testAccountNum;
             if (memberRepository.findByUsername(username).isEmpty()) {
                 // 게임 닉네임 설정
                 String gameName;
                 String tagLine;
 
-                if (i <= testAccountNum) {
+                if (isTestAccount) {
                     // 실제 계정
                     gameName = realAccounts[i - 1][0];
                     tagLine = realAccounts[i - 1][1];
@@ -138,8 +138,8 @@ public class TestMemberInitService {
                 Division randomDivision = divisions[random.nextInt(divisions.length)];
 
                 // 랜덤 포지션 선택
-                Position mainPos = positions[random.nextInt(positions.length)];
-                Position subPos = positions[random.nextInt(positions.length)];
+                Position mainPos = isTestAccount ? null : positions[random.nextInt(positions.length)];
+                Position subPos = isTestAccount ? null : positions[random.nextInt(positions.length)];
 
                 // 랜덤 스탯 생성
                 int leaguePoint = random.nextInt(100); // 0-99 LP
