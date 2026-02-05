@@ -7,7 +7,7 @@ import * as DraftApi from '../../api/draft';
  * @param {string} draftId - 드래프트 ID
  * @returns {Object} 전적 갱신 함수와 캐시 ref
  */
-export const useProfileRefresh = (draftId) => {
+export const useProfileRefresh = (draftId, modals) => {
     const queryClient = useQueryClient();
     const refreshedProfilesRef = useRef(
         JSON.parse(sessionStorage.getItem('refreshedProfiles') || '{}')
@@ -104,7 +104,7 @@ export const useProfileRefresh = (draftId) => {
 
             // 8. 알림 표시
             if (showNotification) {
-                alert('전적 갱신이 완료되었습니다.');
+                modals.showAlert("성공", "전적 갱신이 완료되었습니다.", "success");
             }
 
             return newData;
@@ -112,7 +112,7 @@ export const useProfileRefresh = (draftId) => {
             console.error(`[updateMemberStats] Failed for member ${targetId}:`, error);
             throw error;
         }
-    }, [draftId, queryClient]);
+    }, [draftId, queryClient, modals]);
 
     return {
         updateMemberStats,

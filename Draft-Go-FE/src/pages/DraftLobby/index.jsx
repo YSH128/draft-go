@@ -20,6 +20,8 @@ import ParticipantProfileModal from "../../components/ui/ParticipantProfileModal
 import KickConfirmModal from "../../components/ui/KickConfirmModal";
 import AlertModal from '../../components/ui/AlertModal';
 import DraftStartOverlay from "../../components/ui/DraftStartOverlay";
+import Header from "../../components/layout/Header";
+import Footer from "../../components/layout/Footer";
 
 // Hooks
 import useAuthStore from "../../stores/useAuthStore";
@@ -53,7 +55,7 @@ export default function DraftLobby() {
     // ========== Hooks ==========
     const modals = useLobbyModals();
     const chat = useLobbyChat(user?.id);
-    const { updateMemberStats, refreshedProfilesRef } = useProfileRefresh(draftId);
+    const { updateMemberStats, refreshedProfilesRef } = useProfileRefresh(draftId, modals);
 
     // ========== Derived State (Moved Up) ==========
     const data = useMemo(() => {
@@ -83,7 +85,7 @@ export default function DraftLobby() {
     } = useLobbyTransform(data, user, refreshedProfilesRef);
 
     // ========== Captain Actions Hook ==========
-    const captainActions = useCaptainActions(draftId, captains, draftPool);
+    const captainActions = useCaptainActions(draftId, captains, draftPool, modals);
 
     // ========== Participant Actions Hook ==========
     const participantActions = useParticipantActions({
@@ -96,7 +98,7 @@ export default function DraftLobby() {
     });
 
     // ========== Drag & Drop Hook ==========
-    const dragDrop = useLobbyDragDrop(draftId, captains);
+    const dragDrop = useLobbyDragDrop(draftId, captains, modals);
 
     // ========== Controls Hook ==========
     const controls = useLobbyControls({
@@ -140,7 +142,9 @@ export default function DraftLobby() {
 
     // ========== Main Render ==========
     return (
-        <DragDropContext onDragEnd={dragDrop.onDragEnd}>
+        <>
+            <Header />
+            <DragDropContext onDragEnd={dragDrop.onDragEnd}>
             <div className="flex min-h-[calc(100vh-var(--header-height))] justify-center bg-background-dark font-sans text-white relative">
                 <div className="flex w-full shadow-2xl">
 
@@ -323,6 +327,21 @@ export default function DraftLobby() {
                     icon="gavel"
                 />
 
+                {/* Generic Alert Modal (for hook errors/warnings/success) */}
+                <AlertModal
+                    isOpen={modals.alertConfig.isOpen}
+                    onClose={modals.closeAlert}
+                    title={modals.alertConfig.title}
+                    message={modals.alertConfig.message}
+                    variant={modals.alertConfig.type}
+                    icon={
+                        modals.alertConfig.type === 'success' ? 'check_circle' :
+                        modals.alertConfig.type === 'error' ? 'error' :
+                        modals.alertConfig.type === 'warning' ? 'warning' :
+                        'info'
+                    }
+                />
+
                 {/* Background Image / Overlay */}
                 {isStarting && <DraftStartOverlay />}
                 <div
@@ -332,5 +351,7 @@ export default function DraftLobby() {
 
             </div>
         </DragDropContext>
+        <Footer />
+        </>
     );
 }

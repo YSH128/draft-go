@@ -126,7 +126,7 @@ export const useParticipantActions = ({
 
     const handleRefreshProfile = useCallback(async () => {
         if (!modals.selectedParticipant || !modals.selectedParticipant.memberId) {
-            alert("전적 갱신 불가");
+            modals.showAlert("오류", "전적 갱신 불가", "error");
             return;
         }
 
@@ -135,7 +135,7 @@ export const useParticipantActions = ({
             modals.setSelectedParticipant((prev) => ({ ...prev, ...newData }));
         } catch (error) {
             console.error("Profile refresh failed:", error);
-            alert("전적 갱신 실패");
+            modals.showAlert("오류", "전적 갱신에 실패했습니다.", "error");
         }
     }, [modals, updateMemberStats]);
 
@@ -166,7 +166,7 @@ export const useParticipantActions = ({
             }
         } catch (error) {
             console.error("Kick failed:", error);
-            alert("강제 퇴장에 실패했습니다.");
+            modals.showAlert("오류", "강제 퇴장에 실패했습니다.", "error");
             modals.closeKickModal();
         }
     }, [draftId, modals, navigate, queryClient, isSelfLeavingRef]);
@@ -177,7 +177,7 @@ export const useParticipantActions = ({
             const myId = user?.id;
 
             if (!myId) {
-                alert("로그인이 필요합니다.");
+                modals.showAlert("알림", "로그인이 필요합니다.", "warning");
                 return;
             }
 
@@ -212,14 +212,14 @@ export const useParticipantActions = ({
             const errorMessage = error.response?.data?.message;
 
             if (errorCode === 'MAX_TEAM_COUNT_EXCEEDED') {
-                alert("팀장 인원이 가득 찼습니다.");
+                modals.showAlert("알림", "팀장 인원이 가득 찼습니다.", "warning");
             } else if (errorCode === 'LEADER_CANNOT_BE_OBSERVER') {
-                alert("팀장은 관전자가 될 수 없습니다.");
+                modals.showAlert("알림", "팀장은 관전자가 될 수 없습니다.", "warning");
             } else {
-                alert("포지션 변경 실패: " + (errorMessage || error.message));
+                modals.showAlert("오류", "포지션 변경 실패: " + (errorMessage || error.message), "error");
             }
         }
-    }, [draftId, user?.id, userRole]);
+    }, [draftId, user?.id, userRole, modals]);
 
     return {
         handleOpenProfile,

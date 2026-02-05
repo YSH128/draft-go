@@ -22,6 +22,14 @@ export const useLobbyModals = () => {
     const [isUpdateSuccessOpen, setIsUpdateSuccessOpen] = useState(false);
     const [isRunningAlertOpen, setIsRunningAlertOpen] = useState(false);
     const [startErrorModal, setStartErrorModal] = useState({ isOpen: false, message: '' });
+    
+    // 범용 Alert 상태
+    const [alertConfig, setAlertConfig] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        type: 'info' // 'success' | 'error' | 'warning' | 'info'
+    });
 
     return useMemo(() => ({
         // Edit Draft Modal
@@ -91,6 +99,15 @@ export const useLobbyModals = () => {
         setIsRunningAlertOpen,
         startErrorModal,
         setStartErrorModal,
+        
+        // 범용 Alert
+        alertConfig,
+        showAlert: (title, message, type = 'info') => {
+            setAlertConfig({ isOpen: true, title, message, type });
+        },
+        closeAlert: () => {
+            setAlertConfig({ isOpen: false, title: '', message: '', type: 'info' });
+        },
     }), [
         isEditDraftModalOpen,
         isCodeModalOpen,
@@ -105,6 +122,7 @@ export const useLobbyModals = () => {
         isDestroyConfirmOpen,
         isUpdateSuccessOpen,
         isRunningAlertOpen,
-        startErrorModal
+        startErrorModal,
+        alertConfig
     ]);
 };

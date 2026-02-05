@@ -9,7 +9,7 @@ import { mapPositionToAPI } from '../../utils';
  * @param {Array} captains - 팀장 목록 (검증용)
  * @returns {Object} { onDragEnd }
  */
-export const useLobbyDragDrop = (draftId, captains) => {
+export const useLobbyDragDrop = (draftId, captains, modals) => {
     const queryClient = useQueryClient();
 
     const onDragEnd = useCallback(async (result) => {
@@ -214,14 +214,14 @@ export const useLobbyDragDrop = (draftId, captains) => {
             const errorMessage = e.response?.data?.message;
 
             if (errorCode === 'MAX_TEAM_COUNT_EXCEEDED') {
-                alert('팀장 인원이 가득 찼습니다.');
+                modals.showAlert("알림", "팀장 인원이 가득 찼습니다.", "warning");
             } else if (errorCode === 'LEADER_CANNOT_BE_OBSERVER') {
-                alert('팀장은 관전자가 될 수 없습니다.');
+                modals.showAlert("알림", "팀장은 관전자가 될 수 없습니다.", "warning");
             } else {
-                alert('작업에 실패했습니다: ' + (errorMessage || '알 수 없는 오류'));
+                modals.showAlert("오류", "작업에 실패했습니다: " + (errorMessage || "알 수 없는 오류"), "error");
             }
         }
-    }, [draftId, captains, queryClient]);
+    }, [draftId, captains, queryClient, modals]);
 
     return { onDragEnd };
 };

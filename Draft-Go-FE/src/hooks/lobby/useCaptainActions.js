@@ -10,7 +10,7 @@ import { mapPositionToAPI } from '../../utils';
  * @param {Object} draftPool - 드래프트 풀
  * @returns {Object} 팀장 액션 핸들러들
  */
-export const useCaptainActions = (draftId, captains, draftPool) => {
+export const useCaptainActions = (draftId, captains, draftPool, modals) => {
     const queryClient = useQueryClient();
 
     /**
@@ -68,7 +68,7 @@ export const useCaptainActions = (draftId, captains, draftPool) => {
             const promoteToLeader = async (name, point) => {
                  const result = findMemberWithRole(name);
                  if (!result) {
-                     alert("선택한 유저를 찾을 수 없습니다.");
+                     modals.showAlert("오류", "선택한 유저를 찾을 수 없습니다.", "error");
                      return false;
                  }
                  const { member, role } = result;
@@ -130,7 +130,7 @@ export const useCaptainActions = (draftId, captains, draftPool) => {
             console.error("Save settings failed:", e);
             return { success: false };
         }
-    }, [draftId, draftPool, queryClient]);
+    }, [draftId, draftPool, queryClient, modals]);
 
     return {
         handleRoleSelect,
