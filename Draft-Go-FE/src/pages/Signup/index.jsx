@@ -1,17 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { signup } from "../../api/auth";
 import AuthInput from "../../components/ui/AuthInput";
 import AuthButton from "../../components/ui/AuthButton";
 import SectionDivider from "../../components/ui/SectionDivider";
 import TextLink, { FooterLinks } from "../../components/ui/TextLink";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 import useSignupForm from "../../hooks/useSignupForm";
 import { POSITIONS } from "../../constants/riot";
+import useAuthStore from "../../stores/useAuthStore";
 
 const SignupPage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+
+  // 이미 로그인된 사용자는 홈으로 리다이렉트 (뒤로가기 방지)
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   // Layout State for new fields (Position/Tier)
   const [mainPosition, setMainPosition] = useState(null);
@@ -91,7 +101,7 @@ const SignupPage = () => {
               inputClassName="pr-[100px]"
               hideStatusIcon={true}
             />
-            
+
             <div className="absolute right-3 top-[21px] -translate-y-1/2 z-10 flex items-center gap-2">
               {/* Status Icon */}
               {loadingFields.username && (
@@ -198,7 +208,7 @@ const SignupPage = () => {
                   )}
                   {!loadingFields.gameName && !!errors.gameName && (
                     <div className="text-[#e84057]">
-                       <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                      <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                     </div>
                   )}
                   {!loadingFields.gameName && !errors.gameName && validFields.gameName && isSummonerVerified && (
@@ -234,7 +244,7 @@ const SignupPage = () => {
                   )}
                   {!loadingFields.tagLine && !!errors.tagLine && (
                     <div className="text-[#e84057]">
-                       <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                      <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                     </div>
                   )}
                   {!loadingFields.tagLine && !errors.tagLine && validFields.tagLine && isSummonerVerified && (
@@ -260,11 +270,10 @@ const SignupPage = () => {
                     key={`main-${pos.id}`}
                     type="button"
                     onClick={() => setMainPosition(pos.id)}
-                    className={`group relative flex h-8 w-8 items-center justify-center rounded transition-all hover:bg-[#c8aa6e]/10 ${
-                      mainPosition === pos.id
-                        ? "bg-[#c8aa6e]/20 ring-1 ring-[#c8aa6e]"
-                        : "opacity-50 hover:opacity-100"
-                    }`}
+                    className={`group relative flex h-8 w-8 items-center justify-center rounded transition-all hover:bg-[#c8aa6e]/10 ${mainPosition === pos.id
+                      ? "bg-[#c8aa6e]/20 ring-1 ring-[#c8aa6e]"
+                      : "opacity-50 hover:opacity-100"
+                      }`}
                   >
                     <img
                       src={pos.icon}
@@ -287,11 +296,10 @@ const SignupPage = () => {
                     key={`sub-${pos.id}`}
                     type="button"
                     onClick={() => setSubPosition(pos.id)}
-                    className={`group relative flex h-8 w-8 items-center justify-center rounded transition-all hover:bg-[#c8aa6e]/10 ${
-                      subPosition === pos.id
-                        ? "bg-[#c8aa6e]/20 ring-1 ring-[#c8aa6e]"
-                        : "opacity-50 hover:opacity-100"
-                    }`}
+                    className={`group relative flex h-8 w-8 items-center justify-center rounded transition-all hover:bg-[#c8aa6e]/10 ${subPosition === pos.id
+                      ? "bg-[#c8aa6e]/20 ring-1 ring-[#c8aa6e]"
+                      : "opacity-50 hover:opacity-100"
+                      }`}
                   >
                     <img
                       src={pos.icon}
@@ -305,7 +313,7 @@ const SignupPage = () => {
           </div>
 
 
-          
+
           {/* 가입 버튼 */}
           <div className="pt-2">
             <AuthButton
@@ -313,10 +321,18 @@ const SignupPage = () => {
               onClick={handleApiSignup}
               disabled={isLoading}
             >
-              {isLoading ? "가입 중..." : "가입 완료"}
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <LoadingSpinner size="small" color="white" />
+                  <span>가입 중...</span>
+                </div>
+              ) : (
+                "가입 완료"
+              )}
             </AuthButton>
           </div>
         </div>
+
 
         {/* 푸터 링크 */}
         <FooterLinks>

@@ -38,3 +38,9 @@ export const getMyProfile = async () => {
   const response = await instance.get("/members/me");
   return response.data;
 };
+
+// 6. 로그아웃 API
+export const logout = async () => {
+  const response = await instance.post("/members/logout");
+  return response.data;
+};

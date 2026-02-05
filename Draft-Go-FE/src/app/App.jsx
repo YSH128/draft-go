@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AppRouter from "./router";
 import useAuthStore from "../stores/useAuthStore";
 import { getMyProfile } from "../api/auth";
+import PageLoader from "../components/ui/PageLoader";
 
 // QueryClient 인스턴스 생성
 const queryClient = new QueryClient({
@@ -16,30 +17,50 @@ const queryClient = new QueryClient({
 });
 
 function App() {
-  const { accessToken, user, login } = useAuthStore();
+  const { accessToken, user, login, logout } = useAuthStore();
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  // 앱 시작 시 토큰이 있고 user 정보가 없으면 자동으로 로드
+  // 앱 시작 시 토큰 검증
   useEffect(() => {
-    const loadUserProfile = async () => {
-      if (accessToken && !user?.id) {
-        try {
-          console.log('[App] 토큰 있음, user 정보 로드 중...');
-          const userInfo = await getMyProfile();
+    const verifyToken = async () => {
+      // 토큰이 없으면 초기화 완료
+      if (!accessToken) {
+        setIsInitializing(false);
+        return;
+      }
+
+      // 토큰이 있으면 유효성 검증
+      try {
+        console.log('[App] 토큰 검증 중...');
+        const userInfo = await getMyProfile();
+
+        // 사용자 정보가 없으면 저장
+        if (!user?.id) {
           login(accessToken, {
             id: userInfo.memberId,
             username: userInfo.username,
             gameName: userInfo.gameName,
             tagLine: userInfo.tagLine,
+            profileIconUrl: userInfo.profileIconUrl,
           });
-          console.log('[App] User 정보 로드 완료:', userInfo);
-        } catch (error) {
-          console.error('[App] User 정보 로드 실패:', error);
+          console.log('[App] 토큰 유효, 사용자 정보 로드 완료', userInfo);
         }
+      } catch (error) {
+        console.error('[App] 토큰 검증 실패, 로그아웃 처리:', error);
+        // 토큰이 만료되었거나 유효하지 않으면 로그아웃
+        logout();
+      } finally {
+        setIsInitializing(false);
       }
     };
 
-    loadUserProfile();
-  }, [accessToken, user, login]);
+    verifyToken();
+  }, []); // 최초 마운트 시에만 실행
+
+  // 초기화 중에는 로딩 화면 표시
+  if (isInitializing) {
+    return <PageLoader message="인증 확인 중..." />;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -17,6 +17,8 @@ const useAuthStore = create(
       },
 
       logout: () => {
+        // localStorage에서 refreshToken 제거 (자동 갱신 방지)
+        localStorage.removeItem("refreshToken");
         set({
           accessToken: null,
           isAuthenticated: false,

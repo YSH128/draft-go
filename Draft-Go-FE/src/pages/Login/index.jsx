@@ -1,20 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, getMyProfile } from "../../api/auth";
 import AuthInput from "../../components/ui/AuthInput";
 import AuthButton from "../../components/ui/AuthButton";
 import SectionDivider from "../../components/ui/SectionDivider";
 import TextLink, { FooterLinks } from "../../components/ui/TextLink";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import riotIcon from "../../assets/images/riot-logo.png";
 import logo from "../../assets/logo/draft-go-logo.png";
 import useAuthStore from "../../stores/useAuthStore";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const loginAction = useAuthStore((state) => state.login);
+  const { isAuthenticated, login: loginAction } = useAuthStore();
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // 이미 로그인된 사용자는 홈으로 리다이렉트 (뒤로가기 방지)
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -36,21 +44,7 @@ const LoginPage = () => {
       const response = await login(formData);
       // 먼저 토큰 저장 (me API 호출 시 인증 헤더에 필요)
       loginAction(response.accessToken);
-      
-      // 사용자 정보 조회 후 저장
-      try {
-        const userInfo = await getMyProfile();
-        loginAction(response.accessToken, {
-          id: userInfo.memberId,
-          username: userInfo.username,
-          gameName: userInfo.gameName,
-          tagLine: userInfo.tagLine,
-        });
-      } catch (profileError) {
-        console.warn("프로필 조회 실패, 토큰만 저장됨:", profileError);
-      }
-      
-      navigate("/");
+      window.location.href = "/";
     } catch (err) {
       const serverMessage =
         err.response?.data?.message ||
@@ -66,7 +60,7 @@ const LoginPage = () => {
       <div className="h-fit w-full max-w-[420px] rounded-lg border border-[#c8aa6e]/30 bg-gray-900/80 p-8 shadow-xl backdrop-blur-sm">
         {/* 타이틀 -> 로고 이미지 교체 */}
         <div className="mb-6 flex justify-center">
-            <img src={logo} alt="Draft-GO" className="h-[100px] w-auto drop-shadow-[0_0_2px_#c89b3c]" />
+          <img src={logo} alt="Draft-GO" className="h-[100px] w-auto drop-shadow-[0_0_2px_#c89b3c]" />
         </div>
 
         {/* 에러 메시지 */}
@@ -101,10 +95,18 @@ const LoginPage = () => {
               type="submit"
               disabled={isLoading}
             >
-              {isLoading ? "로그인 중..." : "로그인"}
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <LoadingSpinner size="small" color="white" />
+                  <span>로그인 중...</span>
+                </div>
+              ) : (
+                "로그인"
+              )}
             </AuthButton>
           </div>
         </form>
+
 
         {/* 링크 모음 */}
         <FooterLinks>
