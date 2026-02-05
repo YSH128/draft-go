@@ -185,11 +185,26 @@ public class RoundStartService {
         eventPublisher.publishEvent(new AuctionWebSocketEvent.TeamInfoUpdateEvent(draftId));
         eventPublisher.publishEvent(new AuctionWebSocketEvent.QueueUpdateEvent(draftId));
 
-        // 6. 채팅 시스템 메시지
-        chatWebSocketController.sendSystemMessage(draftId, "🎯 현재 선수: " + next.getName());
+        // 6. 채팅 시스템 메시지 - 현재 선수와 다음 선수 표시
+        String systemMessage = buildSystemMessage(draftId, next.getName());
+        chatWebSocketController.sendSystemMessage(draftId, systemMessage);
 
 
         log.info("New round started for draftId: {}, player: {}", draftId, next.getName());
+    }
+
+    /**
+     * 시스템 메시지 생성 (현재 선수 / 다음 선수)
+     */
+    private String buildSystemMessage(Long draftId, String currentPlayerName) {
+        StringBuilder message = new StringBuilder();
+        message.append("현재 선수: ").append(currentPlayerName);
+
+        // 다음 선수 찾기
+        Optional<DraftMember> nextWaiting = draftMemberRepo.findNextUpcoming(draftId);
+        nextWaiting.ifPresent(draftMember -> message.append(" / 다음 선수: ").append(draftMember.getName()));
+
+        return message.toString();
     }
 
     /**
