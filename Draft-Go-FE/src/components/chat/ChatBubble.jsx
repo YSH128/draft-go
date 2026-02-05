@@ -71,12 +71,10 @@ export default function ChatBubble({
   // 3. 시스템 (SYSTEM) - 중앙 정렬 배지
   if (type === CHAT_MESSAGE_TYPES.SYSTEM) {
     return (
-      <div className="flex justify-center py-2 animate-fade-in">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
-          <span className="text-[10px] text-primary/90 font-medium">
-            {content}
-          </span>
-        </div>
+      <div className="flex justify-center py-1.5 animate-fade-in">
+        <span className="text-[11px] text-gray-500 font-medium">
+          {content}
+        </span>
       </div>
     );
   }
@@ -88,7 +86,7 @@ export default function ChatBubble({
 
   return (
     <div 
-      className={`flex w-full ${isFirstInSequence ? 'mt-3' : 'mt-0.5'} ${isMe ? "justify-end" : "justify-start"}`}
+      className={`flex w-full ${isFirstInSequence ? 'mt-3' : 'mt-1.5'} ${isMe ? "justify-end" : "justify-start"}`}
     >
       {/* 메시지 내용 */}
       <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '../ui';
 
 /**
@@ -6,6 +6,15 @@ import { Icon } from '../ui';
  */
 export default function ChatInput({ onSendMessage, disabled = false }) {
   const [inputValue, setInputValue] = useState("");
+  const textareaRef = useRef(null);
+
+  // 텍스트 내용에 따라 높이 자동 조절
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'; // 높이 초기화
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 100)}px`; // 내용에 맞춰 늘리되 최대 100px 제한
+    }
+  }, [inputValue]);
 
   const sendMessage = () => {
     if (disabled) return;
@@ -15,14 +24,11 @@ export default function ChatInput({ onSendMessage, disabled = false }) {
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    sendMessage();
-  };
-
   const handleKeyDown = (e) => {
-    // 한글 입력 중 Enter 키 중복 방지 (isComposing check)
-    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+    // 한글 입력 중 Enter 키 중복 방지
+    if (e.nativeEvent.isComposing) return;
+
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
@@ -30,24 +36,29 @@ export default function ChatInput({ onSendMessage, disabled = false }) {
 
   return (
     <div className="border-t border-primary/10 bg-background-dark/80 p-3 flex-shrink-0">
-      <form onSubmit={handleSubmit} className="relative">
-        <input
-          type="text"
+      <div className="relative flex items-center gap-2 rounded border border-primary/30 bg-white/5 px-3 py-1 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+        <textarea
+          ref={textareaRef}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
+          rows={1}
           placeholder={disabled ? "연결 중..." : "메시지 보내기..."}
-          className="w-full rounded border border-primary/30 bg-white/5 px-3 py-2 text-xs text-white placeholder-primary/20 outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
+          className="w-full resize-none bg-transparent text-xs text-white placeholder-primary/20 outline-none disabled:opacity-50 no-scrollbar p-0 leading-5"
+          style={{ 
+            minHeight: '20px', 
+            maxHeight: '100px',
+          }}
         />
         <button
-          type="submit"
+          onClick={sendMessage}
           disabled={!inputValue.trim() || disabled}
-          className="absolute right-2 top-1.5 text-primary transition-colors hover:text-hextech-gold-bright disabled:text-gray-600"
+          className="flex-shrink-0 h-[20px] flex items-center justify-center text-primary transition-colors hover:text-hextech-gold-bright disabled:text-gray-600"
         >
           <Icon name="send" className="text-sm" />
         </button>
-      </form>
+      </div>
     </div>
   );
 }

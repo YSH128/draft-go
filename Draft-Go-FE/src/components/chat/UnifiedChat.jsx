@@ -66,14 +66,7 @@ export default function UnifiedChat({
         </h2>
 
         {/* 시청자 수 (옵션) */}
-        {viewerCount > 0 && (
-          <div className="flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-1.5 py-px">
-            <span className={`size-1 rounded-full ${isConnected ? "bg-primary animate-pulse" : "bg-gray-500"}`} />
-            <span className="text-[9px] font-bold text-primary">
-              {formatViewerCount(viewerCount)}
-            </span>
-          </div>
-        )}
+{/* 시청자 수 (삭제됨) */}
       </div>
 
       {/* 메시지 목록 - Hidden Scrollbar */}
