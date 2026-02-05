@@ -8,9 +8,10 @@ import {
     CaptainsSection,
     StatsSection,
     DraftPoolSection,
-    LobbyFooterSection,
-    ChatSection
+    LobbyFooterSection
 } from "./sections";
+
+import UnifiedChat from "../../components/chat/UnifiedChat";
 
 // Components
 import CreateDraftModal from "../../components/ui/CreateDraftModal";
@@ -20,15 +21,16 @@ import ParticipantProfileModal from "../../components/ui/ParticipantProfileModal
 import KickConfirmModal from "../../components/ui/KickConfirmModal";
 import AlertModal from '../../components/ui/AlertModal';
 import DraftStartOverlay from "../../components/ui/DraftStartOverlay";
-import Header from "../../components/layout/Header";
-import Footer from "../../components/layout/Footer";
+// import Header from "../../components/layout/Header"; // Removed
+// import Footer from "../../components/layout/Footer"; // Removed
+import DraftLayout from "../../components/layout/DraftLayout";
 
 // Hooks
 import useAuthStore from "../../stores/useAuthStore";
 import { useLobbyData } from "../../hooks/lobby/useLobbyData";
 import { useLobbySocket } from "../../hooks/lobby/useLobbySocket";
 import { useLobbyModals } from "../../hooks/lobby/useLobbyModals";
-import { useLobbyChat } from "../../hooks/lobby/useLobbyChat";
+import { useChatSocket } from "../../hooks/useChatSocket"; // Unified Chat Socket
 import { useProfileRefresh } from "../../hooks/lobby/useProfileRefresh";
 import { useCaptainActions } from "../../hooks/lobby/useCaptainActions";
 import { useParticipantActions } from "../../hooks/lobby/useParticipantActions";
@@ -54,7 +56,7 @@ export default function DraftLobby() {
 
     // ========== Hooks ==========
     const modals = useLobbyModals();
-    const chat = useLobbyChat(user?.id);
+    // const chat = useLobbyChat(user?.id); // Removed legacy chat
     const { updateMemberStats, refreshedProfilesRef } = useProfileRefresh(draftId, modals);
 
     // ========== Derived State (Moved Up) ==========
@@ -72,7 +74,11 @@ export default function DraftLobby() {
     } = useLobbyLifecycle(draftId, modals, data, user, isLoading, isFetching);
 
     // ========== Socket Hook ==========
-    const { sendChatMessage } = useLobbySocket(draftId, handleLobbyEnded, chat.handleChatMessage, handleDraftStarted);
+    // Chat Socket (Unified) - Ensure draftId is number for consistency with Store
+    const { sendMessage } = useChatSocket(draftId ? Number(draftId) : null);
+    
+    // Lobby Socket (Events only)
+    useLobbySocket(draftId, handleLobbyEnded, handleDraftStarted);
 
     const {
         lobbyTitle,
@@ -107,7 +113,7 @@ export default function DraftLobby() {
         lifecycle: { handleDraftStarted },
         captains,
         captainActions,
-        sendChatMessage
+        sendChatMessage: sendMessage // Pass Unified Chat sendMessage
     });
 
     // ========== Loading & Error States ==========
@@ -142,76 +148,75 @@ export default function DraftLobby() {
 
     // ========== Main Render ==========
     return (
-        <>
-            <Header />
+        <DraftLayout>
             <DragDropContext onDragEnd={dragDrop.onDragEnd}>
-            <div className="flex min-h-[calc(100vh-var(--header-height))] justify-center bg-background-dark font-sans text-white relative">
-                <div className="flex w-full shadow-2xl">
+            <div className="flex h-full w-full relative">
+                
+                {/* --- Main Content Area --- */}
+                <main className="flex-1 flex flex-col bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1a1812] via-background-dark to-background-dark relative overflow-y-auto no-scrollbar">
 
-                    {/* --- Main Content Area --- */}
-                    <main className="flex-1 flex flex-col bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1a1812] via-background-dark to-background-dark relative">
+                    <div className="p-8 lg:p-10 flex-1">
+                        {/* Lobby Info Section */}
+                        <LobbyInfoSection
+                            lobbyTitle={lobbyTitle}
+                            isHost={isHost}
+                            totalParticipants={totalParticipants}
+                            startPoint={data?.startPoint}
+                            startPrice={data?.startPrice}
+                            captains={captains}
+                            onEditClick={() => modals.openEditDraftModal()}
+                            onCodeClick={() => modals.openCodeModal()}
+                        />
 
-                        <div className="p-8 lg:p-10 flex-1">
-                            {/* Lobby Info Section */}
-                            <LobbyInfoSection
-                                lobbyTitle={lobbyTitle}
-                                isHost={isHost}
-                                totalParticipants={totalParticipants}
-                                startPoint={data?.startPoint}
-                                startPrice={data?.startPrice}
-                                captains={captains}
-                                onEditClick={() => modals.openEditDraftModal()}
-                                onCodeClick={() => modals.openCodeModal()}
-                            />
+                        {/* Captains Section */}
+                        <CaptainsSection
+                            captains={captains}
+                            isHost={isHost}
+                            userRole={userRole}
+                            maxTeamCount={data?.maxTeamCount}
+                            onRoleSelect={captainActions.handleRoleSelect}
+                            onReadyToggle={captainActions.handleReadyToggle}
+                            onOpenSettings={controls.handleOpenSettings}
+                            onOpenProfile={participantActions.handleOpenProfile}
+                            onKick={participantActions.handleKickClick}
+                        />
 
-                            {/* Captains Section */}
-                            <CaptainsSection
-                                captains={captains}
-                                isHost={isHost}
-                                userRole={userRole}
-                                maxTeamCount={data?.maxTeamCount}
-                                onRoleSelect={captainActions.handleRoleSelect}
-                                onReadyToggle={captainActions.handleReadyToggle}
-                                onOpenSettings={controls.handleOpenSettings}
-                                onOpenProfile={participantActions.handleOpenProfile}
-                                onKick={participantActions.handleKickClick}
-                            />
+                        {/* Stats Section */}
+                        <StatsSection
+                            captains={captains}
+                            draftPool={draftPool}
+                            calculateAverageTier={calculateAverageTier}
+                        />
 
-                            {/* Stats Section */}
-                            <StatsSection
-                                captains={captains}
-                                draftPool={draftPool}
-                                calculateAverageTier={calculateAverageTier}
-                            />
+                        {/* Draft Pool Section */}
+                        <DraftPoolSection
+                            draftPool={draftPool}
+                            userRole={userRole}
+                            isHost={isHost}
+                            maxTeamCount={data?.maxTeamCount || 2}
+                            captains={captains}
+                            onJoinPool={participantActions.handleJoinPool}
+                            onPlayerClick={participantActions.handleOpenProfile}
+                            onKick={participantActions.handleKickClick}
+                        />
 
-                            {/* Draft Pool Section */}
-                            <DraftPoolSection
-                                draftPool={draftPool}
-                                userRole={userRole}
-                                isHost={isHost}
-                                maxTeamCount={data?.maxTeamCount || 2}
-                                captains={captains}
-                                onJoinPool={participantActions.handleJoinPool}
-                                onPlayerClick={participantActions.handleOpenProfile}
-                                onKick={participantActions.handleKickClick}
-                            />
+                        {/* Lobby Footer Section */}
+                        <LobbyFooterSection
+                            isHost={isHost}
+                            captains={captains}
+                            onDestroyClick={() => modals.setIsDestroyConfirmOpen(true)}
+                            onStartClick={controls.handleStartClick}
+                        />
+                    </div>
+                </main>
 
-                            {/* Lobby Footer Section */}
-                            <LobbyFooterSection
-                                isHost={isHost}
-                                captains={captains}
-                                onDestroyClick={() => modals.setIsDestroyConfirmOpen(true)}
-                                onStartClick={controls.handleStartClick}
-                            />
-                        </div>
-                    </main>
-
-                    {/* --- Chat Sidebar --- */}
-                    <ChatSection
-                                    messages={chat.messages}
-                                    currentUserId={user?.id}
-                                    onSendMessage={controls.handleSendMessage}
-                                />          </div>
+                {/* --- Chat Sidebar --- */}
+                <UnifiedChat
+                    className="w-[380px] border-l border-[#393528] flex-shrink-0 bg-black flex flex-col shadow-2xl z-20"
+                    viewerCount={totalParticipants}
+                    onSendMessage={sendMessage}
+                />          
+            </div>
 
                 {/* Modals */}
                 <CreateDraftModal
@@ -349,9 +354,8 @@ export default function DraftLobby() {
                     style={{ backgroundImage: `url('/assets/wallpaper/wallpaper_1.jpg')` }}
                 ></div>
 
-            </div>
-        </DragDropContext>
-        <Footer />
-        </>
+
+            </DragDropContext>
+        </DraftLayout>
     );
 }

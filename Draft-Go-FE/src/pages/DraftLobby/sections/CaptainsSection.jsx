@@ -30,8 +30,7 @@ export default function CaptainsSection({
 
             {/* Captains Grid - Scrollable if > 6 */}
             <div
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[960px] overflow-y-auto custom-scrollbar p-4"
-                style={{ scrollbarGutter: 'stable' }}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4"
             >
                 {/* 1. Existing Captains */}
                 {captains.map((captain, index) => (

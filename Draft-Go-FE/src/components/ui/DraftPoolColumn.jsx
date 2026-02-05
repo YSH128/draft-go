@@ -73,8 +73,7 @@ export default function DraftPoolColumn({
             <Droppable droppableId={droppableId} type="DRAFT_SWAP">
               {(provided) => (
                 <div 
-                   className="bg-panel-dark rounded-b-lg border border-t-0 border-[#393528] flex-1 flex flex-col relative min-h-[100px] max-h-[240px] overflow-y-auto [&::-webkit-scrollbar]:hidden"
-                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                   className="bg-panel-dark rounded-b-lg border border-t-0 border-[#393528] flex-1 flex flex-col relative min-h-[100px]"
                    ref={provided.innerRef}
                    {...provided.droppableProps}
                 >

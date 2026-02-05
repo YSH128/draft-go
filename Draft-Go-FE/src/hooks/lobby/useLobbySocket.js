@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createStompClient, buildWsUrl } from '../../libs/stomp';
-import { LOBBY_SOCKET_EVENTS, getLobbyTopic, getChatTopic, getChatPublishPath } from '../../constants/socket';
+import { LOBBY_SOCKET_EVENTS, getLobbyTopic } from '../../constants/socket';
 
 /**
  * 드래프트 로비 WebSocket 연결 및 이벤트 처리를 담당하는 커스텀 훅
@@ -12,13 +12,11 @@ import { LOBBY_SOCKET_EVENTS, getLobbyTopic, getChatTopic, getChatPublishPath } 
  * 2. 이벤트 타입별 분기 처리
  * 3. DRAFT_STARTED → 경매 페이지로 라우팅
  * 4. 기타 이벤트 → Query 무효화하여 데이터 refetch
- * 5. 채팅 메시지 구독 및 전송
  *
  * @param {number|string} draftId - 드래프트 ID
  * @param {Function} onLobbyEnded - 로비 종료 콜백
- * @param {Function} onChatMessage - 채팅 메시지 수신 콜백
  */
-export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage, onDraftStarted) => {
+export const useLobbySocket = (draftId, onLobbyEnded, onDraftStarted) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const clientRef = useRef(null);
@@ -91,19 +89,6 @@ export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage, onDraftStar
       onConnect: () => {
         // 로비 토픽 구독: /topic/lobby/{draftId}
         client.subscribe(getLobbyTopic(draftId), handleSocketMessage);
-
-        // 채팅 토픽 구독: /topic/chat/{draftId}
-        const chatTopic = getChatTopic(draftId);
-        client.subscribe(chatTopic, (body) => {
-          if (onChatMessage) {
-            try {
-              const message = JSON.parse(body);
-              onChatMessage(message);
-            } catch (e) {
-              console.error('[LobbySocket] Chat message parse error:', e);
-            }
-          }
-        });
       },
       onError: (error) => {
         console.error('❌ [LobbySocket] Connection error:', error);
@@ -117,23 +102,8 @@ export const useLobbySocket = (draftId, onLobbyEnded, onChatMessage, onDraftStar
       client?.disconnect();
       clientRef.current = null;
     };
-  }, [draftId, handleSocketMessage, onChatMessage, onDraftStarted]);
+  }, [draftId, handleSocketMessage]);
 
-  /**
-   * 채팅 메시지 전송
-   * @param {string} content - 메시지 내용
-   */
-  const sendChatMessage = useCallback((content) => {
-    const client = clientRef.current;
-    if (!client) {
-      return false;
-    }
-    const destination = getChatPublishPath(draftId);
-    const payload = JSON.stringify({ content });
-    const result = client.send(destination, {}, payload);
-    return result;
-  }, [draftId]);
-
-  return { sendChatMessage };
+  return {};
 };
 

@@ -14,6 +14,14 @@ export const useLobbyDragDrop = (draftId, captains, modals) => {
 
     const onDragEnd = useCallback(async (result) => {
         const { source, destination } = result;
+
+        console.log("🟦 [LobbyDnD] onDragEnd", { 
+            source: source?.droppableId, 
+            dest: destination?.droppableId, 
+            draggableId: result.draggableId,
+            captains 
+        });
+
         if (!destination) return;
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
@@ -33,17 +41,19 @@ export const useLobbyDragDrop = (draftId, captains, modals) => {
         const isDestCaptain = destination.droppableId.startsWith('captain-slot');
 
         if (isSourceCaptain && isDestCaptain) {
+            console.log("🟦 [LobbyDnD] Captain -> Captain (Ignored)");
             return;
         }
 
         try {
             // Pool -> Captain (Promotion)
             if (!isSourceCaptain && isDestCaptain) {
+                console.log("🟦 [LobbyDnD] Pool -> Captain (Promotion)");
                 const playerId = result.draggableId.replace('player-', '');
                 if (!playerId) return;
 
                 const slotIndex = Number(destination.droppableId.split('-')[2]);
-                const existingCaptain = captains[slotIndex];
+                const existingCaptain = captains[slotIndex]; // This might be undefined if new slot
                 const sourceRole = source.droppableId.split('-')[1];
 
                 performOptimisticUpdate((draft) => {

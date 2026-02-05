@@ -7,7 +7,7 @@ import { useAuctionGame } from "../../hooks/useAuctionGame";
 import { useChatSocket } from "../../hooks/useChatSocket";
 import { useDraftSocket } from "../../hooks/useDraftSocket";
 import useChatStore from "../../stores/useChatStore";
-import DraftLayout from "./components/DraftLayout";
+import DraftLayout from "../../components/layout/DraftLayout";
 import { AuctionSection, TeamSidebarSection } from "./sections";
 
 export default function DraftPage() {
