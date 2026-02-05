@@ -7,10 +7,7 @@ import kr.draftgo.Draft_Go_BE.draft.auction.event.AuctionWebSocketEvent;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RoundLuaExecutor;
 import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.Draft;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.DraftMember;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.Team;
-import kr.draftgo.Draft_Go_BE.draft.common.domain.Teammate;
+import kr.draftgo.Draft_Go_BE.draft.common.domain.*;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftMemberRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
@@ -186,7 +183,8 @@ public class RoundStartService {
         eventPublisher.publishEvent(new AuctionWebSocketEvent.QueueUpdateEvent(draftId));
 
         // 6. 채팅 시스템 메시지 - 현재 선수와 다음 선수 표시
-        String systemMessage = buildSystemMessage(draftId, next.getName());
+        String systemMessage = buildSystemMessage(draftId, next.getName(),
+                next.getTurnOrder() == null ? 0 : next.getTurnOrder());
         chatWebSocketController.sendSystemMessage(draftId, systemMessage);
 
 
@@ -196,15 +194,19 @@ public class RoundStartService {
     /**
      * 시스템 메시지 생성 (현재 선수 / 다음 선수)
      */
-    private String buildSystemMessage(Long draftId, String currentPlayerName) {
-        StringBuilder message = new StringBuilder();
-        message.append("현재 선수: ").append(currentPlayerName);
+    private String buildSystemMessage(Long draftId, String currentPlayerName, Integer currentTurnOrder) {
+        // 현재 선수보다 turnOrder가 큰 다음 선수 찾기
+        List<DraftMember> allMembers = draftMemberRepo.findAllByDraftIdOrderByTurnOrderAsc(draftId);
 
-        // 다음 선수 찾기
-        Optional<DraftMember> nextWaiting = draftMemberRepo.findNextUpcoming(draftId);
-        nextWaiting.ifPresent(draftMember -> message.append(" / 다음 선수: ").append(draftMember.getName()));
+        Optional<DraftMember> nextPlayer = allMembers.stream()
+                .filter(dm -> (dm.getStatus() == DraftMemberStatus.WAITING
+                        || dm.getStatus() == DraftMemberStatus.SKIPPED))
+                .filter(dm -> dm.getTurnOrder() != null && dm.getTurnOrder() > currentTurnOrder)
+                .findFirst();
 
-        return message.toString();
+        return nextPlayer
+                .map(draftMember -> "현재 선수: " + currentPlayerName + " / 다음 선수: " + draftMember.getName())
+                .orElseGet(() -> "마지막 선수: " + currentPlayerName);
     }
 
     /**
