@@ -1,5 +1,5 @@
   import { useQuery } from '@tanstack/react-query';
-  import { getDraftLobby } from '../api/draft';
+  import { getDraftLobby } from '../../api/draft';
 
   /**
    * 드래프트 로비 데이터를 가져오는 커스텀 훅

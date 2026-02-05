@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { createStompClient, buildWsUrl } from '../libs/stomp';
-import { LOBBY_SOCKET_EVENTS, getLobbyTopic, getChatTopic, getChatPublishPath } from '../constants/socket';
+import { createStompClient, buildWsUrl } from '../../libs/stomp';
+import { LOBBY_SOCKET_EVENTS, getLobbyTopic, getChatTopic, getChatPublishPath } from '../../constants/socket';
 
 /**
  * 드래프트 로비 WebSocket 연결 및 이벤트 처리를 담당하는 커스텀 훅
