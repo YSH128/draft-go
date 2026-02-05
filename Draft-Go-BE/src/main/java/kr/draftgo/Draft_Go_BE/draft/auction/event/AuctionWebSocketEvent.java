@@ -78,4 +78,14 @@ public abstract class AuctionWebSocketEvent {
             super(draftId);
         }
     }
+
+    /**
+     * 경매 완전 종료 이벤트 (COMPLETED 상태)
+     */
+    @Getter
+    public static class AuctionEndedEvent extends AuctionWebSocketEvent {
+        public AuctionEndedEvent(Long draftId) {
+            super(draftId);
+        }
+    }
 }

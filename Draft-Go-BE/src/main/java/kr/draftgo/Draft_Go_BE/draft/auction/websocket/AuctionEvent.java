@@ -6,6 +6,7 @@ import kr.draftgo.Draft_Go_BE.draft.auction.domain.BidInfo;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.event.BidEventDto;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.event.RoundStartEventDto;
 import kr.draftgo.Draft_Go_BE.draft.auction.dto.event.RoundEndedEventDto;
+import kr.draftgo.Draft_Go_BE.draft.auction.dto.event.AuctionEndedEventDto;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -46,6 +47,13 @@ public class AuctionEvent {
                 .data(bid.exists()
                         ? RoundEndedEventDto.successful(bid.getTeamId(), bid.getPrice())
                         : RoundEndedEventDto.skipped())
+                .build();
+    }
+
+    public static AuctionEvent auctionEnded(Long draftId) {
+        return AuctionEvent.builder()
+                .type(AuctionEventType.AUCTION_ENDED)
+                .data(AuctionEndedEventDto.of(draftId))
                 .build();
     }
 }

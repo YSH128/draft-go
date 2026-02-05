@@ -89,4 +89,17 @@ public class AuctionWebSocketEventListener {
             log.error("[Event] Failed to broadcast queue. DraftId: {}", event.getDraftId(), e);
         }
     }
+
+    /**
+     * 경매 완전 종료 이벤트 처리 (COMPLETED 상태)
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleAuctionEnded(AuctionWebSocketEvent.AuctionEndedEvent event) {
+        log.info("[Event] Auction ended - Broadcasting to clients. DraftId: {}", event.getDraftId());
+        try {
+            auctionEventPublisher.auctionEnded(event.getDraftId());
+        } catch (Exception e) {
+            log.error("[Event] Failed to broadcast auction ended. DraftId: {}", event.getDraftId(), e);
+        }
+    }
 }

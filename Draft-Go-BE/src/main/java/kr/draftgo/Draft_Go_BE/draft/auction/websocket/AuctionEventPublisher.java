@@ -36,6 +36,12 @@ public class AuctionEventPublisher {
                 AuctionEvent.roundEnded(bid));
     }
 
+    public void auctionEnded(Long draftId) {
+        template.convertAndSend(
+                "/ws/auction/" + draftId,
+                AuctionEvent.auctionEnded(draftId));
+    }
+
     public void publishDraftQueue(Long draftId, List<DraftMemberResponse> queue) {
         template.convertAndSend("/topic/auction/" + draftId + "/queue", queue);
     }

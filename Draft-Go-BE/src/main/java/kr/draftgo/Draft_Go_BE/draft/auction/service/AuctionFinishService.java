@@ -1,5 +1,6 @@
 package kr.draftgo.Draft_Go_BE.draft.auction.service;
 
+import kr.draftgo.Draft_Go_BE.draft.auction.event.AuctionWebSocketEvent;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.AuctionKey;
 import kr.draftgo.Draft_Go_BE.draft.auction.redis.RedisAuctionRepository;
 import kr.draftgo.Draft_Go_BE.draft.chat.websocket.ChatWebSocketController;
@@ -10,6 +11,7 @@ import kr.draftgo.Draft_Go_BE.draft.common.repository.DraftRepository;
 import kr.draftgo.Draft_Go_BE.draft.common.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ public class AuctionFinishService {
     private final RedisAuctionRepository redisRepo;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ChatWebSocketController chatWebSocketController;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 경매 종료 처리
@@ -57,6 +60,9 @@ public class AuctionFinishService {
 
         // 4. 채팅 시스템 메시지 - 경매 종료
         chatWebSocketController.sendSystemMessage(draftId, "🎉 모든 경매가 종료되었습니다!");
+
+        // 5. 경매 종료 WebSocket 이벤트 발행
+        eventPublisher.publishEvent(new AuctionWebSocketEvent.AuctionEndedEvent(draftId));
 
         log.info("[Auction Finish] Completed for draftId: {}. Status changed to COMPLETED", draftId);
     }
