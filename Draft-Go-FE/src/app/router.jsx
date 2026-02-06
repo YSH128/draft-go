@@ -7,6 +7,7 @@ import ProfilePage from "../pages/Profile";
 import ResultPage from "../pages/DraftResult";
 import DraftLobby from "../pages/DraftLobby";
 import DraftPage from "../pages/Draft";
+import AdminPage from "../pages/Admin";
 import { ROUTES } from "../constants/routes";
 import Index from "../pages/DesignSystemPreview/index.jsx";
 
@@ -19,6 +20,7 @@ export default function AppRouter() {
         <Route path={ROUTES.LOGIN} element={<LoginPage />} />
         <Route path={ROUTES.SIGNUP} element={<SignupPage />} />
         <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path={ROUTES.DESIGN_PREVIEW} element={<Index />} />
       </Route>
 

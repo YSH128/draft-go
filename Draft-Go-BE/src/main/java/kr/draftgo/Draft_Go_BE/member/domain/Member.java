@@ -61,7 +61,7 @@ public class Member {
 
     @Builder
     public Member(String username, String password, String gameName, String tagLine, String puuid,
-                  Position mainPosition, Position subPosition, Role role) {
+            Position mainPosition, Position subPosition, Role role) {
         this.username = username;
         this.password = password;
         this.gameName = gameName;

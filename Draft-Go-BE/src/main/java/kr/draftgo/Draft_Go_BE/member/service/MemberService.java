@@ -199,6 +199,7 @@ public class MemberService {
                     .profileIconUrl(iconUrl)
                     .stats(res.getStats())
                     .mostChampions(res.getMostChampions())
+                    .role(res.getRole())
                     .updatedAt(res.getUpdatedAt())
                     .build();
         }

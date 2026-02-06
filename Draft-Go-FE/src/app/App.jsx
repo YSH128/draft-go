@@ -42,6 +42,7 @@ function App() {
             gameName: userInfo.gameName,
             tagLine: userInfo.tagLine,
             profileIconUrl: userInfo.profileIconUrl,
+            role: userInfo.role,
           });
           console.log('[App] 토큰 유효, 사용자 정보 로드 완료', userInfo);
         }

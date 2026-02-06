@@ -44,6 +44,22 @@ const LoginPage = () => {
       const response = await login(formData);
       // 먼저 토큰 저장 (me API 호출 시 인증 헤더에 필요)
       loginAction(response.accessToken);
+
+      // 사용자 정보 조회하여 role 포함하여 저장
+      try {
+        const userInfo = await getMyProfile();
+        loginAction(response.accessToken, {
+          id: userInfo.memberId,
+          username: userInfo.username,
+          gameName: userInfo.gameName,
+          tagLine: userInfo.tagLine,
+          profileIconUrl: userInfo.profileIconUrl,
+          role: userInfo.role,
+        });
+      } catch (profileError) {
+        console.error("프로필 로드 실패:", profileError);
+      }
+
       window.location.href = "/";
     } catch (err) {
       const serverMessage =

@@ -81,6 +81,16 @@ const Header = () => {
                 </div>
               </Link>
 
+              {/* 관리자 링크 (admin만 표시) */}
+              {user?.role === "ADMIN" && (
+                <Link
+                  to="/admin"
+                  className="rounded border border-[var(--color-primary)] px-4 py-2 text-sm font-bold text-[var(--color-primary)] transition-all hover:bg-[var(--color-primary)] hover:text-black"
+                >
+                  관리자
+                </Link>
+              )}
+
               {/* 로그아웃 버튼 */}
               <button
                 onClick={handleLogout}

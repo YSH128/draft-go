@@ -3,6 +3,7 @@ package kr.draftgo.Draft_Go_BE.member.dto;
 import kr.draftgo.Draft_Go_BE.match.dto.MostChampionRes;
 import kr.draftgo.Draft_Go_BE.member.domain.Member;
 import kr.draftgo.Draft_Go_BE.member.domain.Position;
+import kr.draftgo.Draft_Go_BE.member.domain.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,6 +26,7 @@ public class MemberProfileRes {
     private Position subPosition;
     private String bio;
     private String profileIconUrl;
+    private Role role;
     private LocalDateTime updatedAt;
     private MemberStatRes stats;
     private List<MostChampionRes> mostChampions; // Added field
@@ -39,6 +41,7 @@ public class MemberProfileRes {
                 .mainPosition(member.getMainPosition())
                 .subPosition(member.getSubPosition())
                 .bio(member.getBio())
+                .role(member.getRole())
                 .stats(stats)
                 .mostChampions(mostChampions)
                 .updatedAt(member.getUpdatedAt())
