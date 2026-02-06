@@ -1,4 +1,4 @@
-import PropTypes from "prop-types";
+// import PropTypes from "prop-types";
 import LoadingSpinner from "./LoadingSpinner";
 
 const PageLoader = ({ message = "로딩 중..." }) => {
@@ -14,8 +14,6 @@ const PageLoader = ({ message = "로딩 중..." }) => {
     );
 };
 
-PageLoader.propTypes = {
-    message: PropTypes.string
-};
+// PageLoader.propTypes removed to fix build error (missing package)
 
 export default PageLoader;

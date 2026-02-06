@@ -1,4 +1,4 @@
-import PropTypes from "prop-types";
+// import PropTypes from "prop-types";
 
 const LoadingSpinner = ({
     size = "medium",
@@ -43,11 +43,6 @@ const LoadingSpinner = ({
     return spinnerElement;
 };
 
-LoadingSpinner.propTypes = {
-    size: PropTypes.oneOf(["small", "medium", "large"]),
-    color: PropTypes.oneOf(["primary", "white", "gold"]),
-    centered: PropTypes.bool,
-    className: PropTypes.string
-};
+// LoadingSpinner.propTypes removed to fix build error (missing package)
 
 export default LoadingSpinner;

@@ -1,13 +1,6 @@
 import React from 'react';
 
-// Socket Constants (상수 파일 위치는 프로젝트 구조에 맞게 조정 필요)
-// 보통 constants/socket.js 에 있을 것으로 추정
-export const CHAT_MESSAGE_TYPES = {
-  CHAT: 'CHAT',
-  JOIN: 'JOIN',
-  LEAVE: 'LEAVE',
-  SYSTEM: 'SYSTEM',
-};
+import { CHAT_MESSAGE_TYPES } from '../../constants/socket';
 
 /**
  * 개별 채팅 메시지 컴포넌트

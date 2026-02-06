@@ -44,13 +44,20 @@ export default function ChatInput({ onSendMessage, disabled = false }) {
           onKeyDown={handleKeyDown}
           disabled={disabled}
           rows={1}
+          maxLength={100}
           placeholder={disabled ? "연결 중..." : "메시지 보내기..."}
-          className="w-full resize-none bg-transparent text-xs text-white placeholder-primary/20 outline-none disabled:opacity-50 no-scrollbar p-0 leading-5"
+          className="w-full resize-none bg-transparent text-xs text-white placeholder-primary/20 outline-none disabled:opacity-50 no-scrollbar p-0 leading-5 pr-8"
           style={{ 
             minHeight: '20px', 
             maxHeight: '100px',
           }}
         />
+        
+        {/* 글자수 카운터 */}
+        <span className="absolute bottom-1 right-10 text-[10px] text-gray-500 select-none">
+          {inputValue.length}/100
+        </span>
+
         <button
           onClick={sendMessage}
           disabled={!inputValue.trim() || disabled}

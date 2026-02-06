@@ -13,7 +13,6 @@ import { Icon } from '../ui';
  */
 export default function UnifiedChat({ 
   className = "", 
-  viewerCount = 0,
   onSendMessage // 상위에서 소켓 전송 핸들러를 주입받음 (Lobby/Draft 마다 다를 수 있음)
 }) {
   const { messages, draftId, isConnected } = useChatStore();
@@ -29,12 +28,7 @@ export default function UnifiedChat({
     }
   }, [messages]);
 
-  const formatViewerCount = (count) => {
-    if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}k`;
-    }
-    return count.toString();
-  };
+
 
   // Helper: Check if two messages should be grouped
   const shouldGroup = (current, previous) => {
@@ -65,8 +59,7 @@ export default function UnifiedChat({
           Live Chat
         </h2>
 
-        {/* 시청자 수 (옵션) */}
-{/* 시청자 수 (삭제됨) */}
+
       </div>
 
       {/* 메시지 목록 - Hidden Scrollbar */}
