@@ -9,6 +9,7 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import riotIcon from "../../assets/images/riot-logo.png";
 import logo from "../../assets/logo/draft-go-logo.png";
 import useAuthStore from "../../stores/useAuthStore";
+import AlertModal from "../../components/ui/AlertModal";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const LoginPage = () => {
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isRiotModalOpen, setIsRiotModalOpen] = useState(false);
 
   // 이미 로그인된 사용자는 홈으로 리다이렉트 (뒤로가기 방지)
   useEffect(() => {
@@ -28,6 +30,10 @@ const LoginPage = () => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
     if (error) setError("");
+  };
+
+  const handleRiotLogin = () => {
+    setIsRiotModalOpen(true);
   };
 
   const handleSubmit = async (e) => {
@@ -135,10 +141,23 @@ const LoginPage = () => {
         <SectionDivider label="또는" type="center-line" />
 
         {/* 라이엇 로그인 버튼 */}
-        <AuthButton variant="riot" icon={<img src={riotIcon} alt="Riot" />}>
+        <AuthButton 
+          variant="riot" 
+          icon={<img src={riotIcon} alt="Riot" />}
+          onClick={handleRiotLogin}
+        >
           Riot 계정으로 시작
         </AuthButton>
       </div>
+
+      <AlertModal
+        isOpen={isRiotModalOpen}
+        onClose={() => setIsRiotModalOpen(false)}
+        title="서비스 준비중"
+        message="현재 준비중인 서비스입니다."
+        icon="construction"
+        variant="warning"
+      />
     </div>
   );
 };

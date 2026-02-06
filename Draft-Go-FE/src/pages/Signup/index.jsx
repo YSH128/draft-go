@@ -10,11 +10,13 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import useSignupForm from "../../hooks/useSignupForm";
 import { POSITIONS } from "../../constants/riot";
 import useAuthStore from "../../stores/useAuthStore";
+import AlertModal from "../../components/ui/AlertModal";
 
 const SignupPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   // 이미 로그인된 사용자는 홈으로 리다이렉트 (뒤로가기 방지)
   useEffect(() => {
@@ -63,8 +65,9 @@ const SignupPage = () => {
         subPosition,
       });
 
-      alert("회원가입이 완료되었습니다!");
-      navigate("/login");
+      setIsSuccessModalOpen(true);
+      // alert("회원가입이 완료되었습니다!");
+      // navigate("/login");
     } catch (error) {
       const serverMessage =
         error.response?.data?.message || "회원가입 중 오류가 발생했습니다.";
@@ -340,6 +343,15 @@ const SignupPage = () => {
           <TextLink to="/login">로그인</TextLink>
         </FooterLinks>
       </div>
+      <AlertModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => navigate("/login")}
+        onConfirm={() => navigate("/login")}
+        title="회원가입 성공"
+        message="회원가입이 완료되었습니다!"
+        icon="check_circle"
+        variant="success"
+      />
     </div>
   );
 };
