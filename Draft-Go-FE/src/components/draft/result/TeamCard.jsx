@@ -32,7 +32,7 @@ const ROLE_PRIORITY = {
   SUPPORT: 5,
 };
 
-export default function TeamCard({ team }) {
+export default function TeamCard({ team, onAnalyze, isSpectator }) {
   // 내 팀 스타일 - 노란색 강조
   const cardClass = team.isMyTeam
     ? "border-2 border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]"
@@ -62,6 +62,7 @@ export default function TeamCard({ team }) {
           >
             {team.leaderName} 팀
           </h3>
+          
 
         </div>
 
@@ -188,16 +189,39 @@ export default function TeamCard({ team }) {
         })}
       </div>
 
-      {/* 3. 포인트 정보 */}
-      <div className="border-card-border/30 mt-4 flex justify-between border-t pt-3 text-xs text-gray-500">
-        <span>
-          사용{" "}
-          <span className="font-medium text-gray-300">{team.spentPoint}P</span>
-        </span>
-        <span>
-          잔여{" "}
-          <span className="font-medium text-gray-300">{team.finalPoint}P</span>
-        </span>
+      {/* 3. 하단 정보 (포인트 & 분석 버튼) */}
+      <div className="border-card-border/30 mt-4 flex items-center justify-between border-t pt-3">
+        {/* 좌측: 포인트 정보 (나란히) */}
+        <div className="flex gap-3 text-xs text-gray-500 font-medium">
+          <span className="flex items-center gap-1">
+            사용 <span className="text-gray-300">{team.spentPoint}P</span>
+          </span>
+          <span className="w-px h-3 bg-gray-700"></span>
+          <span className="flex items-center gap-1">
+            잔여 <span className={`${team.finalPoint < 0 ? 'text-red-400' : 'text-blue-300'}`}>{team.finalPoint}P</span>
+          </span>
+        </div>
+
+        {/* 우측: AI 분석 버튼 */}
+        {!isSpectator && onAnalyze && (
+          <button
+            onClick={() => onAnalyze(team)}
+            className={`
+              group relative flex items-center gap-1 px-3 py-1.5 rounded-lg shadow-md transition-all hover:scale-105 active:scale-95
+              ${team.isMyTeam 
+                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-blue-500/50" 
+                : "bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 hover:text-red-300 hover:border-red-400/50"}
+            `}
+            title={team.isMyTeam ? "우리 팀 전력 분석" : "상대 팀 공략 분석"}
+          >
+            <span className={`material-symbols-outlined text-[16px] ${team.isMyTeam ? "animate-pulse" : ""}`}>
+              {team.isMyTeam ? "auto_awesome" : "sword_rose"}
+            </span>
+            <span className="text-xs font-bold tracking-wide">
+              {team.isMyTeam ? "AI 분석" : "약점 공략"}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );

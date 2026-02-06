@@ -4,6 +4,8 @@ import useDraftResultData from "../../hooks/useDraftResultData";
 import UnifiedChat from "../../components/chat/UnifiedChat";
 import { ROUTES } from "../../constants/routes";
 import { useChatSocket } from "../../hooks/useChatSocket";
+import useTeamAnalysis from "../../hooks/useTeamAnalysis";
+import AnalysisResultModal from "../../components/draft/result/AnalysisResultModal";
 
 export default function DraftResultPage() {
   const navigate = useNavigate();
@@ -12,9 +14,17 @@ export default function DraftResultPage() {
   const draftIdParam = searchParams.get("draftId");
   const draftId = draftIdParam ? Number(draftIdParam) : null;
 
-  const { sendMessage } = useChatSocket(draftId);
+  // 1. 내 팀 찾기 & 관전자 여부 확인
+  const myTeam = teams.find((t) => t.isMyTeam);
+  const isSpectator = !myTeam;
 
-  // draftId가 없는 경우
+  const { sendMessage } = useChatSocket(draftId);
+  const { analyzeGame, isAnalyzing, analysisResult, analysisMode, error: analysisError, closeAnalysis } = useTeamAnalysis();
+
+  // 분석 버튼 핸들러
+  const handleAnalyze = (targetTeam) => {
+    analyzeGame(targetTeam, myTeam);
+  };
   if (!isValidId) {
     return (
       <div className="bg-background-dark flex min-h-screen items-center justify-center p-4 text-white">
@@ -91,12 +101,16 @@ export default function DraftResultPage() {
             ) : (
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {teams.map((team) => (
-                  <TeamCard key={team.id} team={team} />
+                  <TeamCard 
+                    key={team.id} 
+                    team={team} 
+                    onAnalyze={handleAnalyze}
+                    isSpectator={isSpectator}
+                  />
                 ))}
               </div>
             )}
           </div>
-
 
 
           {/* 하단 푸터 */}
@@ -130,6 +144,17 @@ export default function DraftResultPage() {
           </span>
         </button>
       </div>
+
+      {/* AI 분석 결과 모달 */}
+      {(isAnalyzing || analysisResult || analysisError) && (
+        <AnalysisResultModal
+          isLoading={isAnalyzing}
+          result={analysisResult}
+          error={analysisError}
+          onClose={closeAnalysis}
+          analysisMode={analysisMode}
+        />
+      )}
     </div>
   );
 }
