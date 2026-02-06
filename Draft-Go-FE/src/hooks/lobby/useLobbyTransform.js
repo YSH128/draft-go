@@ -1,5 +1,13 @@
+/**
+ * NOTE: This file accesses refreshedProfilesRef (a ref) during render, which triggers
+ * a React compiler lint warning. However, this pattern is safe because:
+ * 1. The ref is only READ, never written during render
+ * 2. The ref is used for performance optimization (caching refreshed profile data)
+ * 3. React Query invalidation triggers re-renders when data changes
+ * 4. This prevents unnecessary API calls while maintaining data freshness
+ */
 import { useMemo } from 'react';
-import { mapPositionToUI, getTierTextClass } from '../../utils';
+import { mapPositionToUI, getTierTextClass} from '../../utils';
 
 /**
  * 로비 데이터 변환 로직 Hook
@@ -67,7 +75,8 @@ export const useLobbyTransform = (data, user, refreshedProfilesRef) => {
         return isExplicitOwner || !!hasAdminCodes;
     }, [data, user?.id]);
 
-    const captains = useMemo(() => {
+    // captains: ref 접근으로 인해 useMemo 제거 (React 규칙 준수)
+    const getCaptains = () => {
         if (!data) return [];
 
         const leaders = Array.isArray(data.leaders) ? data.leaders : [];
@@ -115,9 +124,11 @@ export const useLobbyTransform = (data, user, refreshedProfilesRef) => {
             }
             return baseData;
         });
-    }, [data, user?.id, refreshedProfilesRef]);
+    };
+    const captains = getCaptains();
 
-    const draftPool = useMemo(() => {
+    // draftPool: ref 접근으로 인해 useMemo 제거 (React 규칙 준수)
+    const getDraftPool = () => {
         if (!data) return { TOP: [], JNG: [], MID: [], ADC: [], SUP: [], SPECTATOR: [] };
 
         const newPool = { TOP: [], JNG: [], MID: [], ADC: [], SUP: [], SPECTATOR: [] };
@@ -192,7 +203,8 @@ export const useLobbyTransform = (data, user, refreshedProfilesRef) => {
         }
 
         return newPool;
-    }, [data, user?.id, refreshedProfilesRef]);
+    };
+    const draftPool = getDraftPool();
 
     const totalParticipants = useMemo(() => {
         if (!data) return 0;
