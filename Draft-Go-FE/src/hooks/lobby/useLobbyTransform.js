@@ -202,6 +202,14 @@ export const useLobbyTransform = (data, user, refreshedProfilesRef) => {
         return leadersCount + membersCount + observersCount;
     }, [data]);
 
+    // 관전자 제외, 실제 경기 참가자만 (팀장 + 팀원)
+    const activePlayersCount = useMemo(() => {
+        if (!data) return 0;
+        const leadersCount = (data.leaders || []).length;
+        const membersCount = Array.isArray(data.members) ? data.members.length : 0;
+        return leadersCount + membersCount;
+    }, [data]);
+
     return {
         lobbyTitle,
         codes,
@@ -209,6 +217,7 @@ export const useLobbyTransform = (data, user, refreshedProfilesRef) => {
         isHost,
         captains,
         draftPool,
-        totalParticipants
+        totalParticipants,
+        activePlayersCount
     };
 };

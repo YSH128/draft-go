@@ -87,7 +87,8 @@ export default function DraftLobby() {
         isHost,
         captains,
         draftPool,
-        totalParticipants
+        totalParticipants,
+        activePlayersCount
     } = useLobbyTransform(data, user, refreshedProfilesRef);
 
     // ========== Captain Actions Hook ==========
