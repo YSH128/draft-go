@@ -1,0 +1,276 @@
+pipeline {
+    agent any
+
+    tools {
+        nodejs "NodeJS" 
+    }
+
+    environment {
+        REPO_URL       = 'https://lab.ssafy.com/s14-webmobile1-sub1/S14P11A205.git'
+        CREDENTIAL_ID  = 'gitlab-id'
+        
+        BE_DIR         = "Draft-Go-BE"
+        BE_ENV_FILE    = "/etc/draft-go/Draft-Go-BE.env"
+        BE_PORT        = "8080"
+        JAVA_OPTS      = "-Xms512m -Xmx1024m"
+        
+        FE_DIR         = "Draft-Go-FE"
+        FE_DEPLOY_DIR  = "/var/www/draft-go-fe"
+        FE_SERVER_ENV  = "/home/ubuntu/draft-go/Front/Draft-Go-FE/.env.production"
+
+        MM_WEBHOOK_URL = "https://meeting.ssafy.com/hooks/ko6sbbofjfbsmgixpnbst9nh9e"
+    }
+
+    stages {
+        // 1. 통합 Checkout 및 변경 감지 (Manual Diff)
+        stage('Checkout & Detect Changes') {
+            steps {
+                script {
+                    // 1. Git Clone
+                    // fetchTags: false, shallow: false 옵션 등을 주어 이력을 가져오는 것이 좋음
+                    checkout([$class: 'GitSCM', 
+                        branches: [[name: 'dev']], 
+                        userRemoteConfigs: [[credentialsId: CREDENTIAL_ID, url: REPO_URL]]
+                    ])
+
+                    // 2. 변경 사항 감지 로직 (Manual Diff)
+                    try {
+                        // 직전 커밋(HEAD~1)과 현재(HEAD)의 차이 파일명만 추출
+                        // 첫 빌드이거나 이력이 없으면 에러가 날 수 있으므로 try-catch 처리
+                        def changedFiles = sh(script: "git diff --name-only HEAD~1 HEAD", returnStdout: true).trim()
+                        
+                        echo "📝 변경된 파일 목록:\n${changedFiles}"
+
+                        // 3. 플래그 설정
+                        // 수동 빌드(UserIdCause)인 경우 무조건 배포하도록 설정하려면 || 조건 추가
+                        def isManual = currentBuild.getBuildCauses().toString().contains('UserIdCause')
+
+                        env.BE_CHANGED = (isManual || changedFiles.contains("Draft-Go-BE")) ? "true" : "false"
+                        env.FE_CHANGED = (isManual || changedFiles.contains("Draft-Go-FE")) ? "true" : "false"
+
+                    } catch (Exception e) {
+                        echo "⚠️ 변경 내역 확인 불가 (첫 빌드 등). 전체 배포를 진행합니다."
+                        env.BE_CHANGED = "true"
+                        env.FE_CHANGED = "true"
+                    }
+
+                    echo "Backend Deploy Status: ${env.BE_CHANGED}"
+                    echo "Frontend Deploy Status: ${env.FE_CHANGED}"
+                }
+            }
+        }
+
+        // 2. 병렬 실행
+        stage('Parallel Deploy') {
+            parallel {
+                
+                // ================= 백엔드 파이프라인 =================
+                stage('Backend Deploy') {
+                    when {
+                        // 환경 변수 문자열 체크로 변경
+                        expression { return env.BE_CHANGED == 'true' }
+                    }
+                    steps {
+                        dir("${BE_DIR}") {
+                            echo "Backend changes detected. Starting BE Build..."
+                            
+                            sh '''
+                                chmod +x gradlew
+                                ./gradlew clean build -x test
+                            '''
+
+                            sh """
+                                PID=\$(lsof -t -i:${BE_PORT} || true)
+                                if [ -n "\$PID" ]; then
+                                    kill -15 \$PID
+                                    sleep 10
+                                    if ps -p \$PID > /dev/null; then
+                                       kill -9 \$PID
+                                    fi
+                                fi
+                            """
+
+                            withEnv(['JENKINS_NODE_COOKIE=dontKillMe']) {
+                                sh """
+                                    JAR_FILE=\$(ls build/libs/*SNAPSHOT.jar | grep -v plain)
+                                    set -a
+                                    [ -f "${BE_ENV_FILE}" ] && . ${BE_ENV_FILE}
+                                    set +a
+                                    nohup java ${JAVA_OPTS} -jar \$JAR_FILE --server.port=${BE_PORT} > app.log 2>&1 &
+                                """
+                            }
+
+                            sh """
+                                sleep 20
+                                for i in {1..20}; do
+                                    if curl -s --max-time 5 http://localhost:${BE_PORT}/actuator/health | grep UP > /dev/null; then
+                                        exit 0
+                                    fi
+                                    sleep 5
+                                done
+                                exit 1
+                            """
+                        }
+                    }
+                    post {
+                        success {
+                            script { 
+                                sendMattermost("Backend Deploy", "SUCCESS", "#008dff") // 파란색/초록색 계열
+                            }
+                        }
+                        failure {
+                            script { 
+                                sendMattermost("Backend Deploy", "FAILURE", "#FF0000") 
+                            }
+                        }
+                    }
+                }
+
+                // ================= 프론트엔드 파이프라인 =================
+                stage('Frontend Deploy') {
+                    when {
+                        expression { return env.FE_CHANGED == 'true' }
+                    }
+                    steps {
+                        dir("${FE_DIR}") {
+                            echo "Frontend changes detected. Starting FE Build..."
+                            
+                            sh """
+                                echo "📄 Copying .env.production..."
+                                sudo cp ${FE_SERVER_ENV} ./.env.production
+                                sudo chown jenkins:jenkins ./.env.production
+                            """
+
+                            sh '''
+                                echo "📦 Installing Dependencies..."
+                                npm install
+                                echo "🏗️ Building Project..."
+                                CI=false npm run build
+                            '''
+
+                            sh """
+                                echo "🚀 Deploying to Nginx..."
+                                sudo mkdir -p ${FE_DEPLOY_DIR}
+                                sudo rm -rf ${FE_DEPLOY_DIR}/*
+                                sudo cp -r dist/* ${FE_DEPLOY_DIR}/
+                                
+                                sudo chown -R www-data:www-data ${FE_DEPLOY_DIR}
+                                sudo chmod -R 755 ${FE_DEPLOY_DIR}
+                                sudo systemctl reload nginx
+                            """
+                        }
+                    }
+                    post {
+                        success {
+                            script { 
+                                sendMattermost("Frontend Deploy", "SUCCESS", "#008dff") 
+                            }
+                        }
+                        failure {
+                            script { 
+                                sendMattermost("Frontend Deploy", "FAILURE", "#FF0000") 
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Mattermost 알림 전송 함수 (기능 강화)
+def sendMattermost(String jobName, String buildStatus, String color) {
+    // 1. 커밋 메시지 및 개수 가져오기
+    def changeString = getChangeLog()
+    
+    // 2. 소요 시간 포맷팅 (예: 2 min 30 sec)
+    def duration = currentBuild.durationString.replace(' and counting', '')
+    
+    // 3. 빌드 실행자 확인 (없으면 Jenkins로 표시)
+    def userId = "Jenkins"
+    def causes = currentBuild.getBuildCauses()
+    for (cause in causes) {
+        if (cause.userId) {
+            userId = cause.userName
+        }
+    }
+
+    // 4. JSON 페이로드 구성 (Fields 활용)
+    // 주의: 문자열 내 따옴표(")가 있으면 JSON 오류가 날 수 있어 escape 처리 필요
+    def safeChangeLog = changeString.replace('"', '\\"').replace('\n', ' ')
+    
+    def payload = """
+    {
+        "attachments": [
+            {
+                "color": "${color}",
+                "pretext": "📢 **${jobName}** 배포 알림",
+                "fields": [
+                    {
+                        "short": true,
+                        "title": "상태",
+                        "value": "${buildStatus}"
+                    },
+                    {
+                        "short": true,
+                        "title": "빌드 번호",
+                        "value": "#${env.BUILD_NUMBER}"
+                    },
+                    {
+                        "short": true,
+                        "title": "소요 시간",
+                        "value": "${duration}"
+                    },
+                    {
+                        "short": true,
+                        "title": "실행자",
+                        "value": "${userId}"
+                    },
+                    {
+                        "short": false,
+                        "title": "반영된 커밋",
+                        "value": "${safeChangeLog}"
+                    },
+                    {
+                        "short": false,
+                        "title": "로그 확인",
+                        "value": "[👉 Jenkins Console Output](${env.BUILD_URL}console)"
+                    }
+                ]
+            }
+        ]
+    }
+    """
+    
+    // curl 전송
+    sh "curl -s -X POST -H 'Content-Type: application/json' -d '${payload}' ${env.MM_WEBHOOK_URL}"
+}
+
+// 커밋 로그 추출 헬퍼 함수
+@NonCPS
+def getChangeLog() {
+    def changeLogSets = currentBuild.changeSets
+    def msg = ""
+    def count = 0
+    
+    // 변경 사항 순회
+    for (int i = 0; i < changeLogSets.size(); i++) {
+        def entries = changeLogSets[i].items
+        for (int j = 0; j < entries.length; j++) {
+            def entry = entries[j]
+            // 가장 최근 커밋 메시지 1개만 저장
+            if (count == 0) {
+                msg = entry.msg.trim()
+            }
+            count++
+        }
+    }
+    
+    if (count > 1) {
+        return "${msg} (외 ${count - 1}개 커밋)"
+    } else if (count == 1) {
+        return "${msg}"
+    } else {
+        return "변경 사항 없음 (Rebuild 또는 수동 실행)"
+    }
+}
