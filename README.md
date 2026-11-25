@@ -140,7 +140,51 @@ flowchart TB
 
 ### 🎨 프론트엔드 아키텍처 & 핵심 엔지니어링 (Frontend Engineering)
 
-#### 1) 컴포넌트 계층 구조 (Component Hierarchy)
+#### 1) 컴포넌트 재사용 계층 구조 (Atomic Design Hierarchy)
+아토믹 디자인(Atomic Design) 및 관심사 분리(SoC) 원칙에 따라 기초 UI 토큰부터 도메인 복합체까지 5단계로 체계화했습니다:
+
+```mermaid
+flowchart TD
+    subgraph L1["Level 1: Atoms (기초 공통 UI)"]
+        A1["Button / GoldButton / FilterButton"]
+        A2["Badge / StatusBadge / PositionIcon"]
+        A3["Avatar / Skeleton / LoadingSpinner"]
+    end
+
+    subgraph L2["Level 2: Molecules (조합형 컴포넌트)"]
+        M1["AuthInput (Label + Input + Error)"]
+        M2["ChatBubble / ChatInput / Toast"]
+        M3["StatCard / ActiveBidderCard / TimerCircle"]
+    end
+
+    subgraph L3["Level 3: Organisms (도메인 복합 UI)"]
+        O1["TournamentCard (대회 카드)"]
+        O2["TeamLeaderCard / DraftMemberCard"]
+        O3["DraftPoolColumn (포지션별 DnD 컬럼)"]
+        O4["PlayerQueue (경매 대기열 & 유찰 큐)"]
+        O5["TeamCard (팀 로스터 현황)"]
+        O6["UnifiedChat / AnalysisResultModal"]
+    end
+
+    subgraph L4["Level 4: Layouts (화면 템플릿)"]
+        T1["MainLayout (Header + Content + Footer)"]
+        T2["DraftLayout (3컬럼 풀스크린 경매 레이아웃)"]
+    end
+
+    subgraph L5["Level 5: Pages (라우트 뷰 & 오케스트레이션)"]
+        P1["Home / Login / Signup"]
+        P2["DraftLobby (대기실)"]
+        P3["Draft (실시간 경매)"]
+        P4["DraftResult (결과 & AI)"]
+        P5["Profile (마이페이지)"]
+    end
+
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
+    L4 --> L5
+```
+
 ```text
 src/
 ├── pages/
@@ -160,7 +204,113 @@ src/
     └── userStore.js               # 로그인 사용자 프로필 및 소환사 연동 정보
 ```
 
-#### 2) 낙관적 업데이트 (Optimistic Update) & 롤백 라이프사이클
+#### 2) 화면별 컴포넌트 와이어프레임 구조도 (Component Wireframes)
+<details>
+<summary><b>📐 주요 4대 화면 컴포넌트 단위 와이어프레임 펼쳐보기 (클릭)</b></summary>
+
+##### ① 메인 페이지 (`Home/index.jsx`)
+```text
++-----------------------------------------------------------------------------------+
+|  [Header.jsx]                                                                     |
+|  [Logo] LoL Auction         [대회 탐색]  [랭킹]           [Avatar] [로그인/내정보]  |
++-----------------------------------------------------------------------------------+
+|  [HeroSection.jsx]                                                                |
+|     "협곡의 주인을 결정하는 전략적 드래프트"                                      |
+|     [GoldButton] 대회 생성하기          [Button] 코드로 참여하기                  |
++-----------------------------------------------------------------------------------+
+|  [TournamentSection.jsx]                                                          |
+|  [SectionTitle: 진행 중인 대회]                                                   |
+|  [FilterButton: 전체 / 모집중 / 경매중 / 종료]                [SearchInput 검색]   |
+|  +----------------------+  +----------------------+  +-------------------------+  |
+|  | [TournamentCard.jsx] |  | [TournamentCard.jsx] |  | [TournamentCard.jsx]    |  |
+|  | - StatusBadge        |  | - StatusBadge        |  | - StatusBadge           |  |
+|  | - Title              |  | - Title              |  | - Title                 |  |
+|  | - [Button: 입장하기] |  | - [Button: 입장하기] |  | - [Button: 입장하기]    |  |
+|  +----------------------+  +----------------------+  +-------------------------+  |
++-----------------------------------------------------------------------------------+
+|  [StatsSection.jsx]  [StatCard: 총 대회]  [StatCard: 소환사]  [StatCard: 낙찰 포인트]|
++-----------------------------------------------------------------------------------+
+|  [Footer.jsx] Copyright © Draft-Go                                                |
++-----------------------------------------------------------------------------------+
+```
+
+##### ② 대기실 페이지 (`DraftLobby/index.jsx`)
+```text
++-----------------------------------------------------------------------------------+
+|  [LobbyInfoSection.jsx]  [대회명: 제1회 SSAFY 리그]  [코드: A9F12K]  [포인트: 1000pt] |
++----------------------------------------------------+------------------------------+
+|  [CaptainsSection.jsx] (Drag Destination: Captain) |  [ChatSection.jsx]           |
+|  +-----------------------------------------------+ |  +-------------------------+ |
+|  | [TeamLeaderCard.jsx]  | [TeamLeaderCard.jsx]  | |  | [UnifiedChat.jsx]       | |
+|  | - 팀장: 루안 (MID)    | - 팀장: 페이커 (MID)  | |  | - ChatBubble (System)   | |
+|  | - 보유: 1000 pt       | - 보유: 1000 pt       | |  | - ChatBubble (User)     | |
+|  | - [Slot 1..4 빈 슬롯] | - [Slot 1..4 빈 슬롯] | |  |                         | |
+|  +-----------------------------------------------+ |  |                         | |
+|                                                    |  |                         | |
+|  [DraftPoolSection.jsx] (Drag Source / Droppable)  |  |                         | |
+|  +-----------------------------------------------+ |  |                         | |
+|  | [DraftPoolColumn: TOP / JUG / MID / BOT / SUP] | |  |                         | |
+|  | +--------------------+ +--------------------+ | |  |                         | |
+|  | |[DraftMemberCard]   | |[DraftMemberCard]   | | |  |                         | |
+|  | | Tier: Gold 2       | | Tier: Diamond 4    | | |  |                         | |
+|  | +--------------------+ +--------------------+ | |  | [ChatInput.jsx]         | |
+|  | [DraftPoolColumn: SPECTATOR (관전자 풀)]       | |  | [메시지 입력...] [전송] | |
+|  +-----------------------------------------------+ |  +-------------------------+ |
++----------------------------------------------------+------------------------------+
+|  [LobbyFooterSection.jsx]  참가: 10/10명 완료    [포지션 변경]   [GoldButton: 게임 시작]|
++-----------------------------------------------------------------------------------+
+```
+
+##### ③ 실시간 경매 페이지 (`Draft/index.jsx`)
+```text
++---------------------------------------------------------------------------------------------------------+
+|  [TeamListSidebar.jsx]        |  [AuctionSection.jsx / AuctionStage.jsx]       |  [ChatSidebar.jsx]     |
+|                               |                                                |                         |
+|  [TeamCard: Blue Team]        |  [PlayerQueue.jsx] (선수 대기열 슬라이더)      |  [실시간 경매 로그]     |
+|  - 팀장: 루안 (잔여: 620pt)   |  [Card 1] -> [Card 2] -> [Card 3] (순서대로)   |  - [입찰] Blue 220pt    |
+|  - TOP: 선수 A (120pt)        |  [PassedQueueCard.jsx: 유찰 1명 대기중]        |  - [입찰] Red 240pt     |
+|  - JUG: [PositionSlot (빈값)] |  --------------------------------------------  |  - [경매] 5초 남음!     |
+|  - MID: 선수 B (260pt)        |  [현재 경매 대상 선수 카드]                    |                         |
+|  - BOT: [PositionSlot]        |  +------------------------------------------+  |  ---------------------  |
+|  - SUP: [PositionSlot]        |  | [Avatar] 소환사명: 불꽃남자               |  |  [실시간 참여자 채팅]   |
+|  ---------------------------  |  | Tier: Diamond 3 / 승률: 58%              |  |  - User1: 대박 ㄷㄷ    |
+|  [TeamCard: Red Team]         |  | Most: 아칼리, 사일러스, 요네              |  |  - User2: 올인 각?     |
+|  - 팀장: 페이커 (잔여: 450pt) |  +------------------------------------------+  |                         |
+|  - TOP: [PositionSlot]        |  [TimerCircle.jsx: 00:12] (원형 카운트다운)    |                         |
+|  - JUG: 선수 C (350pt)        |  [ActiveBidderCard.jsx: 최고 입찰자 Red Team]  |                         |
+|  - MID: [PositionSlot]        |  --------------------------------------------  |                         |
+|  - BOT: [PositionSlot]        |  [BidButton.jsx / 입찰 패널]                   |  [ChatInput.jsx]        |
+|  - SUP: [PositionSlot]        |  현재가: 240 pt  |  [GoldButton: +20pt 입찰]   |  [채팅 입력...] [전송]  |
++---------------------------------------------------------------------------------------------------------+
+```
+
+##### ④ 경매 결과 및 AI 분석 페이지 (`DraftResult/index.jsx`)
+```text
++-----------------------------------------------------------------------------------+
+|  [ResultHeader: 드래프트 경매 최종 결과]   소요 시간: 14분 20초 | 총 지출: 1,840 pt   |
++-----------------------------------------------------------------------------------+
+|  +-------------------------------------+  +------------------------------------+  |
+|  | [TeamCard.jsx (BLUE TEAM)]          |  | [TeamCard.jsx (RED TEAM)]          |  |
+|  | 팀장: 루안 (잔여: 140pt)            |  | 팀장: 페이커 (잔여: 20pt)          |  |
+|  | TOP: 소환사 1 (220pt)               |  | TOP: 소환사 6 (340pt)              |  |
+|  | JUG: 소환사 2 (180pt)               |  | JUG: 소환사 7 (160pt)              |  |
+|  | MID: 소환사 3 (310pt)               |  | MID: 소환사 8 (400pt)              |  |
+|  | BOT: 소환사 4 (110pt)               |  | BOT: 소환사 9 (50pt)               |  |
+|  | SUP: 소환사 5 (40pt)                |  | SUP: 소환사 10 (30pt)              |  |
+|  +-------------------------------------+  +------------------------------------+  |
++-----------------------------------------------------------------------------------+
+|  [Button: 우리팀 AI 분석]                    [GoldButton: 양팀 전력 비교 분석]     |
++-----------------------------------------------------------------------------------+
+|  [AnalysisResultModal.jsx] (GPT-4o 전력 분석 리포트 모달)                          |
+|  • 예상 승률 바: BLUE 62%  vs  RED 38%                                            |
+|  • Key Player: MID (소환사 3) - 최근 10경기 승률 80%, 모스트 챔피언 지표 우세      |
+|  • Target Player: BOT (소환사 9) - 상대 봇 듀오 숙련도 열세로 집중 공략 권장      |
+|  • SWOT: S(상체 교전력 우세) / W(초반 바텀 안정성 부재) / O(상대 정글 갱킹률 저조) |
++-----------------------------------------------------------------------------------+
+```
+</details>
+
+#### 3) 낙관적 업데이트 (Optimistic Update) & 롤백 라이프사이클
 `@hello-pangea/dnd`와 TanStack Query를 결합하여 지연 없는 드래그 반응성을 보장하고 예외 시 무결성을 유지합니다:
 
 ```mermaid
